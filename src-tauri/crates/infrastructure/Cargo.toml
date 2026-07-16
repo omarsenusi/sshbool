@@ -1,0 +1,35 @@
+[package]
+name = "infrastructure"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+domain = { workspace = true }
+application = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+zeroize = { workspace = true }
+secrecy = { workspace = true }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate"] }
+argon2 = "0.5"
+aes-gcm = "0.10"
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+russh = { version = "0.62", default-features = false, features = ["flate2", "ring", "rsa"] }
+russh-sftp = "2.3"
+futures = "0.3"
+bytes = "1"
+ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "alloc", "encryption"] }
+ssh-encoding = "0.2"
+regex = "1"
+dirs = "6"
+chrono = { version = "0.4", features = ["serde"] }

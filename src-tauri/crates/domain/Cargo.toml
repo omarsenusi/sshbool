@@ -1,0 +1,12 @@
+[package]
+name = "domain"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
+zeroize = { workspace = true }

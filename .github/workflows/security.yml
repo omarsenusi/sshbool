@@ -1,0 +1,54 @@
+name: Security
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+  push:
+    paths:
+      - "src-tauri/Cargo.lock"
+      - "bun.lock"
+      - ".github/workflows/security.yml"
+
+jobs:
+  rust-advisories:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: src-tauri/Cargo.toml
+          command: check advisories
+        continue-on-error: true
+
+  js-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun pm ls >/dev/null
+      - name: bun audit
+        run: bun audit
+        continue-on-error: true
+
+  integration-ssh:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start OpenSSH fixture
+        run: docker compose -f docker-compose.test.yml up -d
+      - name: Wait for ssh
+        run: |
+          for i in $(seq 1 30); do
+            if nc -z 127.0.0.1 2222; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Smoke ssh
+        run: |
+          sshpass -p testpass ssh -o StrictHostKeyChecking=no -p 2222 test@127.0.0.1 'echo ok' || true
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v

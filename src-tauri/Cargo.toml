@@ -1,0 +1,73 @@
+[workspace]
+members = [".", "crates/domain", "crates/application", "crates/infrastructure"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Proprietary"
+authors = ["SSHBool"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+thiserror = "2"
+anyhow = "1"
+async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+uuid = { version = "1", features = ["v7", "serde"] }
+time = { version = "0.3", features = ["serde"] }
+zeroize = { version = "1", features = ["derive"] }
+secrecy = { version = "0.10", features = ["serde"] }
+domain = { path = "crates/domain" }
+application = { path = "crates/application" }
+infrastructure = { path = "crates/infrastructure" }
+
+[package]
+name = "sshbool"
+version.workspace = true
+edition.workspace = true
+description = "SSHBool — Infrastructure Workspace"
+
+[lib]
+name = "sshbool_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-updater = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+domain = { workspace = true }
+application = { workspace = true }
+infrastructure = { workspace = true }
+base64 = "0.22"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+rand = "0.8"
+ssh-key = { version = "0.6", features = ["ed25519", "rsa", "ecdsa", "alloc", "encryption"] }
+russh = { version = "0.62", default-features = false, features = ["flate2", "ring", "rsa"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+regex = "1"
+ed25519-dalek = { version = "2", features = ["std"] }
+hex = "0.4"
+dirs = "6"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
