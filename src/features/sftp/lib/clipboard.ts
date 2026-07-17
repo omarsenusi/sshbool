@@ -4,6 +4,7 @@ import type { SftpEntryDto } from "@/lib/ipc/types"
 export type PaneSide = "local" | "remote"
 
 export type SftpClipboard = {
+  hostId: string
   side: PaneSide
   mode: "copy" | "cut"
   entries: SftpEntryDto[]

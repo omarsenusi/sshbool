@@ -51,6 +51,7 @@ fn host_from_row(h: HostRow) -> HostDto {
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn map_host(
     id: String,
     group_id: Option<String>,
@@ -221,8 +222,12 @@ pub async fn hosts_create(
     crate::commands::license::assert_can_add_host(&state).await?;
     let id = Uuid::now_v7().to_string();
     let now = chrono::Utc::now().timestamp_millis();
-    let resolved_key =
-        resolve_ssh_key_id(state.vault.pool(), &host.auth_method, host.ssh_key_id.clone()).await?;
+    let resolved_key = resolve_ssh_key_id(
+        state.vault.pool(),
+        &host.auth_method,
+        host.ssh_key_id.clone(),
+    )
+    .await?;
     // identity_id references identities(id) — never store an ssh_keys id here.
     // SSH keys are bound via settings key host:{id}:ssh_key.
     sqlx::query(

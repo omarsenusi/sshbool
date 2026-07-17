@@ -68,10 +68,7 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), DomainError> {
             if meaningful.is_empty() {
                 continue;
             }
-            if let Err(e) = sqlx::query(&format!("{meaningful};"))
-                .execute(pool)
-                .await
-            {
+            if let Err(e) = sqlx::query(&format!("{meaningful};")).execute(pool).await {
                 let msg = e.to_string();
                 // Re-runnable migrations: ignore already-applied schema tweaks.
                 if !msg.contains("duplicate column name") {

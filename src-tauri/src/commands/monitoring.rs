@@ -443,17 +443,9 @@ fn spawn_sampler(
                 break;
             }
 
-            let include_procs = tick % 2 == 0;
-            let include_services = tick % 8 == 0;
-            match sample_once(
-                &state,
-                &host_id,
-                include_procs,
-                include_services,
-                &prev,
-            )
-            .await
-            {
+            let include_procs = tick.is_multiple_of(2);
+            let include_services = tick.is_multiple_of(8);
+            match sample_once(&state, &host_id, include_procs, include_services, &prev).await {
                 Ok((snap, next_prev)) => {
                     prev = next_prev;
                     let topic = metrics_snapshot(&host_id);

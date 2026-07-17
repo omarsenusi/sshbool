@@ -161,12 +161,7 @@ impl ConnectionManager {
             let jump_guard = jump_live.lock().await;
             let channel = jump_guard
                 .handle
-                .channel_open_direct_tcpip(
-                    hostname.as_str(),
-                    port as u32,
-                    "127.0.0.1",
-                    0,
-                )
+                .channel_open_direct_tcpip(hostname.as_str(), port as u32, "127.0.0.1", 0)
                 .await
                 .map_err(|e| DomainError::Conflict(format!("ProxyJump channel: {e}")))?;
             drop(jump_guard);
@@ -339,12 +334,16 @@ impl ConnectionManager {
         dest_port: u16,
     ) -> Result<(), DomainError> {
         let session_id = self.session_open(host_id).await?;
-        let live = self.sessions.read().await.get(&session_id).cloned().ok_or(
-            DomainError::NotFound {
-                entity: "session",
-                id: Some(session_id),
-            },
-        )?;
+        let live =
+            self.sessions
+                .read()
+                .await
+                .get(&session_id)
+                .cloned()
+                .ok_or(DomainError::NotFound {
+                    entity: "session",
+                    id: Some(session_id),
+                })?;
 
         let listener = tokio::net::TcpListener::bind((bind_addr, bind_port))
             .await
@@ -596,12 +595,16 @@ impl ConnectionManager {
     /// Run a non-interactive command on the host and return stdout+stderr.
     pub async fn exec_command(&self, host_id: &str, command: &str) -> Result<String, DomainError> {
         let session_id = self.session_open(host_id).await?;
-        let live = self.sessions.read().await.get(&session_id).cloned().ok_or(
-            DomainError::NotFound {
-                entity: "session",
-                id: Some(session_id),
-            },
-        )?;
+        let live =
+            self.sessions
+                .read()
+                .await
+                .get(&session_id)
+                .cloned()
+                .ok_or(DomainError::NotFound {
+                    entity: "session",
+                    id: Some(session_id),
+                })?;
         let guard = live.lock().await;
         let mut channel = guard
             .handle
@@ -688,7 +691,11 @@ impl ConnectionManager {
             .await
             .unwrap_or_else(|_| request.to_string());
         let base = resolved.trim_end_matches('/').to_string();
-        let base = if base.is_empty() { "/".to_string() } else { base };
+        let base = if base.is_empty() {
+            "/".to_string()
+        } else {
+            base
+        };
 
         let entries = sftp
             .read_dir(&base)
@@ -936,12 +943,7 @@ impl ConnectionManager {
     }
 
     /// Copy remote file or directory (recursive).
-    pub async fn sftp_copy(
-        &self,
-        host_id: &str,
-        from: &str,
-        to: &str,
-    ) -> Result<(), DomainError> {
+    pub async fn sftp_copy(&self, host_id: &str, from: &str, to: &str) -> Result<(), DomainError> {
         let sftp = self.open_sftp(host_id).await?;
         Self::sftp_copy_path(&sftp, from, to).await
     }

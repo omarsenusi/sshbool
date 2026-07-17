@@ -57,13 +57,12 @@ async fn load_credential_secret(
     state: &AppState,
     credential_id: &str,
 ) -> Result<Option<String>, AppError> {
-    let row: Option<(Vec<u8>, Vec<u8>)> = sqlx::query_as(
-        "SELECT ciphertext, nonce FROM credentials WHERE id = ?",
-    )
-    .bind(credential_id)
-    .fetch_optional(state.vault.pool())
-    .await
-    .map_err(db)?;
+    let row: Option<(Vec<u8>, Vec<u8>)> =
+        sqlx::query_as("SELECT ciphertext, nonce FROM credentials WHERE id = ?")
+            .bind(credential_id)
+            .fetch_optional(state.vault.pool())
+            .await
+            .map_err(db)?;
 
     let Some((ct, nonce)) = row else {
         return Ok(None);
@@ -79,10 +78,7 @@ async fn load_credential_secret(
         .map(Some)
 }
 
-async fn load_db_connection(
-    state: &AppState,
-    connection_id: &str,
-) -> Result<DbConn, AppError> {
+async fn load_db_connection(state: &AppState, connection_id: &str) -> Result<DbConn, AppError> {
     let row: Option<(
         Option<String>,
         String,
@@ -121,7 +117,7 @@ async fn load_db_connection(
         ssh_host_id: ssh_host,
         engine: engine.clone(),
         host: host.unwrap_or_else(|| "127.0.0.1".into()),
-        port: port.unwrap_or_else(|| {
+        port: port.unwrap_or({
             if matches!(engine.as_str(), "mysql" | "mariadb") {
                 3306
             } else {
@@ -169,7 +165,11 @@ fn parse_tsv(out: &str) -> (Vec<String>, Vec<Vec<String>>) {
 
 fn looks_like_select(sql: &str) -> bool {
     let t = sql.trim().to_uppercase();
-    t.starts_with("SELECT") || t.starts_with("WITH") || t.starts_with("SHOW") || t.starts_with("DESCRIBE") || t.starts_with("DESC ")
+    t.starts_with("SELECT")
+        || t.starts_with("WITH")
+        || t.starts_with("SHOW")
+        || t.starts_with("DESCRIBE")
+        || t.starts_with("DESC ")
 }
 
 fn build_db_cmd(conn: &DbConn, sql: &str, structured: bool) -> Result<String, AppError> {
@@ -208,10 +208,7 @@ fn build_db_cmd(conn: &DbConn, sql: &str, structured: bool) -> Result<String, Ap
             "mongosh --quiet mongodb://{}:{}/{} --eval '{sql_escaped}' 2>&1",
             conn.host, conn.port, conn.database
         )),
-        "sqlite" => Ok(format!(
-            "sqlite3 {} '{sql_escaped}' 2>&1",
-            conn.database
-        )),
+        "sqlite" => Ok(format!("sqlite3 {} '{sql_escaped}' 2>&1", conn.database)),
         other => Err(AppError::Validation {
             field: "engine".into(),
             message: format!("unsupported engine: {other}"),
@@ -227,7 +224,10 @@ async fn exec_db(
 ) -> Result<(String, Option<(Vec<String>, Vec<Vec<String>>)>, i64), AppError> {
     let cmd = build_db_cmd(conn, sql, structured)?;
     let started = chrono::Utc::now().timestamp_millis();
-    let out = state.connections.exec_command(&conn.ssh_host_id, &cmd).await?;
+    let out = state
+        .connections
+        .exec_command(&conn.ssh_host_id, &cmd)
+        .await?;
     let duration = chrono::Utc::now().timestamp_millis() - started;
 
     let lower = out.to_lowercase();
@@ -285,12 +285,14 @@ pub async fn db_connections_list(state: State<'_, Arc<AppState>>) -> Result<Vec<
     .map_err(db)?;
     Ok(rows
         .into_iter()
-        .map(|(id, host_id, engine, name, host, port, database_name, username)| {
-            json!({
-                "id": id, "hostId": host_id, "engine": engine, "name": name,
-                "host": host, "port": port, "database": database_name, "username": username
-            })
-        })
+        .map(
+            |(id, host_id, engine, name, host, port, database_name, username)| {
+                json!({
+                    "id": id, "hostId": host_id, "engine": engine, "name": name,
+                    "host": host, "port": port, "database": database_name, "username": username
+                })
+            },
+        )
         .collect())
 }
 
@@ -351,7 +353,10 @@ pub async fn db_query(
 ) -> Result<Value, AppError> {
     let conn = load_db_connection(&state, &connection_id).await?;
     let structured = looks_like_select(&sql)
-        && matches!(conn.engine.as_str(), "postgres" | "postgresql" | "mysql" | "mariadb");
+        && matches!(
+            conn.engine.as_str(),
+            "postgres" | "postgresql" | "mysql" | "mariadb"
+        );
 
     let (out, parsed, duration) = exec_db(&state, &conn, &sql, structured).await?;
 
@@ -448,7 +453,8 @@ pub async fn db_introspect(
         }
     }
 
-    let mut fk_map: std::collections::HashMap<String, Vec<Value>> = std::collections::HashMap::new();
+    let mut fk_map: std::collections::HashMap<String, Vec<Value>> =
+        std::collections::HashMap::new();
     for r in &fk_rows {
         if r.len() >= 5 {
             let key = format!("{}|{}", r[0], r[1]);
@@ -460,7 +466,8 @@ pub async fn db_introspect(
         }
     }
 
-    let mut col_map: std::collections::HashMap<String, Vec<Value>> = std::collections::HashMap::new();
+    let mut col_map: std::collections::HashMap<String, Vec<Value>> =
+        std::collections::HashMap::new();
     for r in &col_rows {
         if r.len() >= 6 {
             let key = format!("{}|{}", r[0], r[1]);
@@ -475,7 +482,8 @@ pub async fn db_introspect(
         }
     }
 
-    let mut schema_map: std::collections::BTreeMap<String, Vec<Value>> = std::collections::BTreeMap::new();
+    let mut schema_map: std::collections::BTreeMap<String, Vec<Value>> =
+        std::collections::BTreeMap::new();
     for r in &table_rows {
         if r.len() >= 2 {
             let schema = r[0].clone();
@@ -518,9 +526,7 @@ pub async fn db_table_preview(
             let sch = schema.as_deref().unwrap_or("public");
             let tbl = table.replace('"', "\"\"");
             let sch_esc = sch.replace('"', "\"\"");
-            format!(
-                "SELECT * FROM \"{sch_esc}\".\"{tbl}\" LIMIT {lim} OFFSET {off}"
-            )
+            format!("SELECT * FROM \"{sch_esc}\".\"{tbl}\" LIMIT {lim} OFFSET {off}")
         }
         "mysql" | "mariadb" => {
             let tbl = table.replace('`', "``");
@@ -879,7 +885,10 @@ pub async fn devtools_git_status(
 ) -> Result<String, AppError> {
     state
         .connections
-        .exec_command(&host_id, &format!("cd {path} && git status -sb && git remote -v 2>&1"))
+        .exec_command(
+            &host_id,
+            &format!("cd {path} && git status -sb && git remote -v 2>&1"),
+        )
         .await
         .map_err(Into::into)
 }
@@ -891,7 +900,13 @@ pub async fn devtools_run(
     command: String,
 ) -> Result<String, AppError> {
     // Allowlisted diagnostic helpers only.
-    let allowed = ["ping -c 3", "dig +short", "curl -I", "nslookup", "traceroute"];
+    let allowed = [
+        "ping -c 3",
+        "dig +short",
+        "curl -I",
+        "nslookup",
+        "traceroute",
+    ];
     if !allowed.iter().any(|p| command.starts_with(p)) {
         return Err(AppError::Validation {
             field: "command".into(),
@@ -909,13 +924,18 @@ pub async fn devtools_run(
 
 #[tauri::command]
 pub async fn sync_status(state: State<'_, Arc<AppState>>) -> Result<Value, AppError> {
-    let row: Option<(i64, Option<String>, Option<String>, Option<i64>, Option<i64>)> =
-        sqlx::query_as(
-            "SELECT enabled, endpoint, account_id, last_pull_at, last_push_at FROM sync_state LIMIT 1",
-        )
-        .fetch_optional(state.vault.pool())
-        .await
-        .map_err(db)?;
+    let row: Option<(
+        i64,
+        Option<String>,
+        Option<String>,
+        Option<i64>,
+        Option<i64>,
+    )> = sqlx::query_as(
+        "SELECT enabled, endpoint, account_id, last_pull_at, last_push_at FROM sync_state LIMIT 1",
+    )
+    .fetch_optional(state.vault.pool())
+    .await
+    .map_err(db)?;
     Ok(match row {
         Some((enabled, endpoint, account_id, last_pull, last_push)) => json!({
             "enabled": enabled != 0,
@@ -1020,7 +1040,14 @@ pub async fn sync_push(state: State<'_, Arc<AppState>>) -> Result<Value, AppErro
     let _ = sqlx::query("UPDATE sync_changes SET acked = 1 WHERE acked = 0")
         .execute(state.vault.pool())
         .await;
-    audit(&state, "sync.push", None, "ok", Some(json!({ "http": status }))).await;
+    audit(
+        &state,
+        "sync.push",
+        None,
+        "ok",
+        Some(json!({ "http": status })),
+    )
+    .await;
     Ok(json!({ "pushed": 1, "relay": body, "httpStatus": status }))
 }
 
@@ -1060,11 +1087,15 @@ pub async fn sync_pull(state: State<'_, Arc<AppState>>) -> Result<Value, AppErro
             let id = Uuid::now_v7().to_string();
             let ct = item["ciphertextB64"]
                 .as_str()
-                .and_then(|s| base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s).ok())
+                .and_then(|s| {
+                    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s).ok()
+                })
                 .unwrap_or_default();
             let nonce = item["nonceB64"]
                 .as_str()
-                .and_then(|s| base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s).ok())
+                .and_then(|s| {
+                    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s).ok()
+                })
                 .unwrap_or_default();
             if ct.is_empty() {
                 continue;
@@ -1093,7 +1124,10 @@ pub async fn sync_pull(state: State<'_, Arc<AppState>>) -> Result<Value, AppErro
 }
 
 #[tauri::command]
-pub async fn sync_unpair(state: State<'_, Arc<AppState>>, device_id: String) -> Result<(), AppError> {
+pub async fn sync_unpair(
+    state: State<'_, Arc<AppState>>,
+    device_id: String,
+) -> Result<(), AppError> {
     sqlx::query("DELETE FROM devices WHERE id = ?")
         .bind(&device_id)
         .execute(state.vault.pool())
@@ -1121,16 +1155,13 @@ pub async fn sync_resolve_conflict(
 }
 
 #[tauri::command]
-pub async fn sync_export_bundle(
-    state: State<'_, Arc<AppState>>,
-) -> Result<Value, AppError> {
+pub async fn sync_export_bundle(state: State<'_, Arc<AppState>>) -> Result<Value, AppError> {
     // Export host metadata (no secrets) + queue encrypted change for multi-device sync.
-    let hosts: Vec<(String, String, String, i64)> = sqlx::query_as(
-        "SELECT id, label, hostname, port FROM hosts WHERE deleted_at IS NULL",
-    )
-    .fetch_all(state.vault.pool())
-    .await
-    .map_err(db)?;
+    let hosts: Vec<(String, String, String, i64)> =
+        sqlx::query_as("SELECT id, label, hostname, port FROM hosts WHERE deleted_at IS NULL")
+            .fetch_all(state.vault.pool())
+            .await
+            .map_err(db)?;
     let payload = json!({ "hosts": hosts.iter().map(|(id, label, hostname, port)| {
         json!({ "id": id, "label": label, "hostname": hostname, "port": port })
     }).collect::<Vec<_>>(), "exportedAt": chrono::Utc::now().timestamp_millis() });

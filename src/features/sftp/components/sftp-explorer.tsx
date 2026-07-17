@@ -28,6 +28,7 @@ import {
 } from "@/features/sftp/lib/remote-path"
 import { ipc } from "@/lib/ipc/commands"
 import type { SftpEntryDto, TransferJobDto } from "@/lib/ipc/types"
+import { flattenHosts } from "@/features/connections/host-appearance"
 import { useConnectionStore } from "@/stores/connection.store"
 import { useLayoutStore } from "@/stores/layout.store"
 import { runSftpActivity } from "@/stores/sftp-activity.store"
@@ -49,6 +50,16 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
   const clipboard = useSftpClipboard((s) => s.clipboard)
   const setClipboard = useSftpClipboard((s) => s.setClipboard)
   const clearClipboard = useSftpClipboard((s) => s.clearClipboard)
+  /** Clipboard is only valid for this host's remote/local ops. */
+  const hostClipboard =
+    clipboard?.hostId === hostId ? clipboard : null
+
+  const hostsTree = useQuery({
+    queryKey: ["hosts"],
+    queryFn: () => ipc.hostsListTree(),
+  })
+  const hostLabel =
+    flattenHosts(hostsTree.data ?? []).find((h) => h.id === hostId)?.label ?? "Remote"
 
   const [localSelected, setLocalSelected] = useState<string[]>([])
   const [remoteSelected, setRemoteSelected] = useState<string[]>([])
@@ -107,6 +118,8 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     queryKey: ["sftp", hostId, remotePath],
     queryFn: () => ipc.sftpListDir(hostId, remotePath),
     enabled: !!hostId && connected,
+    // Only keep previous page while navigating *this* host — never across hosts
+    // (each explorer instance is already host-scoped).
     placeholderData: keepPreviousData,
   })
 
@@ -261,8 +274,8 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
   }
 
   async function doPaste(side: PaneSide, destDir: string) {
-    if (!clipboard?.entries.length) return
-    const { side: srcSide, mode, entries } = clipboard
+    if (!hostClipboard?.entries.length) return
+    const { side: srcSide, mode, entries } = hostClipboard
     const names = entries.map((e) => e.name).join(", ")
 
     await runSftpActivity(
@@ -372,18 +385,18 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       type: "item",
       label: "Copy",
       disabled: !focus,
-      onClick: () => setClipboard({ side, mode: "copy", entries: targets }),
+      onClick: () => setClipboard({ hostId, side, mode: "copy", entries: targets }),
     })
     items.push({
       type: "item",
       label: "Cut",
       disabled: !focus,
-      onClick: () => setClipboard({ side, mode: "cut", entries: targets }),
+      onClick: () => setClipboard({ hostId, side, mode: "cut", entries: targets }),
     })
     items.push({
       type: "item",
       label: "Paste",
-      disabled: !clipboard?.entries.length,
+      disabled: !hostClipboard?.entries.length,
       onClick: () =>
         void doPaste(
           side,
@@ -493,10 +506,10 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         setDel({ side, entries })
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && entries.length) {
-        setClipboard({ side, mode: "copy", entries })
+        setClipboard({ hostId, side, mode: "copy", entries })
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x" && entries.length) {
-        setClipboard({ side, mode: "cut", entries })
+        setClipboard({ hostId, side, mode: "cut", entries })
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         void doPaste(side, side === "local" ? localPath : remotePath)
@@ -518,7 +531,8 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     remoteEntries,
     localPath,
     remotePath,
-    clipboard,
+    hostClipboard,
+    hostId,
   ])
 
   const recentTransfers = useMemo(
@@ -538,7 +552,9 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     <div className="relative flex h-full min-h-0 flex-col">
       <div className="border-border flex flex-wrap items-center gap-2 border-b px-3 py-2">
         <span className="text-muted-foreground text-xs">
-          Connected · Local ↔ Remote
+          <span className="text-foreground font-medium">{hostLabel}</span>
+          {" · "}
+          Local ↔ Remote (this server only)
         </span>
         <div className="ml-auto flex gap-2">
           <Button
@@ -630,7 +646,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
           onMouseDown={() => setFocusedPane("remote")}
         >
           <FilePane
-            title="Remote"
+            title={`Remote · ${hostLabel}`}
             side="remote"
             path={remotePath}
             onPathChange={(p) => {

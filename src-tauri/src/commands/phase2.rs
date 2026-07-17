@@ -19,12 +19,11 @@ fn db(e: sqlx::Error) -> AppError {
 
 #[tauri::command]
 pub async fn proxies_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Value>, AppError> {
-    let rows: Vec<(String, String, String, String, i64, Option<String>)> = sqlx::query_as(
-        "SELECT id, name, kind, host, port, username FROM proxies ORDER BY name",
-    )
-    .fetch_all(state.vault.pool())
-    .await
-    .map_err(db)?;
+    let rows: Vec<(String, String, String, String, i64, Option<String>)> =
+        sqlx::query_as("SELECT id, name, kind, host, port, username FROM proxies ORDER BY name")
+            .fetch_all(state.vault.pool())
+            .await
+            .map_err(db)?;
     Ok(rows
         .into_iter()
         .map(|(id, name, kind, host, port, username)| {
@@ -34,7 +33,10 @@ pub async fn proxies_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Value>,
 }
 
 #[tauri::command]
-pub async fn proxies_upsert(state: State<'_, Arc<AppState>>, proxy: Value) -> Result<String, AppError> {
+pub async fn proxies_upsert(
+    state: State<'_, Arc<AppState>>,
+    proxy: Value,
+) -> Result<String, AppError> {
     let id = proxy["id"]
         .as_str()
         .map(str::to_string)
@@ -97,7 +99,10 @@ pub async fn port_forwards_upsert(
 }
 
 #[tauri::command]
-pub async fn port_forwards_delete(state: State<'_, Arc<AppState>>, id: String) -> Result<(), AppError> {
+pub async fn port_forwards_delete(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+) -> Result<(), AppError> {
     sqlx::query("DELETE FROM port_forwards WHERE id = ?")
         .bind(&id)
         .execute(state.vault.pool())
@@ -121,12 +126,14 @@ pub async fn port_forwards_list(
         .map_err(db)?;
     Ok(rows
         .into_iter()
-        .map(|(id, kind, bind_addr, bind_port, dest_addr, dest_port, label)| {
-            json!({
-                "id": id, "kind": kind, "bindAddr": bind_addr, "bindPort": bind_port,
-                "destAddr": dest_addr, "destPort": dest_port, "label": label
-            })
-        })
+        .map(
+            |(id, kind, bind_addr, bind_port, dest_addr, dest_port, label)| {
+                json!({
+                    "id": id, "kind": kind, "bindAddr": bind_addr, "bindPort": bind_port,
+                    "destAddr": dest_addr, "destPort": dest_port, "label": label
+                })
+            },
+        )
         .collect())
 }
 
@@ -312,7 +319,10 @@ pub async fn docker_logs(
     let n = tail.unwrap_or(200);
     state
         .connections
-        .exec_command(&host_id, &format!("docker logs --tail {n} {container_id} 2>&1"))
+        .exec_command(
+            &host_id,
+            &format!("docker logs --tail {n} {container_id} 2>&1"),
+        )
         .await
         .map_err(Into::into)
 }
@@ -365,13 +375,19 @@ fn redact(text: &str) -> String {
 
 #[tauri::command]
 pub async fn ai_providers_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Value>, AppError> {
-    let rows: Vec<(String, String, Option<String>, Option<String>, Option<String>, i64)> =
-        sqlx::query_as(
-            "SELECT id, kind, name, base_url, model, enabled FROM ai_providers ORDER BY created_at",
-        )
-        .fetch_all(state.vault.pool())
-        .await
-        .map_err(db)?;
+    let rows: Vec<(
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        i64,
+    )> = sqlx::query_as(
+        "SELECT id, kind, name, base_url, model, enabled FROM ai_providers ORDER BY created_at",
+    )
+    .fetch_all(state.vault.pool())
+    .await
+    .map_err(db)?;
     Ok(rows
         .into_iter()
         .map(|(id, kind, name, base_url, model, enabled)| {
@@ -426,10 +442,9 @@ pub async fn ai_send(
     conversation_id: Option<String>,
 ) -> Result<Value, AppError> {
     let message = redact(&message);
-    let system = system
-        .unwrap_or_else(|| {
-            "You are SSHBool AI copilot for sysadmins. Be concise. Prefer safe shell commands.".into()
-        });
+    let system = system.unwrap_or_else(|| {
+        "You are SSHBool AI copilot for sysadmins. Be concise. Prefer safe shell commands.".into()
+    });
 
     let row: Option<(String, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
         "SELECT kind, base_url, model, credential_id FROM ai_providers WHERE enabled = 1 ORDER BY updated_at DESC LIMIT 1",
@@ -615,10 +630,11 @@ pub async fn recording_start(
 #[tauri::command]
 pub async fn recording_stop(state: State<'_, Arc<AppState>>, id: String) -> Result<(), AppError> {
     // Marker stop — bytes are written by terminal event tap in a follow-up.
-    let _ = sqlx::query("UPDATE recordings SET duration_ms = COALESCE(duration_ms, 0) WHERE id = ?")
-        .bind(&id)
-        .execute(state.vault.pool())
-        .await;
+    let _ =
+        sqlx::query("UPDATE recordings SET duration_ms = COALESCE(duration_ms, 0) WHERE id = ?")
+            .bind(&id)
+            .execute(state.vault.pool())
+            .await;
     Ok(())
 }
 

@@ -1,16 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { AppWindow, Plus } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { WindowTab, WindowTabStrip } from "@/components/layout/window-tab"
+import { flattenHosts } from "@/features/connections/host-appearance"
 import { TerminalPane } from "@/features/terminal/components/terminal-pane"
 import {
   closeTerminalPopout,
@@ -18,6 +12,7 @@ import {
 } from "@/features/terminal/open-terminal-popout"
 import { ipc } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
+import { useConnectionStore } from "@/stores/connection.store"
 import { useLayoutStore } from "@/stores/layout.store"
 import { useSessionStore } from "@/stores/session.store"
 
@@ -29,28 +24,54 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
   const setActive = useSessionStore((s) => s.setActive)
   const setPoppedOut = useSessionStore((s) => s.setPoppedOut)
   const selectedHostId = useLayoutStore((s) => s.selectedHostId)
-  const [hostId, setHostId] = useState(selectedHostId ?? "")
+  const connected = useConnectionStore((s) =>
+    selectedHostId ? s.byHost[selectedHostId]?.status === "connected" : false,
+  )
 
-  const recent = useQuery({
-    queryKey: ["hosts", "recent"],
-    queryFn: () => ipc.hostsListRecent(20),
+  const tree = useQuery({
+    queryKey: ["hosts"],
+    queryFn: () => ipc.hostsListTree(),
   })
+  const hosts = flattenHosts(tree.data ?? [])
+  const selectedHost = selectedHostId
+    ? hosts.find((h) => h.id === selectedHostId)
+    : undefined
+  const hostLabel = selectedHost?.label ?? null
 
+  /** Only panes for the selected server — never mix hosts in the UI. */
+  const hostPanes = useMemo(
+    () => (selectedHostId ? panes.filter((p) => p.hostId === selectedHostId) : []),
+    [panes, selectedHostId],
+  )
+
+  const active =
+    hostPanes.find((p) => p.paneId === activePaneId) ?? hostPanes[0] ?? null
+
+  // When switching servers, focus that server's terminal tab (if any).
   useEffect(() => {
-    if (selectedHostId) setHostId(selectedHostId)
-  }, [selectedHostId])
+    if (!selectedHostId || hostPanes.length === 0) return
+    const onHost = hostPanes.some((p) => p.paneId === activePaneId)
+    if (!onHost) setActive(hostPanes[0]!.paneId)
+  }, [selectedHostId, hostPanes, activePaneId, setActive])
 
   const openPane = useMutation({
     mutationFn: async (id: string) => {
-      await ipc.sessionOpen(id)
+      const label = hosts.find((h) => h.id === id)?.label
       const pane = await ipc.paneOpen(id, 120, 40)
-      const label = recent.data?.find((h) => h.id === id)?.label
       return { ...pane, title: label ?? pane.title }
     },
     onSuccess: (pane) => {
       addPane(pane)
     },
   })
+
+  // Auto-open one terminal for the selected connected host.
+  useEffect(() => {
+    if (!visible || !selectedHostId || !connected || !hostLabel) return
+    if (hostPanes.length > 0 || openPane.isPending) return
+    openPane.mutate(selectedHostId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, selectedHostId, connected, hostLabel, hostPanes.length])
 
   const closePane = useMutation({
     mutationFn: async (paneId: string) => {
@@ -63,8 +84,6 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
       removePane(paneId)
     },
   })
-
-  const active = panes.find((p) => p.paneId === activePaneId) ?? panes[0]
 
   async function popOut(pane: { paneId: string; hostId: string; title: string }) {
     const ok = await openTerminalPopout({
@@ -109,32 +128,36 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
                 Bring back
               </Button>
             )}
-            <Select
-              value={hostId || null}
-              onValueChange={(v) => setHostId(v ?? "")}
-            >
-              <SelectTrigger className="h-7 w-44 text-xs">
-                <SelectValue placeholder="Select host…" />
-              </SelectTrigger>
-              <SelectContent>
-                {recent.data?.map((h) => (
-                  <SelectItem key={h.id} value={h.id}>
-                    {h.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {hostLabel && (
+              <span
+                className="text-foreground/80 max-w-[10rem] truncate text-xs font-semibold"
+                title={
+                  selectedHost
+                    ? `${selectedHost.username ?? "root"}@${selectedHost.hostname}`
+                    : hostLabel
+                }
+              >
+                {hostLabel}
+              </span>
+            )}
             <Button
               size="icon-xs"
-              disabled={!hostId || openPane.isPending}
-              onClick={() => openPane.mutate(hostId)}
+              title={
+                connected
+                  ? `New terminal on ${hostLabel ?? "host"}`
+                  : "Connect the selected host first"
+              }
+              disabled={!selectedHostId || !connected || openPane.isPending}
+              onClick={() => {
+                if (selectedHostId) openPane.mutate(selectedHostId)
+              }}
             >
               <Plus />
             </Button>
           </>
         }
       >
-        {panes.map((p) => (
+        {hostPanes.map((p) => (
           <WindowTab
             key={p.paneId}
             title={p.title}
@@ -146,22 +169,31 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
         ))}
       </WindowTabStrip>
       <div className="relative min-h-0 flex-1">
-        {panes.length === 0 && (
+        {hostPanes.length === 0 && (
           <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
-            Open a terminal pane for a connected host.
+            {!selectedHostId
+              ? "Select a host from the rail."
+              : !connected
+                ? "Connect this host to open a terminal."
+                : openPane.isPending
+                  ? "Opening terminal…"
+                  : "Open a terminal pane for this host."}
           </div>
         )}
+        {/* Keep all panes mounted so other hosts' buffers survive; only show selected host. */}
         {panes.map((p) => {
-          const isActive = p.paneId === active?.paneId
+          const forSelected = !!selectedHostId && p.hostId === selectedHostId
+          const isActive = forSelected && p.paneId === active?.paneId
           const paneVisible = visible && isActive && !p.poppedOut
           return (
             <div
               key={p.paneId}
               className={cn(
                 "relative h-full w-full",
-                !isActive && "pointer-events-none absolute inset-0 invisible",
+                (!forSelected || !isActive) &&
+                  "pointer-events-none absolute inset-0 invisible",
               )}
-              aria-hidden={!isActive}
+              aria-hidden={!forSelected || !isActive}
             >
               {!p.poppedOut && (
                 <TerminalPane paneId={p.paneId} hostId={p.hostId} visible={paneVisible} />

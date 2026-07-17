@@ -194,8 +194,6 @@ pub fn run() {
             commands::team::team_list_shared,
             commands::team::team_apply_policy,
             commands::team::retention_prune,
-
-
         ])
         .run(tauri::generate_context!())
         .expect("error while running SSHBool");

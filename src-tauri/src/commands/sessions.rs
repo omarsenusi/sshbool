@@ -37,11 +37,18 @@ pub async fn pane_open(
         }
     });
 
+    let label: Option<(String,)> = sqlx::query_as("SELECT label FROM hosts WHERE id = ?")
+        .bind(&host_id)
+        .fetch_optional(state.vault.pool())
+        .await
+        .ok()
+        .flatten();
+
     Ok(PaneInfoDto {
         pane_id,
         session_id,
         host_id: host_id.clone(),
-        title: host_id,
+        title: label.map(|(l,)| l).unwrap_or(host_id),
     })
 }
 

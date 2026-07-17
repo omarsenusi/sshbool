@@ -39,6 +39,7 @@ fn is_canceled(flag: &AtomicBool) -> bool {
     flag.load(Ordering::Relaxed)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn entry_dto(
     name: String,
     path: String,
@@ -63,14 +64,7 @@ fn entry_dto(
 
 fn from_sftp(e: SftpEntry) -> SftpEntryDto {
     entry_dto(
-        e.name,
-        e.path,
-        e.is_dir,
-        e.size,
-        e.mode,
-        e.mtime,
-        e.uid,
-        e.gid,
+        e.name, e.path, e.is_dir, e.size, e.mode, e.mtime, e.uid, e.gid,
     )
 }
 
@@ -191,6 +185,7 @@ fn emit_progress(app: &AppHandle, payload: TransferProgressPayload) {
     let _ = app.emit("transfer://progress", payload);
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn bump_progress(
     app: &AppHandle,
     state: &AppState,
@@ -240,6 +235,7 @@ async fn bump_progress(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn finish_job(
     app: &AppHandle,
     state: &AppState,
@@ -292,6 +288,7 @@ async fn finish_job(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn mark_canceled(
     app: &AppHandle,
     state: &AppState,
@@ -368,7 +365,15 @@ async fn upload_one(
                 if done == tot || done - last >= (tot / 50).max(1) || last < 0 {
                     last = done;
                     let _ = bump_progress(
-                        &app, &state, &job_id, &host_id, "upload", &local_path, &dest, done, tot,
+                        &app,
+                        &state,
+                        &job_id,
+                        &host_id,
+                        "upload",
+                        &local_path,
+                        &dest,
+                        done,
+                        tot,
                     )
                     .await;
                 }
@@ -390,16 +395,7 @@ async fn upload_one(
     match write_result {
         Ok(_) => {
             finish_job(
-                app,
-                state,
-                &job_id,
-                host_id,
-                "upload",
-                local_path,
-                &dest,
-                total,
-                total,
-                "done",
+                app, state, &job_id, host_id, "upload", local_path, &dest, total, total, "done",
                 None,
             )
             .await?;
@@ -446,14 +442,30 @@ async fn download_one(
     let job_id = begin_job(state, host_id, "download", remote_path, &dest, total).await?;
     let cancel = register_cancel(&job_id).await;
     let _ = bump_progress(
-        app, state, &job_id, host_id, "download", remote_path, &dest, 0, total,
+        app,
+        state,
+        &job_id,
+        host_id,
+        "download",
+        remote_path,
+        &dest,
+        0,
+        total,
     )
     .await;
 
     if is_canceled(&cancel) {
         unregister_cancel(&job_id).await;
         let _ = mark_canceled(
-            app, state, &job_id, host_id, "download", remote_path, &dest, 0, total,
+            app,
+            state,
+            &job_id,
+            host_id,
+            "download",
+            remote_path,
+            &dest,
+            0,
+            total,
         )
         .await;
         return Ok(job_id);
@@ -467,7 +479,15 @@ async fn download_one(
     if is_canceled(&cancel) {
         unregister_cancel(&job_id).await;
         let _ = mark_canceled(
-            app, state, &job_id, host_id, "download", remote_path, &dest, 0, total,
+            app,
+            state,
+            &job_id,
+            host_id,
+            "download",
+            remote_path,
+            &dest,
+            0,
+            total,
         )
         .await;
         return Ok(job_id);
@@ -479,7 +499,15 @@ async fn download_one(
             if is_canceled(&cancel) {
                 unregister_cancel(&job_id).await;
                 let _ = mark_canceled(
-                    app, state, &job_id, host_id, "download", remote_path, &dest, 0, total,
+                    app,
+                    state,
+                    &job_id,
+                    host_id,
+                    "download",
+                    remote_path,
+                    &dest,
+                    0,
+                    total,
                 )
                 .await;
                 return Ok(job_id);
@@ -506,7 +534,15 @@ async fn download_one(
             if is_canceled(&cancel) {
                 unregister_cancel(&job_id).await;
                 let _ = mark_canceled(
-                    app, state, &job_id, host_id, "download", remote_path, &dest, 0, total,
+                    app,
+                    state,
+                    &job_id,
+                    host_id,
+                    "download",
+                    remote_path,
+                    &dest,
+                    0,
+                    total,
                 )
                 .await;
                 return Ok(job_id);
@@ -520,7 +556,15 @@ async fn download_one(
             if is_canceled(&cancel) {
                 let _ = tokio::fs::remove_file(&dest).await;
                 let _ = mark_canceled(
-                    app, state, &job_id, host_id, "download", remote_path, &dest, 0, total,
+                    app,
+                    state,
+                    &job_id,
+                    host_id,
+                    "download",
+                    remote_path,
+                    &dest,
+                    0,
+                    total,
                 )
                 .await;
                 return Ok(job_id);
@@ -545,7 +589,15 @@ async fn download_one(
             unregister_cancel(&job_id).await;
             if is_canceled(&cancel) {
                 let _ = mark_canceled(
-                    app, state, &job_id, host_id, "download", remote_path, &dest, 0, total,
+                    app,
+                    state,
+                    &job_id,
+                    host_id,
+                    "download",
+                    remote_path,
+                    &dest,
+                    0,
+                    total,
                 )
                 .await;
                 return Ok(job_id);

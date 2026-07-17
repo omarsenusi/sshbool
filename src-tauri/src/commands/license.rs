@@ -177,11 +177,10 @@ pub async fn license_status(state: State<'_, Arc<AppState>>) -> Result<Value, Ap
         None => ("free".into(), None),
     };
 
-    let hosts: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM hosts WHERE deleted_at IS NULL")
-            .fetch_one(state.vault.pool())
-            .await
-            .unwrap_or((0,));
+    let hosts: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM hosts WHERE deleted_at IS NULL")
+        .fetch_one(state.vault.pool())
+        .await
+        .unwrap_or((0,));
 
     Ok(json!({
         "tier": tier,
@@ -227,7 +226,9 @@ pub async fn license_activate(
     .await
     .map_err(db)?;
 
-    Ok(json!({ "tier": tier, "expiresAt": claims.expires_at, "features": features_for_tier(&tier) }))
+    Ok(
+        json!({ "tier": tier, "expiresAt": claims.expires_at, "features": features_for_tier(&tier) }),
+    )
 }
 
 #[tauri::command]
@@ -245,11 +246,10 @@ pub async fn assert_can_add_host(state: &AppState) -> Result<(), AppError> {
     if tier != "free" {
         return Ok(());
     }
-    let hosts: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM hosts WHERE deleted_at IS NULL")
-            .fetch_one(state.vault.pool())
-            .await
-            .map_err(db)?;
+    let hosts: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM hosts WHERE deleted_at IS NULL")
+        .fetch_one(state.vault.pool())
+        .await
+        .map_err(db)?;
     if hosts.0 >= FREE_HOST_LIMIT {
         return Err(AppError::Unauthorized {
             reason: format!("free_host_limit:{FREE_HOST_LIMIT}"),

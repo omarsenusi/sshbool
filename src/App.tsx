@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useMemo, type ReactNode } from "react"
 
 import { CommandPalette } from "@/components/command-palette/command-palette"
 import { AppShell } from "@/components/layout/app-shell"
@@ -33,10 +33,21 @@ export function App() {
   const setStatus = useVaultStore((s) => s.setStatus)
   const activity = useLayoutStore((s) => s.activity)
   const selectedHostId = useLayoutStore((s) => s.selectedHostId)
+  const byHost = useConnectionStore((s) => s.byHost)
   const connected = useConnectionStore((s) =>
     selectedHostId ? s.byHost[selectedHostId]?.status === "connected" : false,
   )
   const unlocked = !!status?.initialized && !status.locked
+
+  // One SFTP explorer per host so remote listings never mix across servers.
+  const sftpHostIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (selectedHostId) ids.add(selectedHostId)
+    for (const [id, c] of Object.entries(byHost)) {
+      if (c.status === "connected" || c.status === "connecting") ids.add(id)
+    }
+    return [...ids]
+  }, [selectedHostId, byHost])
 
   useEffect(() => {
     void ipc
@@ -67,12 +78,12 @@ export function App() {
           <TerminalWorkspace visible={activity === "terminal"} />
         </KeepAlive>
 
-        {/* Keep SFTP mounted so uploads continue when switching tools. */}
-        {selectedHostId ? (
-          <KeepAlive active={activity === "sftp"}>
-            <SftpExplorer hostId={selectedHostId} />
+        {/* Keep one SFTP explorer per host — listings/uploads stay host-scoped. */}
+        {sftpHostIds.map((id) => (
+          <KeepAlive key={`sftp-${id}`} active={activity === "sftp" && selectedHostId === id}>
+            <SftpExplorer hostId={id} />
           </KeepAlive>
-        ) : null}
+        ))}
 
         {(activity === "home" || activity === "connections") && <HomeOverview />}
         {activity === "sftp" && !selectedHostId && (

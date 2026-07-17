@@ -50,7 +50,7 @@ pub async fn team_join_stub(
     invite_code: String,
 ) -> Result<Value, AppError> {
     crate::commands::license::require_feature(&state, "team").await?;
-    let team_id = format!("team-{}", &invite_code.chars().take(8).collect::<String>());
+    let team_id = format!("team-{}", invite_code.chars().take(8).collect::<String>());
     let id = Uuid::now_v7().to_string();
     let now = chrono::Utc::now().timestamp_millis();
     sqlx::query(

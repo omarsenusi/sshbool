@@ -2,7 +2,7 @@ export type AppError =
   | { kind: "NotFound"; entity: string; id?: string }
   | { kind: "Validation"; field: string; message: string }
   | { kind: "Conflict"; message: string }
-  | { kind: "Unauthorized"; reason: "locked" | "bad_password" | "biometric" }
+  | { kind: "Unauthorized"; reason: string }
   | { kind: "Auth"; method: string; message: string }
   | { kind: "HostKeyChanged"; expected: string; actual: string }
   | { kind: "Connection"; message: string; retryable: boolean }
@@ -29,6 +29,7 @@ export type HostDto = {
   authMethod: string
   identityId: string | null
   color: string | null
+  icon?: string | null
   isFavorite: boolean
   isPinned: boolean
   notes: string | null
@@ -77,7 +78,9 @@ export type NewHostDto = {
   identityId?: string | null
   notes?: string | null
   color?: string | null
+  icon?: string | null
   password?: string | null
+  /** Vault key id, or `"auto"` for latest key. */
   sshKeyId?: string | null
 }
 
@@ -151,6 +154,46 @@ export type TransferJobDto = {
   error: string | null
 }
 
+export type MonitoringProcessDto = {
+  user: string
+  pid: number
+  cpu: number
+  mem: number
+  command: string
+}
+
+export type MonitoringServiceDto = {
+  unit: string
+  load: string
+  active: string
+  sub: string
+}
+
+export type MonitoringDiskDto = {
+  mount: string
+  sizeBytes: number
+  usedBytes: number
+}
+
+export type MonitoringSnapshot = {
+  hostId: string
+  sampledAt: number
+  cpuPct: number
+  memUsed: number
+  memTotal: number
+  swapUsed: number
+  swapTotal: number
+  load1: number
+  load5: number
+  load15: number
+  uptimeSecs: number
+  disks: MonitoringDiskDto[]
+  os: string
+  network?: { rxBps: number; txBps: number }
+  processes?: MonitoringProcessDto[]
+  services?: MonitoringServiceDto[]
+}
+
 export type SnippetDto = {
   id: string
   name: string
@@ -196,4 +239,68 @@ export type AppInfoDto = {
   name: string
   version: string
   tauriVersion: string
+}
+
+export type DetectedDbDto = {
+  engine: string
+  host: string
+  port: number
+  username: string
+  databases: string[]
+}
+
+export type DbColumnDto = {
+  name: string
+  dataType: string
+  nullable: boolean
+  defaultValue?: string | null
+  isPrimaryKey: boolean
+}
+
+export type DbForeignKeyDto = {
+  column: string
+  refTable: string
+  refColumn: string
+}
+
+export type DbTableDto = {
+  name: string
+  schema?: string
+  columns: DbColumnDto[]
+  foreignKeys: DbForeignKeyDto[]
+}
+
+export type DbSchemaGroupDto = {
+  name: string
+  tables: DbTableDto[]
+}
+
+export type DbSchemaDto = {
+  schemas: DbSchemaGroupDto[]
+}
+
+export type DbQueryResultDto = {
+  output?: string | null
+  durationMs: number
+  columns?: string[]
+  rows?: string[][]
+  rowCount?: number
+}
+
+export type DbTablePreviewDto = {
+  columns: string[]
+  rows: string[][]
+  rowCount: number
+  durationMs: number
+}
+
+export type DbConnectionDto = {
+  id: string
+  hostId?: string | null
+  engine: string
+  name: string
+  host?: string | null
+  port?: number | null
+  database?: string | null
+  username?: string | null
 }

@@ -42,6 +42,14 @@ export function EditorWorkspace({
   const active =
     tabs.find((t) => t.id === activeId) ?? tabs[tabs.length - 1] ?? null
 
+  // Keep the active editor tab on this host when switching servers.
+  useEffect(() => {
+    if (tabs.length === 0) return
+    if (!tabs.some((t) => t.id === activeId)) {
+      setActive(tabs[tabs.length - 1]!.id)
+    }
+  }, [hostId, tabs, activeId, setActive])
+
   useEffect(() => {
     if (!initialPath) return
     const key = `${hostId}::${normalizeRemotePath(initialPath)}`

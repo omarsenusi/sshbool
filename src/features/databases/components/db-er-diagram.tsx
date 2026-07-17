@@ -99,9 +99,8 @@ function packWrappedStacks(
   const nodes: LayoutNode[] = []
   let x = startX
   let y = startY
-  let colStartY = startY
+  const colStartY = startY
   let maxY = startY
-  let stacks = 1
 
   for (const id of ids) {
     const { schema: sch, table } = tableById.get(id)!
@@ -109,7 +108,6 @@ function packWrappedStacks(
     if (y > colStartY && y + h - colStartY > maxStackH) {
       x += NODE_W + COL_GAP
       y = colStartY
-      stacks++
     }
     nodes.push({ id, schema: sch, table, x, y, w: NODE_W, h })
     y += h + ROW_GAP
