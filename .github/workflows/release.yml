@@ -45,6 +45,6 @@ jobs:
           tagName: build-${{ github.run_id }}
           releaseName: SSHBool build-${{ github.run_id }}
           releaseBody: "See the docs for changelog."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
