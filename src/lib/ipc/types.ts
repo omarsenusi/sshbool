@@ -29,6 +29,7 @@ export type HostDto = {
   authMethod: string
   identityId: string | null
   color: string | null
+  icon?: string | null
   isFavorite: boolean
   isPinned: boolean
   notes: string | null
@@ -77,7 +78,9 @@ export type NewHostDto = {
   identityId?: string | null
   notes?: string | null
   color?: string | null
+  icon?: string | null
   password?: string | null
+  /** Vault key id, or `"auto"` for latest key. */
   sshKeyId?: string | null
 }
 

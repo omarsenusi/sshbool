@@ -13,6 +13,13 @@ import {
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { formatAppError, IpcError, ipc } from "@/lib/ipc/commands"
 import type { GenerateKeyDto, SshKeyDto } from "@/lib/ipc/types"
 import { cn } from "@/lib/utils"
@@ -220,20 +227,25 @@ export function KeyManager() {
             </label>
             <label className="block space-y-1">
               <span className="text-muted-foreground text-[11px]">Type</span>
-              <select
-                className={fieldClass}
+              <Select
                 value={form.keyType}
-                onChange={(e) =>
+                onValueChange={(v) => {
+                  if (!v) return
                   setForm({
                     ...form,
-                    keyType: e.target.value as GenerateKeyDto["keyType"],
+                    keyType: v as GenerateKeyDto["keyType"],
                   })
-                }
+                }}
               >
-                <option value="ed25519">Ed25519 (recommended)</option>
-                <option value="rsa">RSA 4096</option>
-                <option value="ecdsa">ECDSA P-256</option>
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ed25519">Ed25519 (recommended)</SelectItem>
+                  <SelectItem value="rsa">RSA 4096</SelectItem>
+                  <SelectItem value="ecdsa">ECDSA P-256</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <label className="block space-y-1">
               <span className="text-muted-foreground text-[11px]">Comment</span>

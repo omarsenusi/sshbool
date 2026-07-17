@@ -8,6 +8,49 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 
+#[derive(Debug, Clone, sqlx::FromRow)]
+struct HostRow {
+    id: String,
+    group_id: Option<String>,
+    label: String,
+    hostname: String,
+    port: i64,
+    username: Option<String>,
+    auth_method: String,
+    identity_id: Option<String>,
+    color: Option<String>,
+    icon: Option<String>,
+    is_favorite: i64,
+    is_pinned: i64,
+    notes: Option<String>,
+    last_connected_at: Option<i64>,
+    connect_count: i64,
+    jump_host_id: Option<String>,
+    proxy_id: Option<String>,
+}
+
+fn host_from_row(h: HostRow) -> HostDto {
+    map_host(
+        h.id,
+        h.group_id,
+        h.label,
+        h.hostname,
+        h.port,
+        h.username,
+        h.auth_method,
+        h.identity_id,
+        h.color,
+        h.icon,
+        h.is_favorite,
+        h.is_pinned,
+        h.notes,
+        h.last_connected_at,
+        h.connect_count,
+        h.jump_host_id,
+        h.proxy_id,
+    )
+}
+
 fn map_host(
     id: String,
     group_id: Option<String>,
@@ -18,6 +61,7 @@ fn map_host(
     auth_method: String,
     identity_id: Option<String>,
     color: Option<String>,
+    icon: Option<String>,
     is_favorite: i64,
     is_pinned: i64,
     notes: Option<String>,
@@ -36,6 +80,7 @@ fn map_host(
         auth_method,
         identity_id,
         color,
+        icon,
         is_favorite: is_favorite != 0,
         is_pinned: is_pinned != 0,
         notes,
@@ -43,6 +88,49 @@ fn map_host(
         connect_count,
         jump_host_id,
         proxy_id,
+    }
+}
+
+async fn resolve_ssh_key_id(
+    pool: &sqlx::SqlitePool,
+    auth_method: &str,
+    ssh_key_id: Option<String>,
+) -> Result<Option<String>, AppError> {
+    if auth_method != "key" {
+        return Ok(None);
+    }
+    let needs_auto = match ssh_key_id.as_deref() {
+        None | Some("") | Some("auto") => true,
+        Some(_) => false,
+    };
+    if !needs_auto {
+        // Verify the key exists so we don't bind a dangling settings value
+        let id = ssh_key_id.expect("checked");
+        let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM ssh_keys WHERE id = ?")
+            .bind(&id)
+            .fetch_optional(pool)
+            .await
+            .map_err(db)?;
+        if exists.is_none() {
+            return Err(AppError::Validation {
+                field: "sshKeyId".into(),
+                message: "Selected SSH key was not found in the vault".into(),
+            });
+        }
+        return Ok(Some(id));
+    }
+    let row: Option<(String,)> =
+        sqlx::query_as("SELECT id FROM ssh_keys ORDER BY created_at DESC LIMIT 1")
+            .fetch_optional(pool)
+            .await
+            .map_err(db)?;
+    match row {
+        Some((id,)) => Ok(Some(id)),
+        None => Err(AppError::Validation {
+            field: "sshKeyId".into(),
+            message: "No SSH keys in vault — import or generate a key first, or pick Auto after adding one"
+                .into(),
+        }),
     }
 }
 
@@ -64,25 +152,8 @@ pub async fn hosts_list_tree(
     .await
     .map_err(db)?;
 
-    let hosts: Vec<(
-        String,
-        Option<String>,
-        String,
-        String,
-        i64,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        i64,
-        i64,
-        Option<String>,
-        Option<i64>,
-        i64,
-        Option<String>,
-        Option<String>,
-    )> = sqlx::query_as(
-        r#"SELECT id, group_id, label, hostname, port, username, auth_method, identity_id, color,
+    let hosts: Vec<HostRow> = sqlx::query_as(
+        r#"SELECT id, group_id, label, hostname, port, username, auth_method, identity_id, color, icon,
            is_favorite, is_pinned, notes, last_connected_at, connect_count, jump_host_id, proxy_id
            FROM hosts WHERE deleted_at IS NULL ORDER BY is_pinned DESC, label"#,
     )
@@ -104,26 +175,10 @@ pub async fn hosts_list_tree(
                 },
                 children: hosts
                     .iter()
-                    .filter(|h| h.1.as_deref() == Some(id.as_str()))
+                    .filter(|h| h.group_id.as_deref() == Some(id.as_str()))
+                    .cloned()
                     .map(|h| HostTreeNode::Host {
-                        host: map_host(
-                            h.0.clone(),
-                            h.1.clone(),
-                            h.2.clone(),
-                            h.3.clone(),
-                            h.4,
-                            h.5.clone(),
-                            h.6.clone(),
-                            h.7.clone(),
-                            h.8.clone(),
-                            h.9,
-                            h.10,
-                            h.11.clone(),
-                            h.12,
-                            h.13,
-                            h.14.clone(),
-                            h.15.clone(),
-                        ),
+                        host: host_from_row(h),
                     })
                     .collect(),
             },
@@ -131,26 +186,9 @@ pub async fn hosts_list_tree(
         .collect();
 
     // Ungrouped hosts
-    for h in hosts.iter().filter(|h| h.1.is_none()) {
+    for h in hosts.into_iter().filter(|h| h.group_id.is_none()) {
         nodes.push(HostTreeNode::Host {
-            host: map_host(
-                h.0.clone(),
-                h.1.clone(),
-                h.2.clone(),
-                h.3.clone(),
-                h.4,
-                h.5.clone(),
-                h.6.clone(),
-                h.7.clone(),
-                h.8.clone(),
-                h.9,
-                h.10,
-                h.11.clone(),
-                h.12,
-                h.13,
-                h.14.clone(),
-                h.15.clone(),
-            ),
+            host: host_from_row(h),
         });
     }
     Ok(nodes)
@@ -158,25 +196,8 @@ pub async fn hosts_list_tree(
 
 #[tauri::command]
 pub async fn hosts_get(state: State<'_, Arc<AppState>>, id: String) -> Result<HostDto, AppError> {
-    let row: Option<(
-        String,
-        Option<String>,
-        String,
-        String,
-        i64,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        i64,
-        i64,
-        Option<String>,
-        Option<i64>,
-        i64,
-        Option<String>,
-        Option<String>,
-    )> = sqlx::query_as(
-        r#"SELECT id, group_id, label, hostname, port, username, auth_method, identity_id, color,
+    let row: Option<HostRow> = sqlx::query_as(
+        r#"SELECT id, group_id, label, hostname, port, username, auth_method, identity_id, color, icon,
            is_favorite, is_pinned, notes, last_connected_at, connect_count, jump_host_id, proxy_id FROM hosts WHERE id = ?"#,
     )
     .bind(&id)
@@ -189,9 +210,7 @@ pub async fn hosts_get(state: State<'_, Arc<AppState>>, id: String) -> Result<Ho
             id: Some(id),
         });
     };
-    Ok(map_host(
-        h.0, h.1, h.2, h.3, h.4, h.5, h.6, h.7, h.8, h.9, h.10, h.11, h.12, h.13, h.14, h.15,
-    ))
+    Ok(host_from_row(h))
 }
 
 #[tauri::command]
@@ -202,10 +221,14 @@ pub async fn hosts_create(
     crate::commands::license::assert_can_add_host(&state).await?;
     let id = Uuid::now_v7().to_string();
     let now = chrono::Utc::now().timestamp_millis();
+    let resolved_key =
+        resolve_ssh_key_id(state.vault.pool(), &host.auth_method, host.ssh_key_id.clone()).await?;
+    // identity_id references identities(id) — never store an ssh_keys id here.
+    // SSH keys are bound via settings key host:{id}:ssh_key.
     sqlx::query(
         r#"INSERT INTO hosts
-        (id, group_id, label, hostname, port, username, identity_id, auth_method, jump_host_id, proxy_id, use_compression, connection_sharing, color, is_favorite, is_pinned, notes, connect_count, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, 0, 0, ?, 0, ?, ?)"#,
+        (id, group_id, label, hostname, port, username, identity_id, auth_method, jump_host_id, proxy_id, use_compression, connection_sharing, color, icon, is_favorite, is_pinned, notes, connect_count, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, 0, 0, ?, 0, ?, ?)"#,
     )
     .bind(&id)
     .bind(&host.group_id)
@@ -218,6 +241,7 @@ pub async fn hosts_create(
     .bind(&host.jump_host_id)
     .bind(&host.proxy_id)
     .bind(&host.color)
+    .bind(&host.icon)
     .bind(&host.notes)
     .bind(now)
     .bind(now)
@@ -252,7 +276,7 @@ pub async fn hosts_create(
             .await
             .map_err(db)?;
     }
-    if let Some(key_id) = host.ssh_key_id {
+    if let Some(key_id) = resolved_key {
         sqlx::query("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)")
             .bind(format!("host:{id}:ssh_key"))
             .bind(&key_id)
@@ -276,7 +300,7 @@ pub async fn hosts_create(
 pub async fn hosts_update(state: State<'_, Arc<AppState>>, host: HostDto) -> Result<(), AppError> {
     let now = chrono::Utc::now().timestamp_millis();
     sqlx::query(
-        r#"UPDATE hosts SET group_id=?, label=?, hostname=?, port=?, username=?, auth_method=?, identity_id=?, jump_host_id=?, proxy_id=?, color=?, notes=?, is_favorite=?, is_pinned=?, updated_at=? WHERE id=?"#,
+        r#"UPDATE hosts SET group_id=?, label=?, hostname=?, port=?, username=?, auth_method=?, identity_id=?, jump_host_id=?, proxy_id=?, color=?, icon=?, notes=?, is_favorite=?, is_pinned=?, updated_at=? WHERE id=?"#,
     )
     .bind(&host.group_id)
     .bind(&host.label)
@@ -288,6 +312,7 @@ pub async fn hosts_update(state: State<'_, Arc<AppState>>, host: HostDto) -> Res
     .bind(&host.jump_host_id)
     .bind(&host.proxy_id)
     .bind(&host.color)
+    .bind(&host.icon)
     .bind(&host.notes)
     .bind(if host.is_favorite { 1 } else { 0 })
     .bind(if host.is_pinned { 1 } else { 0 })
@@ -458,8 +483,9 @@ pub async fn hosts_import(
                         identity_id: None,
                         notes: None,
                         color: None,
+                        icon: None,
                         password: None,
-                        ssh_key_id: None,
+                        ssh_key_id: Some("auto".into()),
                         jump_host_id: None,
                         proxy_id: None,
                     });
@@ -704,8 +730,12 @@ pub async fn known_hosts_trust(
 pub async fn session_open(
     state: State<'_, Arc<AppState>>,
     host_id: String,
+    key_passphrase: Option<String>,
 ) -> Result<serde_json::Value, AppError> {
-    let session_id = state.connections.session_open(&host_id).await?;
+    let session_id = state
+        .connections
+        .session_open_with_key_pass(&host_id, key_passphrase)
+        .await?;
     Ok(serde_json::json!({ "sessionId": session_id }))
 }
 

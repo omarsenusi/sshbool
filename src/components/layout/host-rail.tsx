@@ -99,6 +99,7 @@ export function HostRail() {
               key={host.id}
               label={host.label}
               accent={hostAccent(host)}
+              icon={host.icon}
               selected={selectedHostId === host.id}
               status={status}
               title={

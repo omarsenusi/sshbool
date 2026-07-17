@@ -7,6 +7,7 @@ import type { HostConnStatus } from "@/stores/connection.store"
 type HostTileProps = {
   label: string
   accent: string
+  icon?: string | null
   selected?: boolean
   status: HostConnStatus
   title?: string
@@ -16,6 +17,7 @@ type HostTileProps = {
 export function HostTile({
   label,
   accent,
+  icon,
   selected,
   status,
   title,
@@ -25,6 +27,7 @@ export function HostTile({
   const connected = status === "connected"
   const errored = status === "error"
   const showWave = connecting || connected
+  const hasIcon = !!icon
 
   return (
     <button
@@ -39,15 +42,18 @@ export function HostTile({
         !selected && "hover:scale-105",
       )}
       style={{
-        backgroundColor: showWave ? "#15803d" : accent,
+        backgroundColor: hasIcon && !showWave ? "transparent" : showWave ? "#15803d" : accent,
         boxShadow: selected
           ? `0 0 0 2px var(--sidebar), 0 0 0 4px ${errored ? "#dc2626" : accent}`
           : undefined,
       }}
       onClick={onClick}
     >
-      {/* Clip wave inside the tile; badges sit outside on the button */}
+      {/* Clip wave / icon inside the tile; badges sit outside on the button */}
       <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-md" aria-hidden>
+        {hasIcon && (
+          <img src={icon} alt="" className="absolute inset-0 size-full object-cover" />
+        )}
         {showWave && (
           <span
             className={cn(
@@ -59,7 +65,9 @@ export function HostTile({
         )}
       </span>
 
-      <span className="relative z-10 drop-shadow-sm">{hostLetter(label)}</span>
+      {!hasIcon && (
+        <span className="relative z-10 drop-shadow-sm">{hostLetter(label)}</span>
+      )}
 
       {connected && !errored && (
         <span

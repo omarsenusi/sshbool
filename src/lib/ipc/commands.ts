@@ -121,7 +121,11 @@ export const ipc = {
   knownHostsTrust: (host: string, port: number, fingerprint: string, keyType: string) =>
     call<void>("known_hosts_trust", { host, port, fingerprint, keyType }),
 
-  sessionOpen: (hostId: string) => call<{ sessionId: string }>("session_open", { hostId }),
+  sessionOpen: (hostId: string, keyPassphrase?: string | null) =>
+    call<{ sessionId: string }>("session_open", {
+      hostId,
+      keyPassphrase: keyPassphrase ?? null,
+    }),
   sessionClose: (sessionId: string) => call<void>("session_close", { sessionId }),
 
   paneOpen: (hostId: string, cols: number, rows: number) =>

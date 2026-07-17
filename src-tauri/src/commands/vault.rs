@@ -492,10 +492,16 @@ async fn import_private_key(
     let fp = fingerprint_of(&public);
     let id = Uuid::now_v7().to_string();
     let now = chrono::Utc::now().timestamp_millis();
-    // Store sanitized PEM; vault AEAD wraps it.
+    // Store *unencrypted* OpenSSH PEM. Vault AEAD already protects at rest.
+    // Keeping the original encrypted PEM would break connect (no passphrase on hand).
+    let store_pem = private
+        .to_openssh(russh::keys::ssh_key::LineEnding::LF)
+        .map_err(|e| AppError::Crypto {
+            message: format!("encode private key: {e}"),
+        })?;
     let (ct, nonce) = state
         .vault
-        .seal_secret(content.as_bytes(), &format!("key:{id}"))
+        .seal_secret(store_pem.as_bytes(), &format!("key:{id}"))
         .await?;
     let has_passphrase = pass.is_some();
     sqlx::query(

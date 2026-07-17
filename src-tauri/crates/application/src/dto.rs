@@ -36,9 +36,12 @@ pub struct NewHostDto {
     pub notes: Option<String>,
     /// Color.
     pub color: Option<String>,
+    /// Custom tile icon (data URL).
+    #[serde(default)]
+    pub icon: Option<String>,
     /// Password (ephemeral, never stored plaintext).
     pub password: Option<String>,
-    /// SSH key id.
+    /// SSH key id (`auto` = latest vault key).
     pub ssh_key_id: Option<String>,
     /// ProxyJump host id.
     #[serde(default)]
@@ -70,6 +73,8 @@ pub struct HostDto {
     pub identity_id: Option<String>,
     /// Color.
     pub color: Option<String>,
+    /// Custom tile icon (data URL).
+    pub icon: Option<String>,
     /// Favorite.
     pub is_favorite: bool,
     /// Pinned.

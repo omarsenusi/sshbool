@@ -37,15 +37,20 @@ type Edge = {
 
 type Pos = { x: number; y: number }
 
-const NODE_W = 260
-const COL_GAP = 100
-const ROW_GAP = 28
-const PAD = 48
+const NODE_W = 240
+const COL_GAP = 72
+const ROW_GAP = 36
+const BAND_GAP = 56
+const PAD = 64
 const HEADER_H = 34
 const ROW_H = 20
 const MAX_COLS = 8
-const MINIMAP_W = 180
-const MINIMAP_H = 120
+/** Soft cap for a single vertical stack before wrapping into another column. */
+const MAX_STACK_H = 980
+const MINIMAP_W = 200
+const MINIMAP_H = 140
+/** Target landscape aspect for the whole diagram (width / height). */
+const TARGET_ASPECT = 1.55
 
 function shortType(t: string) {
   return t
@@ -62,7 +67,91 @@ function nodeHeight(colCount: number) {
   return HEADER_H + (shown + extra) * ROW_H + 8
 }
 
-/** Wide layered layout: FK parents left → children right; many columns of space. */
+function packGrid(
+  ids: string[],
+  tableById: Map<string, { schema: string; table: DbTableDto }>,
+  originX: number,
+  originY: number,
+  cols: number,
+): LayoutNode[] {
+  const colY = Array.from({ length: Math.max(1, cols) }, () => originY)
+  const nodes: LayoutNode[] = []
+  ids.forEach((id, i) => {
+    const { schema: sch, table } = tableById.get(id)!
+    const h = nodeHeight(table.columns.length)
+    const col = i % cols
+    const x = originX + col * (NODE_W + COL_GAP)
+    const y = colY[col]!
+    nodes.push({ id, schema: sch, table, x, y, w: NODE_W, h })
+    colY[col] = y + h + ROW_GAP
+  })
+  return nodes
+}
+
+/** Split a tall list into several side-by-side stacks so the map stays wide. */
+function packWrappedStacks(
+  ids: string[],
+  tableById: Map<string, { schema: string; table: DbTableDto }>,
+  startX: number,
+  startY: number,
+  maxStackH: number,
+): { nodes: LayoutNode[]; nextX: number; height: number } {
+  const nodes: LayoutNode[] = []
+  let x = startX
+  let y = startY
+  let colStartY = startY
+  let maxY = startY
+  let stacks = 1
+
+  for (const id of ids) {
+    const { schema: sch, table } = tableById.get(id)!
+    const h = nodeHeight(table.columns.length)
+    if (y > colStartY && y + h - colStartY > maxStackH) {
+      x += NODE_W + COL_GAP
+      y = colStartY
+      stacks++
+    }
+    nodes.push({ id, schema: sch, table, x, y, w: NODE_W, h })
+    y += h + ROW_GAP
+    maxY = Math.max(maxY, y)
+  }
+
+  const nextX = x + NODE_W + BAND_GAP
+  return { nodes, nextX, height: maxY - startY }
+}
+
+function connectedComponents(
+  ids: string[],
+  outgoing: Map<string, string[]>,
+  incoming: Map<string, string[]>,
+): string[][] {
+  const seen = new Set<string>()
+  const comps: string[][] = []
+  for (const start of ids) {
+    if (seen.has(start)) continue
+    const stack = [start]
+    const comp: string[] = []
+    seen.add(start)
+    while (stack.length) {
+      const id = stack.pop()!
+      comp.push(id)
+      for (const n of [...(outgoing.get(id) ?? []), ...(incoming.get(id) ?? [])]) {
+        if (!seen.has(n)) {
+          seen.add(n)
+          stack.push(n)
+        }
+      }
+    }
+    comps.push(comp)
+  }
+  comps.sort((a, b) => b.length - a.length)
+  return comps
+}
+
+/**
+ * Landscape ER layout: FK layers left→right, tall layers wrap into extra columns,
+ * islands fill a wide grid, components packed in rows so the map uses full width+height.
+ */
 function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
   nodes: LayoutNode[]
   edges: Edge[]
@@ -99,101 +188,187 @@ function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
     }
   }
 
-  const rank = new Map<string, number>()
-  const visiting = new Set<string>()
-  function depth(id: string): number {
-    if (rank.has(id)) return rank.get(id)!
-    if (visiting.has(id)) return 0
-    visiting.add(id)
-    const refs = outgoing.get(id) ?? []
-    const d = refs.length === 0 ? 0 : 1 + Math.max(...refs.map(depth))
-    visiting.delete(id)
-    rank.set(id, d)
-    return d
-  }
-  for (const id of ids) depth(id)
-
-  // Islands (no FKs either way): spread across extra horizontal slots for width
-  const islands = ids.filter(
-    (id) =>
-      (outgoing.get(id)?.length ?? 0) === 0 && (incoming.get(id)?.length ?? 0) === 0,
-  )
-  const connected = ids.filter((id) => !islands.includes(id))
-
-  const layers = new Map<number, string[]>()
-  for (const id of connected) {
-    const r = rank.get(id) ?? 0
-    if (!layers.has(r)) layers.set(r, [])
-    layers.get(r)!.push(id)
-  }
-  for (const list of layers.values()) {
-    list.sort((a, b) => {
-      const da = (incoming.get(a)?.length ?? 0) + (outgoing.get(a)?.length ?? 0)
-      const db = (incoming.get(b)?.length ?? 0) + (outgoing.get(b)?.length ?? 0)
-      return db - da || a.localeCompare(b)
-    })
-  }
-
-  const maxRank = Math.max(0, ...[...layers.keys()], 0)
-  // Place islands in additional columns to the right so canvas stays wide
-  const islandCols = Math.max(2, Math.ceil(Math.sqrt(Math.max(islands.length, 1))))
-
   const tableById = new Map(
     tables.map(({ schema: sch, table }) => [idOf(sch, table.name), { schema: sch, table }]),
   )
 
-  const nodes: LayoutNode[] = []
+  const degree = (id: string) =>
+    (incoming.get(id)?.length ?? 0) + (outgoing.get(id)?.length ?? 0)
 
-  for (let r = 0; r <= maxRank; r++) {
-    const list = layers.get(r) ?? []
-    let y = PAD
-    for (const id of list) {
-      const { schema: sch, table } = tableById.get(id)!
-      const h = nodeHeight(table.columns.length)
-      nodes.push({
-        id,
-        schema: sch,
-        table,
-        x: PAD + r * (NODE_W + COL_GAP),
-        y,
-        w: NODE_W,
-        h,
-      })
-      y += h + ROW_GAP
+  const islands = ids
+    .filter((id) => degree(id) === 0)
+    .sort((a, b) => a.localeCompare(b))
+  const linked = ids.filter((id) => degree(id) > 0)
+  const components = connectedComponents(linked, outgoing, incoming)
+
+  const n = Math.max(ids.length, 1)
+  // Soft height budget so many tables wrap sideways into a landscape map
+  const stackH = Math.max(
+    520,
+    Math.min(MAX_STACK_H, Math.round(Math.sqrt((n * NODE_W * 180) / TARGET_ASPECT))),
+  )
+
+  type Block = { nodes: LayoutNode[]; w: number; h: number }
+  const blocks: Block[] = []
+
+  for (const comp of components) {
+    const rank = new Map<string, number>()
+    const visiting = new Set<string>()
+    const depth = (id: string): number => {
+      if (rank.has(id)) return rank.get(id)!
+      if (visiting.has(id)) return 0
+      visiting.add(id)
+      const refs = (outgoing.get(id) ?? []).filter((t) => comp.includes(t))
+      const d = refs.length === 0 ? 0 : 1 + Math.max(...refs.map(depth))
+      visiting.delete(id)
+      rank.set(id, d)
+      return d
     }
+    for (const id of comp) depth(id)
+
+    const layers = new Map<number, string[]>()
+    for (const id of comp) {
+      const r = rank.get(id) ?? 0
+      if (!layers.has(r)) layers.set(r, [])
+      layers.get(r)!.push(id)
+    }
+
+    // Barycenter ordering (parents of neighbors) to cut crossings
+    const maxRank = Math.max(0, ...layers.keys())
+    for (let pass = 0; pass < 3; pass++) {
+      for (let r = 1; r <= maxRank; r++) {
+        const list = layers.get(r)
+        if (!list) continue
+        const prev = layers.get(r - 1) ?? []
+        const idx = new Map(prev.map((id, i) => [id, i]))
+        list.sort((a, b) => {
+          const avg = (id: string) => {
+            const parents = (outgoing.get(id) ?? []).filter((p) => idx.has(p))
+            if (parents.length === 0) return idx.size / 2
+            return parents.reduce((s, p) => s + (idx.get(p) ?? 0), 0) / parents.length
+          }
+          return avg(a) - avg(b) || degree(b) - degree(a) || a.localeCompare(b)
+        })
+      }
+    }
+
+    const placed: LayoutNode[] = []
+    let cursorX = 0
+    let blockH = 0
+    for (let r = 0; r <= maxRank; r++) {
+      const list = layers.get(r) ?? []
+      if (list.length === 0) continue
+      const packed = packWrappedStacks(list, tableById, cursorX, 0, stackH)
+      placed.push(...packed.nodes)
+      cursorX = packed.nextX
+      blockH = Math.max(blockH, packed.height)
+    }
+
+    // Vertically center stacks within the block
+    const byX = new Map<number, LayoutNode[]>()
+    for (const n of placed) {
+      if (!byX.has(n.x)) byX.set(n.x, [])
+      byX.get(n.x)!.push(n)
+    }
+    for (const col of byX.values()) {
+      const top = Math.min(...col.map((n) => n.y))
+      const bottom = Math.max(...col.map((n) => n.y + n.h))
+      const shift = (blockH - (bottom - top)) / 2 - top
+      for (const n of col) n.y += shift
+    }
+
+    const minBX = Math.min(...placed.map((n) => n.x))
+    const maxBX = Math.max(...placed.map((n) => n.x + n.w))
+    const minBY = Math.min(...placed.map((n) => n.y))
+    const maxBY = Math.max(...placed.map((n) => n.y + n.h))
+    blocks.push({
+      nodes: placed,
+      w: Math.max(NODE_W, maxBX - minBX),
+      h: Math.max(40, maxBY - minBY),
+    })
   }
 
-  const baseX = PAD + (maxRank + 1) * (NODE_W + COL_GAP) + (connected.length ? COL_GAP : 0)
-  islands.sort((a, b) => a.localeCompare(b))
-  islands.forEach((id, i) => {
-    const { schema: sch, table } = tableById.get(id)!
-    const h = nodeHeight(table.columns.length)
-    const col = i % islandCols
-    const row = Math.floor(i / islandCols)
-    // Estimate row y from previous islands in same col — approximate with uniform stride
-    const stride = 160
-    nodes.push({
-      id,
-      schema: sch,
-      table,
-      x: baseX + col * (NODE_W + COL_GAP),
-      y: PAD + row * stride,
-      w: NODE_W,
-      h,
-    })
-  })
+  if (islands.length > 0) {
+    const islandCols = Math.max(
+      2,
+      Math.min(10, Math.ceil(Math.sqrt(islands.length * TARGET_ASPECT))),
+    )
+    const islandNodes = packGrid(islands, tableById, 0, 0, islandCols)
+    const w =
+      Math.max(...islandNodes.map((n) => n.x + n.w)) -
+      Math.min(...islandNodes.map((n) => n.x))
+    const h =
+      Math.max(...islandNodes.map((n) => n.y + n.h)) -
+      Math.min(...islandNodes.map((n) => n.y))
+    blocks.push({ nodes: islandNodes, w, h })
+  }
 
-  // Fix island vertical packing properly per column
-  for (let c = 0; c < islandCols; c++) {
-    const colNodes = nodes.filter((n) => {
-      const idx = islands.indexOf(n.id)
-      return idx >= 0 && idx % islandCols === c
-    })
-    colNodes.sort((a, b) => a.y - b.y)
-    let y = PAD
-    for (const n of colNodes) {
-      n.y = y
-      y += n.h + ROW_GAP
+  // Meta-pack blocks into landscape rows
+  const avgBlockW =
+    blocks.reduce((s, b) => s + b.w, 0) / Math.max(blocks.length, 1) || NODE_W * 4
+  const rowBudget = Math.max(
+    avgBlockW * 1.2,
+    Math.sqrt(blocks.reduce((s, b) => s + b.w * b.h, NODE_W * 400) * TARGET_ASPECT),
+  )
+
+  const nodes: LayoutNode[] = []
+  let rowX = PAD
+  let rowY = PAD
+  let rowH = 0
+
+  for (const block of blocks) {
+    if (rowX > PAD && rowX + block.w > PAD + rowBudget) {
+      rowY += rowH + BAND_GAP * 1.4
+      rowX = PAD
+      rowH = 0
+    }
+    const ox = Math.min(...block.nodes.map((n) => n.x))
+    const oy = Math.min(...block.nodes.map((n) => n.y))
+    for (const n of block.nodes) {
+      nodes.push({
+        ...n,
+        x: rowX + (n.x - ox),
+        y: rowY + (n.y - oy),
+      })
+    }
+    rowX += block.w + BAND_GAP
+    rowH = Math.max(rowH, block.h)
+  }
+
+  // If still too tall/narrow, expand island-style: redistribute into wider grid
+  if (nodes.length > 0) {
+    let minX = Math.min(...nodes.map((n) => n.x))
+    let minY = Math.min(...nodes.map((n) => n.y))
+    let maxX = Math.max(...nodes.map((n) => n.x + n.w))
+    let maxY = Math.max(...nodes.map((n) => n.y + n.h))
+    let w = maxX - minX
+    let h = maxY - minY
+    if (h > 0 && w / h < 1.05 && nodes.length >= 8) {
+      // Fallback: full landscape grid ordered by connectivity
+      const ordered = [...ids].sort(
+        (a, b) => degree(b) - degree(a) || a.localeCompare(b),
+      )
+      const cols = Math.max(
+        3,
+        Math.min(12, Math.ceil(Math.sqrt(ordered.length * TARGET_ASPECT))),
+      )
+      const grid = packGrid(ordered, tableById, PAD, PAD, cols)
+      nodes.length = 0
+      nodes.push(...grid)
+      minX = Math.min(...nodes.map((n) => n.x))
+      minY = Math.min(...nodes.map((n) => n.y))
+      maxX = Math.max(...nodes.map((n) => n.x + n.w))
+      maxY = Math.max(...nodes.map((n) => n.y + n.h))
+      w = maxX - minX
+      h = maxY - minY
+    }
+
+    // Normalize origin
+    const dx = PAD - minX
+    const dy = PAD - minY
+    for (const n of nodes) {
+      n.x += dx
+      n.y += dy
     }
   }
 
@@ -213,11 +388,67 @@ function boundsOf(nodes: LayoutNode[], positions: Record<string, Pos>) {
     maxY = Math.max(maxY, p.y + n.h)
   }
   if (!Number.isFinite(minX)) {
-    return { minX: 0, minY: 0, maxX: 1200, maxY: 800, width: 1200, height: 800 }
+    return { minX: 0, minY: 0, maxX: 1600, maxY: 1000, width: 1600, height: 1000 }
   }
-  const width = Math.max(1200, maxX + PAD)
-  const height = Math.max(800, maxY + PAD)
+  // Tight world size around content (no huge empty strip)
+  const width = Math.max(maxX + PAD, minX + 400)
+  const height = Math.max(maxY + PAD, minY + 300)
   return { minX, minY, maxX, maxY, width, height }
+}
+
+/** Route FK line between nearest sides of two boxes. */
+function edgePath(from: LayoutNode, to: LayoutNode): string {
+  const fc = { x: from.x + from.w / 2, y: from.y + from.h / 2 }
+  const tc = { x: to.x + to.w / 2, y: to.y + to.h / 2 }
+  const dx = tc.x - fc.x
+  const dy = tc.y - fc.y
+  let x1: number
+  let y1: number
+  let x2: number
+  let y2: number
+  let c1x: number
+  let c1y: number
+  let c2x: number
+  let c2y: number
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    // Horizontal-ish: leave right/left edges
+    if (dx >= 0) {
+      x1 = from.x + from.w
+      y1 = from.y + Math.min(from.h - 8, Math.max(16, from.h * 0.22))
+      x2 = to.x
+      y2 = to.y + Math.min(to.h - 8, Math.max(16, to.h * 0.22))
+    } else {
+      x1 = from.x
+      y1 = from.y + Math.min(from.h - 8, Math.max(16, from.h * 0.22))
+      x2 = to.x + to.w
+      y2 = to.y + Math.min(to.h - 8, Math.max(16, to.h * 0.22))
+    }
+    const bend = Math.max(48, Math.abs(x2 - x1) * 0.45)
+    c1x = x1 + (dx >= 0 ? bend : -bend)
+    c1y = y1
+    c2x = x2 + (dx >= 0 ? -bend : bend)
+    c2y = y2
+  } else {
+    // Vertical-ish: leave bottom/top
+    if (dy >= 0) {
+      x1 = from.x + from.w / 2
+      y1 = from.y + from.h
+      x2 = to.x + to.w / 2
+      y2 = to.y
+    } else {
+      x1 = from.x + from.w / 2
+      y1 = from.y
+      x2 = to.x + to.w / 2
+      y2 = to.y + to.h
+    }
+    const bend = Math.max(40, Math.abs(y2 - y1) * 0.45)
+    c1x = x1
+    c1y = y1 + (dy >= 0 ? bend : -bend)
+    c2x = x2
+    c2y = y2 + (dy >= 0 ? -bend : bend)
+  }
+  return `M${x1} ${y1} C${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`
 }
 
 export function DbErDiagram({ schema, onSelectTable }: Props) {
@@ -282,12 +513,17 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
     const el = viewportRef.current
     if (!el || baseNodes.length === 0) return
     const b = boundsOf(baseNodes, positions)
-    const pad = 32
-    const zx = (el.clientWidth - pad) / b.width
-    const zy = (el.clientHeight - pad) / b.height
-    const next = Math.min(1, Math.max(0.25, Math.min(zx, zy) * 0.98))
+    const contentW = Math.max(1, b.maxX - b.minX + PAD)
+    const contentH = Math.max(1, b.maxY - b.minY + PAD)
+    const pad = 40
+    const zx = (el.clientWidth - pad * 2) / contentW
+    const zy = (el.clientHeight - pad * 2) / contentH
+    const next = Math.min(1.15, Math.max(0.12, Math.min(zx, zy)))
+    // Center the diagram in the viewport
+    const panX = (el.clientWidth - contentW * next) / 2 - b.minX * next
+    const panY = (el.clientHeight - contentH * next) / 2 - b.minY * next
     setZoom(next)
-    setPan({ x: pad / 2, y: pad / 2 })
+    setPan({ x: panX, y: panY })
   }, [baseNodes, positions])
 
   useEffect(() => {
@@ -300,7 +536,7 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
   const onWheel = useCallback((e: ReactWheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? -0.06 : 0.06
-    setZoom((z) => Math.min(1.8, Math.max(0.2, +(z + delta).toFixed(3))))
+    setZoom((z) => Math.min(1.8, Math.max(0.12, +(z + delta).toFixed(3))))
   }, [])
 
   const onViewportPointerDown = useCallback(
@@ -373,7 +609,7 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
           size="icon-xs"
           variant="ghost"
           title="Zoom out"
-          onClick={() => setZoom((z) => Math.max(0.2, z - 0.1))}
+          onClick={() => setZoom((z) => Math.max(0.12, z - 0.1))}
         >
           <ZoomOut className="size-3.5" />
         </Button>
@@ -442,21 +678,15 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
               const to = nodes.find((n) => n.id === e.to)
               if (!from || !to) return null
               const active = !related || related.has(e.from) || related.has(e.to)
-              const x1 = from.x + from.w
-              const y1 = from.y + 20
-              const x2 = to.x
-              const y2 = to.y + 20
-              const dx = Math.max(40, Math.abs(x2 - x1) * 0.4)
-              const d = `M${x1} ${y1} C${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
               return (
                 <path
                   key={e.id}
-                  d={d}
+                  d={edgePath(from, to)}
                   fill="none"
-                  strokeWidth={active && related ? 2 : 1.25}
-                  stroke="rgb(14 165 233 / 0.45)"
+                  strokeWidth={active && related ? 2 : 1.15}
+                  stroke="rgb(14 165 233 / 0.4)"
                   markerEnd="url(#er-arrow)"
-                  opacity={related && !active ? 0.08 : 1}
+                  opacity={related && !active ? 0.07 : 1}
                 />
               )
             })}

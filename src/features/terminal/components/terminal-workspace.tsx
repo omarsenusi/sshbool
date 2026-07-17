@@ -3,6 +3,13 @@ import { AppWindow, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { WindowTab, WindowTabStrip } from "@/components/layout/window-tab"
 import { TerminalPane } from "@/features/terminal/components/terminal-pane"
 import {
@@ -102,18 +109,21 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
                 Bring back
               </Button>
             )}
-            <select
-              className="border-input bg-background rounded-md border px-2 py-1 text-xs"
-              value={hostId}
-              onChange={(e) => setHostId(e.target.value)}
+            <Select
+              value={hostId || null}
+              onValueChange={(v) => setHostId(v ?? "")}
             >
-              <option value="">Select host…</option>
-              {recent.data?.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-7 w-44 text-xs">
+                <SelectValue placeholder="Select host…" />
+              </SelectTrigger>
+              <SelectContent>
+                {recent.data?.map((h) => (
+                  <SelectItem key={h.id} value={h.id}>
+                    {h.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               size="icon-xs"
               disabled={!hostId || openPane.isPending}

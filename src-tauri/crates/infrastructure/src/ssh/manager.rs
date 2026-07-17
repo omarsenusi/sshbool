@@ -83,13 +83,23 @@ impl ConnectionManager {
 
     /// Open (or reuse) an authenticated session for a host.
     pub async fn session_open(&self, host_id: &str) -> Result<String, DomainError> {
-        self.session_open_inner(host_id, &mut Vec::new()).await
+        self.session_open_with_key_pass(host_id, None).await
+    }
+
+    pub async fn session_open_with_key_pass(
+        &self,
+        host_id: &str,
+        key_passphrase: Option<String>,
+    ) -> Result<String, DomainError> {
+        self.session_open_inner(host_id, &mut Vec::new(), key_passphrase)
+            .await
     }
 
     async fn session_open_inner(
         &self,
         host_id: &str,
         chain: &mut Vec<String>,
+        key_passphrase: Option<String>,
     ) -> Result<String, DomainError> {
         if let Some(sid) = self.host_to_session.read().await.get(host_id).cloned() {
             return Ok(sid);
@@ -141,7 +151,7 @@ impl ConnectionManager {
         };
 
         let mut handle = if let Some(jump_id) = jump_host_id.filter(|s| !s.is_empty()) {
-            let jump_sid = Box::pin(self.session_open_inner(&jump_id, chain)).await?;
+            let jump_sid = Box::pin(self.session_open_inner(&jump_id, chain, None)).await?;
             let jump_live = self.sessions.read().await.get(&jump_sid).cloned().ok_or(
                 DomainError::NotFound {
                     entity: "session",
@@ -171,7 +181,13 @@ impl ConnectionManager {
         };
 
         let auth_ok = self
-            .authenticate(&mut handle, host_id, &username, &auth_method)
+            .authenticate(
+                &mut handle,
+                host_id,
+                &username,
+                &auth_method,
+                key_passphrase.as_deref(),
+            )
             .await?;
 
         if !auth_ok {
@@ -239,6 +255,7 @@ impl ConnectionManager {
         host_id: &str,
         username: &str,
         auth_method: &str,
+        key_passphrase: Option<&str>,
     ) -> Result<bool, DomainError> {
         match auth_method {
             "password" => {
@@ -253,9 +270,40 @@ impl ConnectionManager {
                 "SSH agent auth requires a running agent; use password or key for now".into(),
             )),
             "key" => {
-                let (priv_pem, passphrase) = self.load_host_key(host_id).await?;
-                let key = decode_secret_key(&priv_pem, passphrase.as_deref())
-                    .map_err(|e| DomainError::Crypto(format!("key decode: {e}")))?;
+                let (key_id, priv_pem) = self.load_host_key(host_id).await?;
+                let key = match decode_secret_key(&priv_pem, key_passphrase) {
+                    Ok(k) => k,
+                    Err(e) => {
+                        let msg = e.to_string();
+                        let needs_pass = msg.to_ascii_lowercase().contains("encrypted")
+                            || msg.to_ascii_lowercase().contains("password")
+                            || msg.to_ascii_lowercase().contains("decrypt");
+                        if needs_pass && key_passphrase.is_none() {
+                            return Err(DomainError::Validation {
+                                field: "keyPassphrase".into(),
+                                message: "The SSH private key is encrypted. Enter its passphrase to unlock it once — it will be stored unlocked in your vault."
+                                    .into(),
+                            });
+                        }
+                        if needs_pass {
+                            return Err(DomainError::Validation {
+                                field: "keyPassphrase".into(),
+                                message: "Wrong key passphrase (or key could not be decrypted)"
+                                    .into(),
+                            });
+                        }
+                        return Err(DomainError::Crypto(format!("key decode: {msg}")));
+                    }
+                };
+
+                // If the vault still held an encrypted PEM, rewrite as plaintext OpenSSH
+                // (still protected by vault AEAD) so the next connect needs no passphrase.
+                if key_passphrase.is_some() {
+                    if let Ok(openssh) = key.to_openssh(russh::keys::ssh_key::LineEnding::LF) {
+                        let _ = self.reseal_ssh_key(&key_id, openssh.as_bytes()).await;
+                    }
+                }
+
                 let hash = handle
                     .best_supported_rsa_hash()
                     .await
@@ -1001,7 +1049,7 @@ impl ConnectionManager {
         String::from_utf8(plain).map_err(|e| DomainError::Crypto(e.to_string()))
     }
 
-    async fn load_host_key(&self, host_id: &str) -> Result<(String, Option<String>), DomainError> {
+    async fn load_host_key(&self, host_id: &str) -> Result<(String, String), DomainError> {
         let key = format!("host:{host_id}:ssh_key");
         let row: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
             .bind(&key)
@@ -1032,7 +1080,26 @@ impl ConnectionManager {
             .open_secret(&ct, &nonce, &format!("key:{key_id}"))
             .await?;
         let pem = String::from_utf8(plain).map_err(|e| DomainError::Crypto(e.to_string()))?;
-        Ok((pem, None))
+        Ok((key_id, pem))
+    }
+
+    async fn reseal_ssh_key(&self, key_id: &str, pem: &[u8]) -> Result<(), DomainError> {
+        let (ct, nonce) = self
+            .vault
+            .seal_secret(pem, &format!("key:{key_id}"))
+            .await?;
+        let now = chrono::Utc::now().timestamp_millis();
+        sqlx::query(
+            "UPDATE ssh_keys SET private_ciphertext = ?, private_nonce = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(&ct)
+        .bind(&nonce)
+        .bind(now)
+        .bind(key_id)
+        .execute(self.vault.pool())
+        .await
+        .map_err(|e| DomainError::Crypto(e.to_string()))?;
+        Ok(())
     }
 }
 

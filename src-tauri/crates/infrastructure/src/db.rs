@@ -54,6 +54,7 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), DomainError> {
         include_str!("../../../migrations/0013_audit.sql"),
         include_str!("../../../migrations/0014_licensing.sql"),
         include_str!("../../../migrations/0015_team.sql"),
+        include_str!("../../../migrations/0016_host_icon.sql"),
     ] {
         // Split on `;` and strip comment-only lines. Do NOT skip a whole chunk just because
         // it begins with a `--` header comment (that used to drop CREATE TABLE statements).
@@ -67,10 +68,18 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), DomainError> {
             if meaningful.is_empty() {
                 continue;
             }
-            sqlx::query(&format!("{meaningful};"))
+            if let Err(e) = sqlx::query(&format!("{meaningful};"))
                 .execute(pool)
                 .await
-                .map_err(|e| DomainError::Crypto(format!("migration: {e} | {meaningful}")))?;
+            {
+                let msg = e.to_string();
+                // Re-runnable migrations: ignore already-applied schema tweaks.
+                if !msg.contains("duplicate column name") {
+                    return Err(DomainError::Crypto(format!(
+                        "migration: {e} | {meaningful}"
+                    )));
+                }
+            }
         }
     }
 

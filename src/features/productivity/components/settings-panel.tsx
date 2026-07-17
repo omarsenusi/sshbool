@@ -4,6 +4,13 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ipc } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
 
@@ -81,14 +88,20 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
             <h2 className="font-semibold">General</h2>
             <label className="flex items-center gap-2">
               Density
-              <select
-                className="border-input bg-background rounded-md border px-2 py-1"
+              <Select
                 value={String(density.data ?? "comfortable")}
-                onChange={(e) => setDensity.mutate(e.target.value)}
+                onValueChange={(v) => {
+                  if (v) setDensity.mutate(v)
+                }}
               >
-                <option value="comfortable">Comfortable</option>
-                <option value="compact">Compact</option>
-              </select>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="comfortable">Comfortable</SelectItem>
+                  <SelectItem value="compact">Compact</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <Button size="sm" variant="outline" onClick={() => prune.mutate()}>
               Prune old metrics/audit (30d)

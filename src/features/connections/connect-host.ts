@@ -10,6 +10,40 @@ function errMessage(err: unknown): string {
   return String(err)
 }
 
+function needsKeyPassphrase(err: unknown): boolean {
+  if (err instanceof IpcError && err.appError.kind === "Validation") {
+    return err.appError.field === "keyPassphrase"
+  }
+  const msg = errMessage(err).toLowerCase()
+  return msg.includes("encrypted") || msg.includes("keypassphrase") || msg.includes("passphrase")
+}
+
+async function openSessionAndPane(
+  hostId: string,
+  opts?: { label?: string; openPane?: boolean },
+  keyPassphrase?: string,
+): Promise<void> {
+  const { sessionId } = await ipc.sessionOpen(hostId, keyPassphrase)
+
+  const conn = useConnectionStore.getState()
+  conn.setConnected(hostId, sessionId)
+
+  if (opts?.openPane !== false) {
+    const panes = useSessionStore.getState().panes
+    const existing = panes.find((p) => p.hostId === hostId && !p.poppedOut)
+    if (!existing) {
+      const pane = await ipc.paneOpen(hostId, 120, 40)
+      clearTerminalScrollback(pane.paneId)
+      useSessionStore.getState().addPane({
+        ...pane,
+        title: opts?.label ?? pane.title,
+      })
+    }
+  }
+
+  toast.success("Connected", opts?.label ?? "SSH session ready")
+}
+
 /** Open SSH session for a host (shared by all tools). Optionally opens a terminal pane. */
 export async function connectHost(
   hostId: string,
@@ -20,24 +54,24 @@ export async function connectHost(
   conn.setConnecting(hostId)
 
   try {
-    const { sessionId } = await ipc.sessionOpen(hostId)
-    conn.setConnected(hostId, sessionId)
-
-    if (opts?.openPane !== false) {
-      const panes = useSessionStore.getState().panes
-      const existing = panes.find((p) => p.hostId === hostId && !p.poppedOut)
-      if (!existing) {
-        const pane = await ipc.paneOpen(hostId, 120, 40)
-        clearTerminalScrollback(pane.paneId)
-        useSessionStore.getState().addPane({
-          ...pane,
-          title: opts?.label ?? pane.title,
-        })
+    await openSessionAndPane(hostId, opts)
+  } catch (err) {
+    if (needsKeyPassphrase(err)) {
+      const pass = window.prompt(
+        "This SSH key is encrypted.\n\nEnter the key passphrase (not your vault password).\nIt will be unlocked once and stored safely in the vault.",
+      )
+      if (pass != null && pass.trim()) {
+        try {
+          await openSessionAndPane(hostId, opts, pass.trim())
+          return
+        } catch (err2) {
+          const message = errMessage(err2)
+          conn.setError(hostId, message)
+          toast.error("Connection failed", message)
+          throw err2
+        }
       }
     }
-
-    toast.success("Connected", opts?.label ?? "SSH session ready")
-  } catch (err) {
     const message = errMessage(err)
     conn.setError(hostId, message)
     toast.error("Connection failed", message)
