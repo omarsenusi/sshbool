@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
@@ -45,8 +42,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_id) }}
-          releaseName: SSHBool ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_id) }}
+          tagName: build-${{ github.run_id }}
+          releaseName: SSHBool build-${{ github.run_id }}
           releaseBody: "See the docs for changelog."
           releaseDraft: true
           prerelease: false
