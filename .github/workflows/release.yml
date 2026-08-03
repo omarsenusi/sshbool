@@ -26,6 +26,19 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check version match
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          node -e "
+            const pkgVer = 'v' + require('./package.json').version;
+            const tauriVer = 'v' + require('./src-tauri/tauri.conf.json').version;
+            const tagVer = process.env.GITHUB_REF_NAME;
+            if (pkgVer !== tagVer || tauriVer !== tagVer) {
+              console.error('Error: Version mismatch! package.json: ' + pkgVer + ', tauri.conf.json: ' + tauriVer + ', Tag: ' + tagVer);
+              process.exit(1);
+            }
+            console.log('Success: Version matches tag');
+          "
       - uses: oven-sh/setup-bun@v2
       - name: Install Linux deps
         if: runner.os == 'Linux'
