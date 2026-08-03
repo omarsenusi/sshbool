@@ -3,7 +3,7 @@ members = [".", "crates/domain", "crates/application", "crates/infrastructure"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 license = "Proprietary"
 authors = ["SSHBool"]
