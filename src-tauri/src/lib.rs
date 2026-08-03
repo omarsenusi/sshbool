@@ -9,8 +9,8 @@ mod events;
 use std::sync::Arc;
 
 use infrastructure::AppState;
-use tauri::Manager;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::Manager;
 use tracing_subscriber::EnvFilter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -37,10 +37,7 @@ pub fn run() {
             })?;
 
             // ── System Tray ────────────────────────────────────────────
-            let icon = app
-                .default_window_icon()
-                .expect("no default icon")
-                .clone();
+            let icon = app.default_window_icon().expect("no default icon").clone();
 
             let _tray = TrayIconBuilder::new()
                 .icon(icon)
@@ -72,7 +69,7 @@ pub fn run() {
                                 let _ = win.close();
                                 return;
                             }
-                            
+
                             // Check if there are active connections to adjust window height
                             let state = app.state::<Arc<AppState>>();
                             let active_sessions_count = tauri::async_runtime::block_on(async {
@@ -87,7 +84,11 @@ pub fn run() {
                             let x = position.x;
                             let y = position.y;
                             let w = 300_f64;
-                            let h = if active_sessions_count > 0 { 320_f64 } else { 190_f64 };
+                            let h = if active_sessions_count > 0 {
+                                320_f64
+                            } else {
+                                190_f64
+                            };
 
                             // Try to get monitor height for Y positioning
                             let monitor_h = app
@@ -96,9 +97,9 @@ pub fn run() {
                                 .map(|m| m.size().height as f64 / m.scale_factor())
                                 .unwrap_or(1080.0);
                             let popup_y = if y > monitor_h / 2.0 {
-                                y - h - 8.0   // above icon (taskbar at bottom)
+                                y - h - 8.0 // above icon (taskbar at bottom)
                             } else {
-                                y + 8.0        // below icon (taskbar at top)
+                                y + 8.0 // below icon (taskbar at top)
                             };
                             let popup_x = (x - w / 2.0).max(4.0);
                             let url = tauri::WebviewUrl::App("index.html?mode=tray".into());

@@ -685,7 +685,11 @@ pub async fn rdp_launch_native(
     let p = password.unwrap_or_default();
     let addr = format!("{host}:{port}");
 
-    let clipboard_val = if share_clipboard.unwrap_or(true) { 1 } else { 0 };
+    let clipboard_val = if share_clipboard.unwrap_or(true) {
+        1
+    } else {
+        0
+    };
     let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
     let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
     let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
@@ -869,9 +873,7 @@ pub async fn window_toggle_pin(window: tauri::Window) -> Result<bool, AppError> 
 
 /// Returns active SSH sessions + workspaces for the system tray popup.
 #[tauri::command]
-pub async fn tray_get_data(
-    state: State<'_, Arc<AppState>>,
-) -> Result<Value, AppError> {
+pub async fn tray_get_data(state: State<'_, Arc<AppState>>) -> Result<Value, AppError> {
     // Active sessions
     let sessions = state.connections.sessions_list().await;
     let sessions_json: Vec<Value> = sessions
@@ -891,13 +893,12 @@ pub async fn tray_get_data(
     let mut enriched: Vec<Value> = Vec::new();
     for s in &sessions_json {
         let host_id = s["hostId"].as_str().unwrap_or("");
-        let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT label, workspace_id FROM hosts WHERE id = ?",
-        )
-        .bind(host_id)
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
+        let row: Option<(String, Option<String>)> =
+            sqlx::query_as("SELECT label, workspace_id FROM hosts WHERE id = ?")
+                .bind(host_id)
+                .fetch_optional(pool)
+                .await
+                .unwrap_or(None);
         let mut entry = s.clone();
         if let Some((label, ws_id)) = row {
             entry["label"] = json!(label);
