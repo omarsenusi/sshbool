@@ -1,17 +1,11 @@
-import RFB from "@novnc/novnc"
 import { useQuery } from "@tanstack/react-query"
 import {
-  AlertCircle,
   ExternalLink,
   Eye,
   EyeOff,
   KeyRound,
   Laptop,
-  Lock,
   Monitor,
-  Play,
-  Power,
-  RefreshCw,
   Terminal,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -30,8 +24,8 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
 
   const [tab, setTab] = useState<"rdp" | "vnc">("rdp")
   const [targetHost, setTargetHost] = useState<string>("127.0.0.1")
-  const [rdpPort, setRdpPort] = useState<string>("3389")
-  const [vncPort, setVncPort] = useState<string>("5900")
+  const rdpPort = "3389"
+  const vncPort = "5900"
   const [useSshCredentials, setUseSshCredentials] = useState<boolean>(true)
   const [domain, setDomain] = useState<string>("")
   const [username, setUsername] = useState<string>("")

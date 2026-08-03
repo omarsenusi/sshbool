@@ -91,6 +91,8 @@ pub struct HostDto {
     pub proxy_id: Option<String>,
     /// Server password (unsealed from vault when loaded).
     pub password: Option<String>,
+    /// SSH key id (`auto` = latest vault key).
+    pub ssh_key_id: Option<String>,
 }
 
 /// Host summary.
@@ -134,6 +136,7 @@ pub struct GroupDto {
 /// Host tree node.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+#[allow(clippy::large_enum_variant)]
 pub enum HostTreeNode {
     /// Group node.
     Group {

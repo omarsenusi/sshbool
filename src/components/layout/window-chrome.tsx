@@ -37,7 +37,6 @@ export type WindowChromeProps = {
  */
 export function WindowChrome({
   title = "SSHBool",
-  subtitle = "Infrastructure Workspace",
   children,
   showPin = true,
   showTheme = true,

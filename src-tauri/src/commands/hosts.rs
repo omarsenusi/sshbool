@@ -90,6 +90,7 @@ fn map_host(
         jump_host_id,
         proxy_id,
         password: None,
+        ssh_key_id: None,
     }
 }
 
@@ -240,8 +241,16 @@ pub async fn hosts_get(state: State<'_, Arc<AppState>>, id: String) -> Result<Ho
         }
     }
 
+    let ssh_key_id: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(format!("host:{id}:ssh_key"))
+        .fetch_optional(state.vault.pool())
+        .await
+        .ok()
+        .flatten();
+
     let mut dto = host_from_row(h);
     dto.password = password;
+    dto.ssh_key_id = ssh_key_id.map(|(v,)| v);
     Ok(dto)
 }
 
@@ -357,6 +366,93 @@ pub async fn hosts_update(state: State<'_, Arc<AppState>>, host: HostDto) -> Res
     .execute(state.vault.pool())
     .await
     .map_err(db)?;
+
+    // Update SSH Key settings
+    let resolved_key = resolve_ssh_key_id(
+        state.vault.pool(),
+        &host.auth_method,
+        host.ssh_key_id.clone(),
+    )
+    .await?;
+
+    if let Some(key_id) = resolved_key {
+        sqlx::query("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)")
+            .bind(format!("host:{}:ssh_key", host.id))
+            .bind(&key_id)
+            .bind(now)
+            .execute(state.vault.pool())
+            .await
+            .map_err(db)?;
+    } else {
+        sqlx::query("DELETE FROM settings WHERE key = ?")
+            .bind(format!("host:{}:ssh_key", host.id))
+            .execute(state.vault.pool())
+            .await
+            .map_err(db)?;
+    }
+
+    // Update Password/Credential settings
+    let existing_cred: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(format!("host:{}:cred", host.id))
+        .fetch_optional(state.vault.pool())
+        .await
+        .ok()
+        .flatten();
+
+    if let Some(password) = host.password.as_ref().filter(|p| !p.is_empty()) {
+        if let Some((cred_id,)) = existing_cred {
+            let (ct, nonce) = state
+                .vault
+                .seal_secret(password.as_bytes(), &format!("cred:{cred_id}"))
+                .await?;
+            sqlx::query("UPDATE credentials SET ciphertext = ?, nonce = ?, updated_at = ? WHERE id = ?")
+                .bind(&ct)
+                .bind(&nonce)
+                .bind(now)
+                .bind(&cred_id)
+                .execute(state.vault.pool())
+                .await
+                .map_err(db)?;
+        } else {
+            let cred_id = Uuid::now_v7().to_string();
+            let (ct, nonce) = state
+                .vault
+                .seal_secret(password.as_bytes(), &format!("cred:{cred_id}"))
+                .await?;
+            sqlx::query(
+                "INSERT INTO credentials (id, name, kind, ciphertext, nonce, aad, created_at, updated_at) VALUES (?, ?, 'password', ?, ?, ?, ?, ?)",
+            )
+            .bind(&cred_id)
+            .bind(format!("{} password", host.label))
+            .bind(&ct)
+            .bind(&nonce)
+            .bind(format!("cred:{cred_id}"))
+            .bind(now)
+            .bind(now)
+            .execute(state.vault.pool())
+            .await
+            .map_err(db)?;
+            sqlx::query("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)")
+                .bind(format!("host:{}:cred", host.id))
+                .bind(&cred_id)
+                .bind(now)
+                .execute(state.vault.pool())
+                .await
+                .map_err(db)?;
+        }
+    } else if let Some((cred_id,)) = existing_cred {
+        sqlx::query("DELETE FROM credentials WHERE id = ?")
+            .bind(&cred_id)
+            .execute(state.vault.pool())
+            .await
+            .map_err(db)?;
+        sqlx::query("DELETE FROM settings WHERE key = ?")
+            .bind(format!("host:{}:cred", host.id))
+            .execute(state.vault.pool())
+            .await
+            .map_err(db)?;
+    }
+
     Ok(())
 }
 

@@ -1,4 +1,5 @@
 //! SSHBool Tauri application crate.
+#![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
 mod commands;
 mod container;
@@ -83,8 +84,8 @@ pub fn run() {
                             });
 
                             // Compute position & dynamic height
-                            let x = position.x as f64;
-                            let y = position.y as f64;
+                            let x = position.x;
+                            let y = position.y;
                             let w = 300_f64;
                             let h = if active_sessions_count > 0 { 320_f64 } else { 190_f64 };
 

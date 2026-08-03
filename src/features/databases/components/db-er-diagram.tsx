@@ -44,7 +44,6 @@ const BAND_GAP = 56
 const PAD = 64
 const HEADER_H = 34
 const ROW_H = 20
-const MAX_COLS = 8
 /** Soft cap for a single vertical stack before wrapping into another column. */
 const MAX_STACK_H = 980
 const MINIMAP_W = 200
@@ -468,6 +467,8 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
   const dragRaf = useRef(0)
 
   const { baseNodes, edges } = useMemo(() => {
+    // Reference layoutKey to trigger re-layout when reset is requested
+    void layoutKey
     const tables: { schema: string; table: DbTableDto }[] = []
     for (const g of schema?.schemas ?? []) {
       for (const t of g.tables) tables.push({ schema: g.name, table: t })

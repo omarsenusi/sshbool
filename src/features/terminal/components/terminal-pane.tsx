@@ -188,8 +188,9 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
         // Double check it's not disposed
         if (termRef.current && fitRef.current) {
           // Clear texture atlas forces a full re-render of the glyphs
-          if (typeof (termRef.current as any).clearTextureAtlas === 'function') {
-            (termRef.current as any).clearTextureAtlas()
+          const termPrivate = termRef.current as unknown as { clearTextureAtlas?: () => void }
+          if (typeof termPrivate.clearTextureAtlas === 'function') {
+            termPrivate.clearTextureAtlas()
           }
           fitRef.current.fit()
         }

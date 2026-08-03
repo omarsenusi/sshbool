@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { AppWindow, Plus } from "lucide-react"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo } from "react"
 
 import { Button } from "@/components/ui/button"
 import { WindowTab, WindowTabStrip } from "@/components/layout/window-tab"

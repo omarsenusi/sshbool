@@ -37,6 +37,8 @@ export type HostDto = {
   connectCount: number
   jumpHostId?: string | null
   proxyId?: string | null
+  password?: string | null
+  sshKeyId?: string | null
 }
 
 export type GroupDto = {

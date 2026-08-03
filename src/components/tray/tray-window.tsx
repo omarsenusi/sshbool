@@ -11,10 +11,6 @@ import { ipc } from "@/lib/ipc/commands"
 export function TrayWindow() {
   const win = getCurrentWebviewWindow()
 
-  function close() {
-    void win.close()
-  }
-
   // Auto-close when window loses focus (clicks outside anywhere on OS)
   useEffect(() => {
     let unlisten: (() => void) | null = null

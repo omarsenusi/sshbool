@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { Check, ChevronDown, ExternalLink, FolderPlus, Plus, Sparkles, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
