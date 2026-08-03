@@ -48,7 +48,25 @@ export function HostRail() {
     queryFn: () => ipc.hostsListTree(),
   })
 
-  const hosts = flattenHosts(tree.data ?? [])
+  const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+  const activeWorkspaceIdQuery = useQuery<string>({
+    queryKey: ["settings", "activeWorkspaceId", urlWsId],
+    queryFn: async () => {
+      if (urlWsId) return urlWsId
+      return ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+    },
+  })
+  const hostWorkspacesQuery = useQuery<Record<string, string>>({
+    queryKey: ["settings", "hostWorkspaces"],
+    queryFn: async () => (await ipc.settingsGet("hostWorkspaces")) as Record<string, string> ?? {},
+  })
+  const activeWsId = activeWorkspaceIdQuery.data ?? urlWsId ?? "default"
+  const hostWorkspaces = hostWorkspacesQuery.data ?? {}
+  const allHosts = flattenHosts(tree.data ?? [])
+  const hosts = allHosts.filter((h) => {
+    const wsId = hostWorkspaces[h.id] ?? "default"
+    return activeWsId === "default" ? wsId === "default" : wsId === activeWsId
+  })
   const homeActive = activity === "home" || activity === "connections"
 
   return (
@@ -78,10 +96,10 @@ export function HostRail() {
           title="Overview"
           aria-current={homeActive ? "page" : undefined}
           className={cn(
-            "text-muted-foreground relative flex size-9 shrink-0 items-center justify-center rounded-md transition-transform",
+             "text-muted-foreground relative flex size-8 shrink-0 items-center justify-center rounded-md transition-all",
             homeActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground scale-105 shadow-sm"
-              : "hover:bg-sidebar-accent/60 hover:scale-105",
+              ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+              : "hover:bg-sidebar-accent/60",
           )}
           onClick={() => {
             setSelectedHostId(null)
@@ -89,6 +107,12 @@ export function HostRail() {
             setActivity("home")
           }}
         >
+          {homeActive && (
+            <span
+              className="absolute -left-[10px] top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-sm"
+              aria-hidden
+            />
+          )}
           <Home className="size-4" />
         </button>
 
@@ -130,8 +154,7 @@ export function HostRail() {
           size="icon"
           aria-label="Add host"
           title="Add host"
-          className="text-muted-foreground size-9 shrink-0 rounded-md border border-dashed"
-          onClick={() => {
+          className="text-muted-foreground size-8 shrink-0 rounded-md border border-dashed"          onClick={() => {
             setSelectedHostId(null)
             setAddHostOpen(true)
             setActivity("home")

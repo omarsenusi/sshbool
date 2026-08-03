@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query"
 import { FitAddon } from "@xterm/addon-fit"
 import { SearchAddon } from "@xterm/addon-search"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
@@ -43,6 +44,11 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
   const termRef = useRef<Terminal | null>(null)
   const visibleRef = useRef(visible)
   visibleRef.current = visible
+
+  const terminalFontQuery = useQuery({
+    queryKey: ["settings", "terminalFont"],
+    queryFn: () => ipc.settingsGet("terminalFont") as Promise<string | null>,
+  })
 
   useEffect(() => {
     const el = containerRef.current
@@ -164,6 +170,33 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
     return () => window.clearTimeout(t)
   }, [visible, paneId])
 
+  
+  useEffect(() => {
+    if (!termRef.current) return
+    const customFont = terminalFontQuery.data?.trim()
+    const font = customFont
+      ? `"${customFont}", ${TERMINAL_FONT_FAMILY}`
+      : TERMINAL_FONT_FAMILY
+      
+    if (termRef.current.options.fontFamily !== font) {
+      termRef.current.options.fontFamily = font
+      
+      // Re-fit after changing font as character dimensions might change.
+      // We must wait for the font to fully load via the CSS Font Loading API
+      // otherwise xterm.js will measure the fallback font width, causing wide letter spacing.
+      void document.fonts.load(`${fontSize}px ${font}`).then(() => {
+        // Double check it's not disposed
+        if (termRef.current && fitRef.current) {
+          // Clear texture atlas forces a full re-render of the glyphs
+          if (typeof (termRef.current as any).clearTextureAtlas === 'function') {
+            (termRef.current as any).clearTextureAtlas()
+          }
+          fitRef.current.fit()
+        }
+      })
+    }
+  }, [terminalFontQuery.data, fontSize])
+  
   return (
     <div
       ref={containerRef}

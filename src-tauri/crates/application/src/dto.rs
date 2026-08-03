@@ -89,6 +89,8 @@ pub struct HostDto {
     pub jump_host_id: Option<String>,
     /// Outbound proxy id.
     pub proxy_id: Option<String>,
+    /// Server password (unsealed from vault when loaded).
+    pub password: Option<String>,
 }
 
 /// Host summary.

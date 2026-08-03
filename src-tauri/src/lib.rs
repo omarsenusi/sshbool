@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use infrastructure::AppState;
 use tauri::Manager;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tracing_subscriber::EnvFilter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -33,7 +34,102 @@ pub fn run() {
                 handle.manage(state);
                 Ok::<(), String>(())
             })?;
+
+            // ── System Tray ────────────────────────────────────────────
+            let icon = app
+                .default_window_icon()
+                .expect("no default icon")
+                .clone();
+
+            let _tray = TrayIconBuilder::new()
+                .icon(icon)
+                .tooltip("SSHBool — Left-click for quick menu, Right-click to open app")
+                .on_tray_icon_event(|tray, event| {
+                    let app = tray.app_handle();
+                    match event {
+                        // ── Left click: show / restore main window ───
+                        TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } => {
+                            if let Some(main) = app.get_webview_window("main") {
+                                let _ = main.show();
+                                let _ = main.unminimize();
+                                let _ = main.set_focus();
+                            }
+                        }
+                        // ── Right click: toggle popup menu ────────────
+                        TrayIconEvent::Click {
+                            button: MouseButton::Right,
+                            button_state: MouseButtonState::Up,
+                            position,
+                            ..
+                        } => {
+                            // If popup already exists → destroy it (toggle off)
+                            if let Some(win) = app.get_webview_window("tray_popup") {
+                                let _ = win.close();
+                                return;
+                            }
+                            
+                            // Check if there are active connections to adjust window height
+                            let state = app.state::<Arc<AppState>>();
+                            let active_sessions_count = tauri::async_runtime::block_on(async {
+                                let pool = state.vault.pool();
+                                sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM sessions")
+                                    .fetch_one(pool)
+                                    .await
+                                    .unwrap_or(0)
+                            });
+
+                            // Compute position & dynamic height
+                            let x = position.x as f64;
+                            let y = position.y as f64;
+                            let w = 300_f64;
+                            let h = if active_sessions_count > 0 { 320_f64 } else { 190_f64 };
+
+                            // Try to get monitor height for Y positioning
+                            let monitor_h = app
+                                .get_webview_window("main")
+                                .and_then(|mw| mw.current_monitor().ok().flatten())
+                                .map(|m| m.size().height as f64 / m.scale_factor())
+                                .unwrap_or(1080.0);
+                            let popup_y = if y > monitor_h / 2.0 {
+                                y - h - 8.0   // above icon (taskbar at bottom)
+                            } else {
+                                y + 8.0        // below icon (taskbar at top)
+                            };
+                            let popup_x = (x - w / 2.0).max(4.0);
+                            let url = tauri::WebviewUrl::App("index.html?mode=tray".into());
+                            let _ = tauri::WebviewWindowBuilder::new(app, "tray_popup", url)
+                                .title("SSHBool Quick Menu")
+                                .inner_size(w, h)
+                                .position(popup_x, popup_y)
+                                .decorations(false)
+                                .always_on_top(true)
+                                .skip_taskbar(true)
+                                .shadow(true)
+                                .visible(true)
+                                .build();
+                        }
+                        _ => {}
+                    }
+                })
+                .build(app)
+                .expect("failed to build tray icon");
+            // ──────────────────────────────────────────────────────────
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            } else if window.label() == "tray_popup" {
+                // Let the tray popup close/destroy itself naturally
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::vault::vault_status,
@@ -151,6 +247,16 @@ pub fn run() {
             commands::phase2::auth_fido2_status,
             commands::phase2::editor_git_status,
             commands::phase2::editor_diff,
+            commands::phase2::rdp_launch_native,
+            commands::phase2::workspace_window_open,
+            commands::phase2::window_minimize,
+            commands::phase2::window_toggle_maximize,
+            commands::phase2::window_close,
+            commands::phase2::window_toggle_pin,
+            commands::phase2::tray_get_data,
+            commands::phase2::workspace_window_open_with_host,
+            commands::phase2::app_quit,
+            commands::phase2::tray_close,
             commands::phase3::db_connections_list,
             commands::phase3::db_connections_upsert,
             commands::phase3::db_connections_delete,

@@ -20,8 +20,8 @@ export function UnlockScreen() {
     setBusy(true)
     try {
       if (!initialized) {
-        if (password.length < 8) {
-          setError("Password must be at least 8 characters")
+        if (password.length < 6) {
+          setError("Password must be at least 6 characters")
           return
         }
         if (password !== confirm) {

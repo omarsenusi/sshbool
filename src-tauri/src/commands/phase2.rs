@@ -7,6 +7,7 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use tauri::Manager;
 
 fn db(e: sqlx::Error) -> AppError {
     AppError::Db {
@@ -667,4 +668,288 @@ pub async fn folders_compare(
         "onlyRemote": only_remote,
         "both": both,
     }))
+}
+
+#[tauri::command]
+pub async fn rdp_launch_native(
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    share_clipboard: Option<bool>,
+    smart_sizing: Option<bool>,
+    admin_mode: Option<bool>,
+    full_screen: Option<bool>,
+) -> Result<(), AppError> {
+    let u = username.unwrap_or_default();
+    let p = password.unwrap_or_default();
+    let addr = format!("{host}:{port}");
+
+    let clipboard_val = if share_clipboard.unwrap_or(true) { 1 } else { 0 };
+    let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
+    let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
+    let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::io::Write;
+        use std::process::Command;
+
+        // 1. Store credentials into Windows Credential Manager via cmdkey so mstsc auto-logins!
+        if !u.is_empty() && !p.is_empty() {
+            let _ = Command::new("cmdkey")
+                .args([
+                    &format!("/generic:TERMSRV/{host}"),
+                    &format!("/user:{u}"),
+                    &format!("/pass:{p}"),
+                ])
+                .status();
+
+            let _ = Command::new("cmdkey")
+                .args([
+                    &format!("/generic:TERMSRV/{addr}"),
+                    &format!("/user:{u}"),
+                    &format!("/pass:{p}"),
+                ])
+                .status();
+        }
+
+        // 2. Generate temporary .rdp file applying all exact profile override toggles!
+        let rdp_content = format!(
+            "full address:s:{addr}\r\n\
+             username:s:{u}\r\n\
+             prompt for credentials:i:0\r\n\
+             authentication level:i:2\r\n\
+             redirectclipboard:i:{clipboard_val}\r\n\
+             smart sizing:i:{sizing_val}\r\n\
+             administrative session:i:{admin_val}\r\n\
+             screen mode id:i:{screen_mode_val}\r\n\
+             desktopwidth:i:1920\r\n\
+             desktopheight:i:1080\r\n\
+             session bpp:i:32\r\n"
+        );
+
+        let temp_path = std::env::temp_dir().join("sshbool_remote_desktop.rdp");
+        if let Ok(mut file) = std::fs::File::create(&temp_path) {
+            let _ = file.write_all(rdp_content.as_bytes());
+
+            let mut args = vec!["/c", "start", "mstsc.exe", temp_path.to_str().unwrap_or("")];
+            if admin_mode.unwrap_or(false) {
+                args.push("/admin");
+            }
+            if full_screen.unwrap_or(false) {
+                args.push("/f");
+            }
+
+            let _ = Command::new("cmd").args(args).spawn();
+        } else {
+            let mut args = vec!["/c", "start", "mstsc.exe", "/v:", &addr];
+            if admin_mode.unwrap_or(false) {
+                args.push("/admin");
+            }
+            if full_screen.unwrap_or(false) {
+                args.push("/f");
+            }
+            let _ = Command::new("cmd").args(args).spawn();
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use std::io::Write;
+        use std::process::Command;
+
+        let rdp_content = format!(
+            "full address:s:{addr}\r\n\
+             username:s:{u}\r\n\
+             prompt for credentials:i:0\r\n\
+             authentication level:i:2\r\n\
+             redirectclipboard:i:{clipboard_val}\r\n\
+             smart sizing:i:{sizing_val}\r\n\
+             administrative session:i:{admin_val}\r\n\
+             screen mode id:i:{screen_mode_val}\r\n"
+        );
+
+        let temp_path = std::env::temp_dir().join("sshbool_remote_desktop.rdp");
+        if let Ok(mut file) = std::fs::File::create(&temp_path) {
+            let _ = file.write_all(rdp_content.as_bytes());
+            let _ = Command::new("open").arg(&temp_path).spawn();
+        } else {
+            let url = format!(
+                "rdp://full%20address=s:{addr}&username=s:{u}&redirectclipboard=i:{clipboard_val}&smartsizing=i:{sizing_val}"
+            );
+            let _ = Command::new("open").arg(&url).spawn();
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::Command;
+        let mut cmd = Command::new("xfreerdp");
+        let mut args = vec![
+            format!("/v:{addr}"),
+            format!("/u:{u}"),
+            format!("/p:{p}"),
+            "/cert-ignore".to_string(),
+        ];
+        if share_clipboard.unwrap_or(true) {
+            args.push("+clipboard".to_string());
+        } else {
+            args.push("-clipboard".to_string());
+        }
+        if smart_sizing.unwrap_or(true) {
+            args.push("/smart-sizing".to_string());
+        }
+        if admin_mode.unwrap_or(false) {
+            args.push("/admin".to_string());
+        }
+        if full_screen.unwrap_or(false) {
+            args.push("/f".to_string());
+        }
+        cmd.args(args);
+        let _ = cmd.spawn();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn workspace_window_open(
+    app: tauri::AppHandle,
+    ws_id: String,
+    title: String,
+) -> Result<(), AppError> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let label = format!("ws_win_{ws_id}_{now}");
+    let url_str = format!("index.html?wsId={ws_id}");
+    let url = tauri::WebviewUrl::App(url_str.into());
+
+    let _ = tauri::WebviewWindowBuilder::new(&app, &label, url)
+        .title(&title)
+        .inner_size(1200.0, 800.0)
+        .decorations(false)
+        .shadow(true)
+        .build();
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn window_minimize(window: tauri::Window) -> Result<(), AppError> {
+    let _ = window.minimize();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn window_toggle_maximize(window: tauri::Window) -> Result<(), AppError> {
+    if window.is_maximized().unwrap_or(false) {
+        let _ = window.unmaximize();
+    } else {
+        let _ = window.maximize();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn window_close(window: tauri::Window) -> Result<(), AppError> {
+    let _ = window.close();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn window_toggle_pin(window: tauri::Window) -> Result<bool, AppError> {
+    let current = window.is_always_on_top().unwrap_or(false);
+    let next = !current;
+    let _ = window.set_always_on_top(next);
+    Ok(next)
+}
+
+/// Returns active SSH sessions + workspaces for the system tray popup.
+#[tauri::command]
+pub async fn tray_get_data(
+    state: State<'_, Arc<AppState>>,
+) -> Result<Value, AppError> {
+    // Active sessions
+    let sessions = state.connections.sessions_list().await;
+    let sessions_json: Vec<Value> = sessions
+        .into_iter()
+        .map(|(pane_id, session_id, host_id, title)| {
+            json!({
+                "paneId": pane_id,
+                "sessionId": session_id,
+                "hostId": host_id,
+                "title": title,
+            })
+        })
+        .collect();
+
+    // Hosts info for each active session (label + workspace_id)
+    let pool = state.vault.pool();
+    let mut enriched: Vec<Value> = Vec::new();
+    for s in &sessions_json {
+        let host_id = s["hostId"].as_str().unwrap_or("");
+        let row: Option<(String, Option<String>)> = sqlx::query_as(
+            "SELECT label, workspace_id FROM hosts WHERE id = ?",
+        )
+        .bind(host_id)
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
+        let mut entry = s.clone();
+        if let Some((label, ws_id)) = row {
+            entry["label"] = json!(label);
+            entry["workspaceId"] = json!(ws_id.unwrap_or_default());
+        }
+        enriched.push(entry);
+    }
+
+    Ok(json!({ "sessions": enriched }))
+}
+
+/// Opens a workspace window and optionally highlights a specific host.
+#[tauri::command]
+pub async fn workspace_window_open_with_host(
+    app: tauri::AppHandle,
+    ws_id: String,
+    host_id: Option<String>,
+    title: String,
+) -> Result<(), AppError> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let label = format!("ws_win_{ws_id}_{now}");
+    let mut url_str = format!("index.html?wsId={ws_id}");
+    if let Some(hid) = host_id {
+        url_str.push_str(&format!("&focusHost={hid}"));
+    }
+    let url = tauri::WebviewUrl::App(url_str.into());
+
+    let _ = tauri::WebviewWindowBuilder::new(&app, &label, url)
+        .title(&title)
+        .inner_size(1200.0, 800.0)
+        .decorations(false)
+        .shadow(true)
+        .build();
+
+    Ok(())
+}
+
+/// Quit the entire application (used from system tray popup).
+#[tauri::command]
+pub async fn app_quit(app: tauri::AppHandle) -> Result<(), AppError> {
+    app.exit(0);
+    Ok(())
+}
+
+/// Explicitly close/destroy the tray popup window.
+#[tauri::command]
+pub async fn tray_close(app: tauri::AppHandle) -> Result<(), AppError> {
+    if let Some(win) = app.get_webview_window("tray_popup") {
+        let _ = win.close();
+    }
+    Ok(())
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { AppWindow, Plus } from "lucide-react"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 
 import { Button } from "@/components/ui/button"
 import { WindowTab, WindowTabStrip } from "@/components/layout/window-tab"
@@ -65,14 +65,22 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
     },
   })
 
-  // Auto-open one terminal for the selected connected host.
+  // Automatically close terminal panes when their host is disconnected
   useEffect(() => {
-    if (!visible || !selectedHostId || !connected || !hostLabel) return
-    if (hostPanes.length > 0 || openPane.isPending) return
-    openPane.mutate(selectedHostId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, selectedHostId, connected, hostLabel, hostPanes.length])
-
+    const unsub = useConnectionStore.subscribe((state) => {
+      const { panes: currentPanes, removePane } = useSessionStore.getState()
+      
+      // Close panes for disconnected hosts
+      for (const pane of currentPanes) {
+        if (state.byHost[pane.hostId]?.status !== "connected") {
+          void ipc.paneClose(pane.paneId).catch(() => {})
+          removePane(pane.paneId)
+        }
+      }
+    })
+    return unsub
+  }, [])
+  
   const closePane = useMutation({
     mutationFn: async (paneId: string) => {
       try {

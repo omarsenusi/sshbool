@@ -1,5 +1,5 @@
 import { Image } from "@tauri-apps/api/image"
-import { getCurrentWindow } from "@tauri-apps/api/window"
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import {
   Minus,
   Monitor,
@@ -14,6 +14,8 @@ import { useTheme } from "next-themes"
 import { useEffect, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher"
+import { TrayTrigger } from "@/components/tray/tray-popup"
 import { ipc } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
 
@@ -41,7 +43,7 @@ export function WindowChrome({
   showTheme = true,
   className,
 }: WindowChromeProps) {
-  const win = getCurrentWindow()
+  const win = getCurrentWebviewWindow()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [pinned, setPinned] = useState(false)
@@ -76,14 +78,18 @@ export function WindowChrome({
     void ipc.settingsSet("theme", next).catch(() => {})
   }
 
-  async function togglePin() {
-    const next = !pinned
+  async function togglePin(e?: React.MouseEvent) {
+    e?.stopPropagation()
     try {
-      // Always the current window — never broadcasts to other webviews.
-      await win.setAlwaysOnTop(next)
+      const next = await ipc.windowTogglePin()
       setPinned(next)
     } catch {
-      /* permission / platform */
+      // Fallback to JS-side window API
+      const next = !pinned
+      try {
+        await win.setAlwaysOnTop(next)
+        setPinned(next)
+      } catch { /* ignore */ }
     }
   }
 
@@ -94,43 +100,84 @@ export function WindowChrome({
         ? Moon
         : Sun
 
+  async function handleMinimize(e?: React.MouseEvent) {
+    e?.stopPropagation()
+    try {
+      await ipc.windowMinimize()
+    } catch {
+      void win.minimize().catch(() => {})
+    }
+  }
+
+  async function handleMaximize(e?: React.MouseEvent) {
+    e?.stopPropagation()
+    try {
+      await ipc.windowToggleMaximize()
+    } catch {
+      void win.toggleMaximize().catch(() => {})
+    }
+  }
+
+  async function handleClose(e?: React.MouseEvent) {
+    e?.stopPropagation()
+    try {
+      await ipc.windowClose()
+    } catch {
+      void win.close().catch(() => {})
+    }
+  }
+
+  function handleStartDrag(e: React.MouseEvent) {
+    const target = e.target as HTMLElement
+    // Ignore drag when clicking interactive elements like buttons, dropdowns, inputs
+    if (target.closest("button") || target.closest("input") || target.closest("select")) {
+      return
+    }
+    void win.startDragging().catch(() => {})
+  }
+
   return (
     <header
       className={cn(
-        "bg-sidebar border-border flex h-[var(--titlebar-h)] shrink-0 items-center border-b select-none",
+        "bg-sidebar border-border flex h-[var(--titlebar-h)] shrink-0 items-center border-b select-none cursor-default",
         className,
       )}
+      style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       data-tauri-drag-region
+      onMouseDown={handleStartDrag}
     >
       <div
         className="flex min-w-0 shrink-0 items-center gap-2 px-3"
         data-tauri-drag-region
       >
-        <img
-          src="/app-icon-32.png"
-          alt=""
-          width={18}
-          height={18}
-          className="size-[18px] rounded-sm object-cover"
-          draggable={false}
-        />
-        <div className="flex min-w-0 items-baseline gap-2" data-tauri-drag-region>
-          <span className="text-foreground text-[13px] font-semibold tracking-tight">
+        {/* App icon — click opens tray popup */}
+        <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+          <TrayTrigger />
+        </div>
+        <div className="flex min-w-0 items-center gap-2" data-tauri-drag-region>
+          <span
+            className="text-foreground text-[13px] font-semibold tracking-tight"
+            data-tauri-drag-region
+          >
             {title}
           </span>
-          {subtitle ? (
-            <span className="text-muted-foreground hidden truncate text-[11px] sm:inline">
-              {subtitle}
-            </span>
-          ) : null}
+          <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+            <WorkspaceSwitcher />
+          </div>
         </div>
       </div>
 
-      <div className="flex min-h-0 min-w-0 flex-1 items-center gap-1 overflow-hidden px-1">
+      <div
+        className="flex min-h-0 min-w-0 flex-1 items-center gap-1 overflow-hidden px-1"
+        data-tauri-drag-region
+      >
         {children}
       </div>
 
-      <div className="flex shrink-0 items-center pr-1">
+      <div
+        className="flex shrink-0 items-center pr-1 z-30"
+        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+      >
         {showPin && (
           <Button
             variant="ghost"
@@ -142,11 +189,9 @@ export function WindowChrome({
                 ? "Unpin this window (only this window)"
                 : "Pin this window on top (only this window)"
             }
-            className={cn(
-              "text-muted-foreground",
-              pinned && "text-primary bg-primary/10",
-            )}
-            onClick={() => void togglePin()}
+            className={cn("text-muted-foreground", pinned && "text-primary bg-primary/10")}
+            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            onClick={(e) => void togglePin(e)}
           >
             {pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
           </Button>
@@ -158,6 +203,7 @@ export function WindowChrome({
             aria-label={`Theme: ${theme ?? "system"}`}
             title={`Theme: ${mounted ? (theme ?? "system") : "…"} (click to cycle)`}
             className="text-muted-foreground"
+            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             onClick={cycleTheme}
           >
             <ThemeIcon className="size-3.5" />
@@ -169,7 +215,8 @@ export function WindowChrome({
           size="icon-xs"
           aria-label="Minimize"
           className="text-muted-foreground hover:text-foreground"
-          onClick={() => void win.minimize()}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          onClick={handleMinimize}
         >
           <Minus className="size-3.5" />
         </Button>
@@ -178,7 +225,8 @@ export function WindowChrome({
           size="icon-xs"
           aria-label="Maximize"
           className="text-muted-foreground hover:text-foreground"
-          onClick={() => void win.toggleMaximize()}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          onClick={handleMaximize}
         >
           <Square className="size-3!" />
         </Button>
@@ -187,7 +235,8 @@ export function WindowChrome({
           size="icon-xs"
           aria-label="Close"
           className="text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-          onClick={() => void win.close()}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          onClick={handleClose}
         >
           <X className="size-3.5" />
         </Button>

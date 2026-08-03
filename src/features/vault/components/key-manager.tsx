@@ -59,6 +59,23 @@ export function KeyManager() {
 
   const keys = useQuery({ queryKey: ["keys"], queryFn: () => ipc.keysList() })
 
+  const activeWorkspaceIdQuery = useQuery<string>({
+    queryKey: ["settings", "activeWorkspaceId"],
+    queryFn: async () => ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default",
+  })
+  const keyWorkspacesQuery = useQuery<Record<string, string>>({
+    queryKey: ["settings", "keyWorkspaces"],
+    queryFn: async () =>
+      ((await ipc.settingsGet("keyWorkspaces")) as Record<string, string>) ?? {},
+  })
+  const activeWsId = activeWorkspaceIdQuery.data ?? "default"
+  const keyWorkspaces = keyWorkspacesQuery.data ?? {}
+  const allKeys = keys.data ?? []
+  const filteredKeys = allKeys.filter((k) => {
+    const wsId = keyWorkspaces[k.id] ?? "default"
+    return activeWsId === "default" ? wsId === "default" : wsId === activeWsId
+  })
+
   const generate = useMutation({
     mutationFn: () =>
       ipc.keysGenerate({
@@ -67,8 +84,13 @@ export function KeyManager() {
         passphrase: form.passphrase?.trim() || undefined,
       }),
     onSuccess: async (key) => {
+      const activeWsId = (await ipc.settingsGet("activeWorkspaceId")) as string ?? "default"
+      const keyWs = (await ipc.settingsGet("keyWorkspaces")) as Record<string, string> ?? {}
+      keyWs[key.id] = activeWsId
+      await ipc.settingsSet("keyWorkspaces", keyWs)
       setForm({ name: "", keyType: "ed25519", comment: "", passphrase: "" })
       void qc.invalidateQueries({ queryKey: ["keys"] })
+      void qc.invalidateQueries({ queryKey: ["settings"] })
       setExpandedId(key.id)
       try {
         await navigator.clipboard.writeText(key.publicKey)
@@ -88,7 +110,11 @@ export function KeyManager() {
       if (!name) throw new Error("Name required")
       return ipc.keysImport(importContent, name, passphrase || undefined)
     },
-    onSuccess: (key) => {
+    onSuccess: async (key) => {
+      const activeWsId = (await ipc.settingsGet("activeWorkspaceId")) as string ?? "default"
+      const keyWs = (await ipc.settingsGet("keyWorkspaces")) as Record<string, string> ?? {}
+      keyWs[key.id] = activeWsId
+      await ipc.settingsSet("keyWorkspaces", keyWs)
       setImportContent("")
       setImportName("")
       setImportPath(null)
@@ -97,6 +123,7 @@ export function KeyManager() {
       void qc.invalidateQueries({ queryKey: ["keys"] })
       setExpandedId(key.id)
       toast.success("Key imported", key.name)
+      void qc.invalidateQueries({ queryKey: ["settings"] })
     },
   })
 
@@ -188,7 +215,7 @@ export function KeyManager() {
   }
 
   const canImport = !!importPath || (!!importContent.trim() && !!importName.trim())
-  const keyCount = keys.data?.length ?? 0
+  const keyCount = filteredKeys.length
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -204,7 +231,7 @@ export function KeyManager() {
           <div className="text-foreground text-lg font-semibold tabular-nums leading-none">
             {keyCount}
           </div>
-          <div className="mt-0.5 uppercase tracking-wider">in vault</div>
+          <div className="mt-0.5 uppercase tracking-wider">in workspace</div>
         </div>
       </header>
 
@@ -382,7 +409,7 @@ export function KeyManager() {
         {/* Keys fill the rest of the window */}
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="border-border text-muted-foreground flex shrink-0 items-center justify-between border-b px-5 py-2.5 text-[11px] font-semibold tracking-wider uppercase">
-            <span>Vault keys</span>
+            <span>Workspace keys</span>
             <span className="font-mono normal-case tracking-normal opacity-70">
               {keyCount} stored
             </span>
@@ -392,17 +419,17 @@ export function KeyManager() {
             {keys.isLoading && (
               <p className="text-muted-foreground px-1 text-xs">Loading keys…</p>
             )}
-            {keys.data?.length === 0 && (
+            {filteredKeys.length === 0 && (
               <div className="border-border text-muted-foreground flex h-full min-h-48 flex-col items-center justify-center rounded-xl border border-dashed px-6 text-center">
                 <KeyRound className="mb-3 size-8 opacity-30" />
-                <p className="text-sm font-medium text-foreground/80">No keys yet</p>
+                <p className="text-sm font-medium text-foreground/80">No keys in this workspace</p>
                 <p className="mt-1 max-w-sm text-xs">
                   Generate a new key on the left, or import an existing OpenSSH private key.
                 </p>
               </div>
             )}
             <ul className="space-y-2">
-              {keys.data?.map((k) => {
+              {filteredKeys.map((k) => {
                 const open = expandedId === k.id
                 const renaming = renamingId === k.id
                 return (

@@ -89,6 +89,7 @@ fn map_host(
         connect_count,
         jump_host_id,
         proxy_id,
+        password: None,
     }
 }
 
@@ -211,7 +212,37 @@ pub async fn hosts_get(state: State<'_, Arc<AppState>>, id: String) -> Result<Ho
             id: Some(id),
         });
     };
-    Ok(host_from_row(h))
+
+    let cred_id: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(format!("host:{id}:cred"))
+        .fetch_optional(state.vault.pool())
+        .await
+        .ok()
+        .flatten();
+
+    let mut password = None;
+    if let Some((cid,)) = cred_id {
+        let secret: Option<(Vec<u8>, Vec<u8>)> =
+            sqlx::query_as("SELECT ciphertext, nonce FROM credentials WHERE id = ?")
+                .bind(&cid)
+                .fetch_optional(state.vault.pool())
+                .await
+                .ok()
+                .flatten();
+        if let Some((ct, nonce)) = secret {
+            if let Ok(plain) = state
+                .vault
+                .open_secret(&ct, &nonce, &format!("cred:{cid}"))
+                .await
+            {
+                password = Some(String::from_utf8_lossy(&plain).into_owned());
+            }
+        }
+    }
+
+    let mut dto = host_from_row(h);
+    dto.password = password;
+    Ok(dto)
 }
 
 #[tauri::command]

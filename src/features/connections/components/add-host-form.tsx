@@ -83,10 +83,16 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
       return ipc.hostsCreate(payload)
     },
     onSuccess: async (id) => {
+      const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+      const activeWsId = urlWsId ?? ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      const hostWs = ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {}
+      hostWs[id] = activeWsId
+      await ipc.settingsSet("hostWorkspaces", hostWs)
       setForm(emptyForm())
       setAddHostOpen(false)
       setSelectedHostId(id)
       await qc.invalidateQueries({ queryKey: ["hosts"] })
+      await qc.invalidateQueries({ queryKey: ["settings"] })
       onDone?.()
     },
   })

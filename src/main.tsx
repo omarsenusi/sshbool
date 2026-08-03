@@ -59,6 +59,19 @@ async function boot() {
     return
   }
 
+  // Tray popup window — ?mode=tray
+  if (new URLSearchParams(window.location.search).get("mode") === "tray") {
+    const { TrayWindow } = await import("@/components/tray/tray-window")
+    createRoot(root).render(
+      <StrictMode>
+        <AppProviders>
+          <TrayWindow />
+        </AppProviders>
+      </StrictMode>,
+    )
+    return
+  }
+
   const { App } = await import("@/App")
   createRoot(root).render(
     <StrictMode>

@@ -10,10 +10,12 @@ export type ActivityId =
   | "sftp"
   | "editor"
   | "dashboard"
+  | "desktop"
   | "docker"
   | "kubernetes"
   | "databases"
   | "devtools"
+  | "hostSettings"
   | "ai"
   | "keys"
   | "plugins"
@@ -27,10 +29,12 @@ export const HOST_SCOPED_ACTIVITIES: ActivityId[] = [
   "sftp",
   "editor",
   "dashboard",
+  "desktop",
   "docker",
   "kubernetes",
   "databases",
   "devtools",
+  "hostSettings",
 ]
 
 /** App-level activities (host rail). */
@@ -62,6 +66,9 @@ type LayoutState = {
   lastViewed: LastViewed | null
   /** @deprecated Prefer editor store openTab — kept for callers. */
   editorPath: string
+  /** Width of context sidebar in px. */
+  sidebarWidth: number
+  setSidebarWidth: (width: number) => void
   setActivity: (activity: ActivityId) => void
   toggleSidebar: () => void
   setSelectedHostId: (id: string | null) => void
@@ -80,6 +87,8 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   selectedHostId: null,
   liveHostIds: [],
   addHostOpen: false,
+  sidebarWidth: 220,
+  setSidebarWidth: (width) => set({ sidebarWidth: width }),
   lastViewed: null,
   editorPath: "",
   setActivity: (activity) =>

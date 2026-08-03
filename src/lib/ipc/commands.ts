@@ -27,6 +27,15 @@ import type {
   DbTablePreviewDto,
 } from "./types"
 
+export type TraySession = {
+  paneId: string
+  sessionId: string
+  hostId: string
+  title: string
+  label?: string
+  workspaceId?: string
+}
+
 export class IpcError extends Error {
   constructor(public readonly appError: AppError) {
     super(formatAppError(appError))
@@ -127,6 +136,40 @@ export const ipc = {
       keyPassphrase: keyPassphrase ?? null,
     }),
   sessionClose: (sessionId: string) => call<void>("session_close", { sessionId }),
+
+  rdpLaunchNative: (
+    host: string,
+    port: number,
+    username?: string,
+    password?: string,
+    shareClipboard?: boolean,
+    smartSizing?: boolean,
+    adminMode?: boolean,
+    fullScreen?: boolean,
+  ) =>
+    call<void>("rdp_launch_native", {
+      host,
+      port,
+      username: username ?? null,
+      password: password ?? null,
+      shareClipboard: shareClipboard ?? true,
+      smartSizing: smartSizing ?? true,
+      adminMode: adminMode ?? false,
+      fullScreen: fullScreen ?? false,
+    }),
+
+  workspaceWindowOpen: (wsId: string, title: string) =>
+    call<void>("workspace_window_open", { wsId, title }),
+
+  windowMinimize: () => call<void>("window_minimize"),
+  windowToggleMaximize: () => call<void>("window_toggle_maximize"),
+  windowClose: () => call<void>("window_close"),
+  windowTogglePin: () => call<boolean>("window_toggle_pin"),
+  trayGetData: () => call<{ sessions: TraySession[] }>("tray_get_data"),
+  workspaceWindowOpenWithHost: (wsId: string, hostId: string | null, title: string) =>
+    call<void>("workspace_window_open_with_host", { wsId, hostId, title }),
+  appQuit: () => call<void>("app_quit"),
+  trayClose: () => call<void>("tray_close"),
 
   paneOpen: (hostId: string, cols: number, rows: number) =>
     call<PaneInfoDto>("pane_open", { hostId, cols, rows }),

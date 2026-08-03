@@ -138,8 +138,34 @@ export function HostTree({
     },
   })
 
-  const hosts = flattenHosts(tree.data ?? [])
+  const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+  const activeWorkspaceIdQuery = useQuery<string>({
+    queryKey: ["settings", "activeWorkspaceId", urlWsId],
+    queryFn: async () => {
+      if (urlWsId) return urlWsId
+      return ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+    },
+  })
+  const hostWorkspacesQuery = useQuery<Record<string, string>>({
+    queryKey: ["settings", "hostWorkspaces"],
+    queryFn: async () =>
+      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {},
+  })
+  const activeWsId = activeWorkspaceIdQuery.data ?? urlWsId ?? "default"
+  const hostWorkspaces = hostWorkspacesQuery.data ?? {}
+  const allHosts = flattenHosts(tree.data ?? [])
+  const hosts = allHosts.filter((h) => {
+    const wsId = hostWorkspaces[h.id] ?? "default"
+    return activeWsId === "default" ? wsId === "default" : wsId === activeWsId
+  })
   const editing = editingId ? hosts.find((h) => h.id === editingId) : null
+  const filteredTree = (tree.data ?? []).filter((n) => {
+    if (n.kind === "host") {
+      const wsId = hostWorkspaces[n.host.id] ?? "default"
+      return activeWsId === "default" ? wsId === "default" : wsId === activeWsId
+    }
+    return true
+  })
 
   function selectHost(id: string) {
     if (onSelectHost) {
@@ -158,7 +184,7 @@ export function HostTree({
   const list = (
     <>
       {tree.isLoading && <p className="text-muted-foreground p-2 text-xs">Loading…</p>}
-      {tree.data?.map((n, i) => (
+      {filteredTree.map((n, i) => (
         <div key={i} className="group relative">
           <HostNode node={n} onSelect={selectHost} />
           {n.kind === "host" && (
@@ -182,8 +208,8 @@ export function HostTree({
           )}
         </div>
       ))}
-      {tree.data?.length === 0 && (
-        <p className="text-muted-foreground p-3 text-xs">No hosts yet. Add one to connect.</p>
+      {filteredTree.length === 0 && (
+        <p className="text-muted-foreground p-3 text-xs">No hosts in this workspace. Add one to connect.</p>
       )}
       {editing && (
         <EditHostColor host={editing} onClose={() => setEditingId(null)} />

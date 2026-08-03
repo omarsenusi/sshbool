@@ -82,16 +82,38 @@ export function HomeOverview() {
     queryFn: () => ipc.appInfo(),
   })
 
-  const hosts = flattenHosts(tree.data ?? [])
+  const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+  const activeWorkspaceIdQuery = useQuery<string>({
+    queryKey: ["settings", "activeWorkspaceId", urlWsId],
+    queryFn: async () => {
+      if (urlWsId) return urlWsId
+      return ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+    },
+  })
+  const hostWorkspacesQuery = useQuery<Record<string, string>>({
+    queryKey: ["settings", "hostWorkspaces"],
+    queryFn: async () =>
+      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {},
+  })
+  const activeWsId = activeWorkspaceIdQuery.data ?? urlWsId ?? "default"
+  const hostWorkspaces = hostWorkspacesQuery.data ?? {}
+  const allHosts = flattenHosts(tree.data ?? [])
+  const hosts = allHosts.filter((h) => {
+    const wsId = hostWorkspaces[h.id] ?? "default"
+    return activeWsId === "default" ? wsId === "default" : wsId === activeWsId
+  })
   const connectedHosts = hosts.filter((h) => byHost[h.id]?.status === "connected")
-  const openPanes = panes.length
-
+  const openPanes = panes.filter((p) => hosts.some((h) => h.id === p.hostId)).length
+  
+  const recentHosts = (recent.data ?? []).filter((r) =>
+    hosts.some((h) => h.id === r.id),
+  )
   const lastHost =
     (lastViewed?.hostId
       ? hosts.find((h) => h.id === lastViewed.hostId)
       : null) ??
-    (recent.data?.[0]
-      ? hosts.find((h) => h.id === recent.data![0]!.id) ?? null
+    (recentHosts[0]
+      ? hosts.find((h) => h.id === recentHosts[0]!.id) ?? null
       : null) ??
     hosts[0] ??
     null
@@ -157,7 +179,7 @@ export function HomeOverview() {
           <StatChip
             icon={<Clock3 className="size-3.5" />}
             label="Recent"
-            value={recent.data?.length ?? 0}
+            value={recentHosts.length}
           />
           <StatChip
             icon={<FolderKey className="size-3.5" />}
@@ -365,10 +387,10 @@ export function HomeOverview() {
                 Recent hosts
               </h2>
               <ul className="space-y-0.5">
-                {(recent.data ?? []).length === 0 && (
+                {recentHosts.length === 0 && (
                   <li className="text-muted-foreground text-xs">No recent connections.</li>
                 )}
-                {(recent.data ?? []).map((h) => (
+                {recentHosts.map((h) => (
                   <li key={h.id}>
                     <button
                       type="button"

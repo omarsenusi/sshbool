@@ -1,6 +1,7 @@
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useState, type ReactNode } from "react"
 
+import { FontProvider } from "@/components/font-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { formatAppError, IpcError } from "@/lib/ipc/commands"
@@ -36,8 +37,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <ThemeProvider>
-        {children}
-        <Toaster />
+        <FontProvider>
+          {children}
+          <Toaster />
+        </FontProvider>
       </ThemeProvider>
     </QueryClientProvider>
   )

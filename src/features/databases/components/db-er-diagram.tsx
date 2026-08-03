@@ -62,9 +62,7 @@ function shortType(t: string) {
 }
 
 function nodeHeight(colCount: number) {
-  const shown = Math.min(colCount, MAX_COLS)
-  const extra = colCount > MAX_COLS ? 1 : 0
-  return HEADER_H + (shown + extra) * ROW_H + 8
+  return HEADER_H + colCount * ROW_H + 12
 }
 
 function packGrid(
@@ -755,7 +753,7 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
                   </span>
                 </div>
                 <div className="px-2 py-1">
-                  {node.table.columns.slice(0, MAX_COLS).map((col) => {
+                  {node.table.columns.map((col) => {
                     const fk = node.table.foreignKeys.some((f) => f.column === col.name)
                     return (
                       <div
@@ -780,11 +778,6 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
                       </div>
                     )
                   })}
-                  {node.table.columns.length > MAX_COLS && (
-                    <div className="text-muted-foreground px-1 text-[9px]">
-                      +{node.table.columns.length - MAX_COLS} more
-                    </div>
-                  )}
                 </div>
               </div>
             )

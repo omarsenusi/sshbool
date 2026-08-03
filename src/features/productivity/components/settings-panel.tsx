@@ -4,6 +4,7 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -31,6 +32,55 @@ const SECTIONS = [
 ] as const
 
 type Section = (typeof SECTIONS)[number]
+
+function SecuritySettings() {
+  const qc = useQueryClient()
+  const lockQuery = useQuery({
+    queryKey: ["settings", "lockOnStartup"],
+    queryFn: async () => (await ipc.settingsGet("lockOnStartup")) === true,
+  })
+  const toggleLock = useMutation({
+    mutationFn: async (newValue: boolean) => {
+      await ipc.settingsSet("lockOnStartup", newValue)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["settings", "lockOnStartup"] })
+    },
+  })
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-semibold">Security & Encryption</h2>
+        <p className="text-muted-foreground mt-1 text-xs">
+          Manage your master vault password and security options.
+        </p>
+      </div>
+      <div className="space-y-4 pt-4 border-t border-border max-w-lg">
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <label className="text-sm font-medium cursor-pointer" htmlFor="lock-on-startup">
+              Require Master Password on launch
+            </label>
+            <p className="text-muted-foreground text-xs">
+              When enabled, SSHBool will lock the vault and ask for your password every time you open the app.
+            </p>
+          </div>
+          <Switch
+            id="lock-on-startup"
+            checked={lockQuery.data ?? false}
+            onCheckedChange={(checked) => toggleLock.mutate(checked)}
+          />
+        </div>
+        <div className="pt-2">
+          <Button size="sm" variant="outline" onClick={() => void ipc.vaultLock()}>
+            Lock vault now
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
   const [section, setSection] = useState<Section>(initial)
@@ -185,14 +235,12 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
           </div>
         )}
         {section === "security" && (
-          <div className="space-y-2">
-            <h2 className="font-semibold">Security</h2>
-            <Button size="sm" variant="outline" onClick={() => void ipc.vaultLock()}>
-              Lock vault now
-            </Button>
-          </div>
+           <SecuritySettings />
         )}
-        {!["general", "appearance", "about", "updates", "security", "license", "team"].includes(
+                {section === "terminal" && (
+          <TerminalSettings />
+        )}
+        {!["general", "appearance", "terminal", "about", "updates", "security", "license", "team"].includes(
           section,
         ) && (
           <div>
@@ -207,6 +255,103 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
   )
 }
 
+function FontSelector({ 
+  value, 
+  onChange, 
+  onSave, 
+  isSaving, 
+  label, 
+  description, 
+  popularFonts 
+}: { 
+  value: string; 
+  onChange: (v: string) => void; 
+  onSave: () => void; 
+  isSaving: boolean; 
+  label: string; 
+  description: string; 
+  popularFonts: string[] 
+}) {
+  return (
+    <div className="space-y-3 max-w-md">
+      <div>
+        <h3 className="text-sm font-semibold">{label}</h3>
+        <p className="text-muted-foreground mt-1 text-xs mb-3">{description}</p>
+        
+        <div className="flex flex-wrap gap-2 mb-3">
+          {popularFonts.map(f => (
+            <button
+              key={f}
+              onClick={() => {
+                onChange(f)
+                // We don't auto-save here to let them see it in the input first, but we could.
+              }}
+              className={cn(
+                "px-2.5 py-1 text-xs rounded-md border transition-colors", 
+                value === f 
+                  ? "bg-primary text-primary-foreground border-primary" 
+                  : "hover:bg-muted bg-background border-border text-foreground"
+              )}
+            >
+              {f}
+            </button>
+          ))}
+          <button
+            onClick={() => onChange("")}
+            className={cn(
+              "px-2.5 py-1 text-xs rounded-md border transition-colors", 
+              !value 
+                ? "bg-primary text-primary-foreground border-primary" 
+                : "hover:bg-muted bg-background border-border text-foreground"
+            )}
+          >
+            Default
+          </button>
+        </div>
+        
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="border-input bg-background flex-1 rounded-md border px-2 py-1.5 text-sm"
+            placeholder="Custom Google Font (e.g. Almarai)"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <Button size="sm" onClick={onSave} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save Font"}
+          </Button>
+        </div>
+        {/* Live Preview */}
+        {value.trim() && (
+          <style>{`@import url('https://fonts.googleapis.com/css2?family=${value.trim().replace(/ /g, "+")}:wght@400;500;600&display=swap');`}</style>
+        )}
+        <div className="mt-4 rounded-md border bg-card text-card-foreground shadow-sm">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border/50" style={{ fontFamily: "system-ui, sans-serif" }}>
+            <span className="text-xs font-medium">Preview</span>
+            <span className="text-[10px] text-muted-foreground">{value.trim() || "System Default"}</span>
+          </div>
+          
+          <div 
+            className="px-3 py-3 space-y-2"
+            style={{ fontFamily: value.trim() ? `"${value.trim()}", system-ui, sans-serif` : undefined }}
+          >
+            {document.documentElement.lang === "ar" || document.documentElement.dir === "rtl" || navigator.language.startsWith("ar") ? (
+              <p className="text-sm text-foreground text-right" dir="rtl">
+                أبجد هوز حطي كلمن سعفص قرشت.
+              </p>
+            ) : (
+              <p className="text-sm text-foreground">
+                The quick brown fox jumps over the lazy dog.
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground break-all">0123456789 !@#$%^&*()</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AppearanceSettings() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -214,6 +359,22 @@ function AppearanceSettings() {
 
   useEffect(() => setMounted(true), [])
 
+   const appFontQuery = useQuery({
+    queryKey: ["settings", "appFont"],
+    queryFn: () => ipc.settingsGet("appFont") as Promise<string | null>,
+  })
+  const [appFont, setAppFont] = useState("")
+  useEffect(() => {
+    if (appFontQuery.data !== undefined) setAppFont(appFontQuery.data ?? "")
+  }, [appFontQuery.data])
+  const saveFont = useMutation({
+    mutationFn: async () => {
+      await ipc.settingsSet("appFont", appFont || null)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["settings"] })
+    },
+  })
   const options = [
     { id: "system" as const, label: "System", hint: "Follow OS light/dark", icon: Monitor },
     { id: "light" as const, label: "Light", hint: "Always light", icon: Sun },
@@ -228,39 +389,96 @@ function AppearanceSettings() {
   }
 
   const current = mounted ? (theme ?? "system") : "system"
+  const POPULAR_FONTS = ["Inter", "Roboto", "Outfit", "Cairo", "Tajawal"]
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-semibold">Appearance</h2>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Theme follows your system by default. Change it here or via the title-bar icon.
-          Press <kbd className="bg-muted rounded px-1">d</kbd> to flip light/dark quickly.
-        </p>
+        <div className="space-y-6">
+      <div className="space-y-4">
+        <div>
+          <h2 className="font-semibold">Appearance</h2>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Theme follows your system by default. Change it here or via the title-bar icon.
+            Press <kbd className="bg-muted rounded px-1">d</kbd> to flip light/dark quickly.
+          </p>
+        </div>
+        <div className="grid max-w-lg gap-2 sm:grid-cols-3">
+          {options.map(({ id, label, hint, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => choose(id)}
+              className={cn(
+                "hover:bg-muted/60 flex flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left transition-colors",
+                current === id ? "border-primary bg-muted/80" : "border-border",
+              )}
+            >
+              <Icon className="text-muted-foreground size-4" />
+              <span className="text-sm font-medium">{label}</span>
+              <span className="text-muted-foreground text-[11px]">{hint}</span>
+            </button>
+          ))}
+        </div>
+        {mounted && (
+          <p className="text-muted-foreground text-xs">
+            Active: <span className="text-foreground font-medium">{current}</span>
+            {current === "system" && resolvedTheme ? ` → ${resolvedTheme}` : null}
+          </p>
+        )}
       </div>
-      <div className="grid max-w-lg gap-2 sm:grid-cols-3">
-        {options.map(({ id, label, hint, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => choose(id)}
-            className={cn(
-              "hover:bg-muted/60 flex flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left transition-colors",
-              current === id ? "border-primary bg-muted/80" : "border-border",
-            )}
-          >
-            <Icon className="text-muted-foreground size-4" />
-            <span className="text-sm font-medium">{label}</span>
-            <span className="text-muted-foreground text-[11px]">{hint}</span>
-          </button>
-        ))}
+
+      <div className="space-y-4 pt-4 border-t border-border">
+        <FontSelector 
+          label="App Font (Google Fonts)"
+          description="Select a popular UI font or type any Google Font name to apply it to the whole app."
+          value={appFont}
+          onChange={setAppFont}
+          onSave={() => saveFont.mutate()}
+          isSaving={saveFont.isPending}
+          popularFonts={POPULAR_FONTS}
+        />
       </div>
-      {mounted && (
-        <p className="text-muted-foreground text-xs">
-          Active: <span className="text-foreground font-medium">{current}</span>
-          {current === "system" && resolvedTheme ? ` → ${resolvedTheme}` : null}
-        </p>
-      )}
+    </div>
+  )
+}
+
+function TerminalSettings() {
+  const qc = useQueryClient()
+  const terminalFontQuery = useQuery({
+    queryKey: ["settings", "terminalFont"],
+    queryFn: () => ipc.settingsGet("terminalFont") as Promise<string | null>,
+  })
+  const [terminalFont, setTerminalFont] = useState("")
+  useEffect(() => {
+    if (terminalFontQuery.data !== undefined) setTerminalFont(terminalFontQuery.data ?? "")
+  }, [terminalFontQuery.data])
+  const saveFont = useMutation({
+    mutationFn: async () => {
+      await ipc.settingsSet("terminalFont", terminalFont || null)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  })
+  const POPULAR_FONTS = ["JetBrains Mono", "Fira Code", "Source Code Pro", "Ubuntu Mono", "Inconsolata"]
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <div>
+          <h2 className="font-semibold">Terminal</h2>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Configure terminal behavior and appearance.
+          </p>
+        </div>
+      </div>
+      <div className="space-y-4 pt-4 border-t border-border">
+        <FontSelector 
+          label="Terminal Font (Google Fonts)"
+          description="Select a popular coding font or type any Google Font name for the terminal."
+          value={terminalFont}
+          onChange={setTerminalFont}
+          onSave={() => saveFont.mutate()}
+          isSaving={saveFont.isPending}
+          popularFonts={POPULAR_FONTS}
+        />
+      </div>
     </div>
   )
 }

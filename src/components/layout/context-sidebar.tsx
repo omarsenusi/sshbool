@@ -4,7 +4,9 @@ import {
   Database,
   FileCode2,
   HardDrive,
+  Monitor,
   Plug,
+  Settings,
   PlugZap,
   TerminalSquare,
   Wrench,
@@ -38,15 +40,37 @@ const tools: { id: ActivityId; icon: typeof TerminalSquare; label: string }[] = 
   // Docker / Kubernetes hidden for now — bring back when ready.
   { id: "databases", icon: Database, label: "Databases" },
   { id: "devtools", icon: Wrench, label: "Dev Tools" },
+  { id: "desktop", icon: Monitor, label: "Remote Desktop" },
+  { id: "hostSettings", icon: Settings, label: "Settings" },
 ]
 
 export function ContextSidebar() {
   const activity = useLayoutStore((s) => s.activity)
   const setActivity = useLayoutStore((s) => s.setActivity)
   const selectedHostId = useLayoutStore((s) => s.selectedHostId)
+  const sidebarWidth = useLayoutStore((s) => s.sidebarWidth)
+  const setSidebarWidth = useLayoutStore((s) => s.setSidebarWidth)
   const byHost = useConnectionStore((s) => s.byHost)
   const qc = useQueryClient()
   const visible = !!selectedHostId
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = sidebarWidth
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX
+      // Allow shrinking down to 140px and expanding up to 550px
+      const nextWidth = Math.min(Math.max(startWidth + deltaX, 140), 550)
+      setSidebarWidth(nextWidth)
+    }
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+    }
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+  }
 
   const tree = useQuery({
     queryKey: ["hosts", "tree"],
@@ -90,16 +114,25 @@ export function ContextSidebar() {
   return (
     <aside
       className={cn(
-        "bg-sidebar border-border flex shrink-0 flex-col overflow-hidden border-r",
-        "transition-[width,opacity,transform] duration-200 ease-out",
+        "bg-sidebar border-border relative flex shrink-0 flex-col overflow-hidden border-r",
+        "transition-[opacity,transform] duration-200 ease-out",
         visible
-          ? "w-[var(--sidebar-w)] translate-x-0 opacity-100"
+          ? "translate-x-0 opacity-100"
           : "pointer-events-none w-0 translate-x-[-6px] border-r-0 opacity-0",
       )}
+      style={{ width: visible ? `${sidebarWidth}px` : 0 }}
       aria-label="Host tools"
       aria-hidden={!visible}
     >
-      <div className="flex h-full w-[var(--sidebar-w)] flex-col">
+      {/* Resizable handle on the right edge */}
+      {visible && (
+        <div
+          className="hover:bg-primary/50 active:bg-primary absolute right-0 top-0 bottom-0 z-30 w-1.5 cursor-col-resize transition-colors"
+          onMouseDown={handleMouseDown}
+          title="Drag to resize sidebar"
+        />
+      )}
+      <div className="flex h-full w-full flex-col">
         {host && conn ? (
           <>
             <div className="border-border space-y-3 border-b p-3">
@@ -107,6 +140,7 @@ export function ContextSidebar() {
                 <HostTile
                   label={host.label}
                   accent={hostAccent(host)}
+                  icon={host.icon}
                   status={conn.status}
                 />
                 <div className="min-w-0 flex-1">

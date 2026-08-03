@@ -5,10 +5,12 @@ import { AppShell } from "@/components/layout/app-shell"
 import { AiPanel } from "@/features/ai/components/ai-panel"
 import { AuditPanel } from "@/features/audit/components/audit-panel"
 import { HomeOverview } from "@/features/home/home-overview"
+import { HostSettingsPanel } from "@/features/connections/components/host-settings-panel"
 import { DashboardPanel } from "@/features/dashboard/components/dashboard-panel"
 import { DatabasesPanel } from "@/features/databases/components/databases-panel"
 import { DevtoolsPanel } from "@/features/devtools/components/devtools-panel"
 import { DockerPanel } from "@/features/docker/components/docker-panel"
+import { RemoteDesktopView } from "@/features/desktop/components/remote-desktop-view"
 import { EditorWorkspace } from "@/features/editor/components/editor-workspace"
 import { K8sPanel } from "@/features/kubernetes/components/k8s-panel"
 import { PluginsPanel } from "@/features/plugins/components/plugins-panel"
@@ -52,7 +54,20 @@ export function App() {
   useEffect(() => {
     void ipc
       .vaultStatus()
-      .then(setStatus)
+      .then(async (st) => {
+        const isSubWindow = window.location.search.includes("wsId=")
+        const lockOnStartup = await ipc.settingsGet("lockOnStartup")
+        if (st.initialized && st.locked && lockOnStartup === true && !isSubWindow) {
+          try {
+            await ipc.vaultLock()
+          } catch {
+            /* ignore */
+          }
+          setStatus({ ...st, locked: true })
+        } else {
+          setStatus(st)
+        }
+      })
       .catch(() => {
         setStatus({ initialized: false, locked: true, biometric: false })
       })
@@ -134,6 +149,18 @@ export function App() {
             <NeedConnection connected={connected}>
               <DevtoolsPanel hostId={selectedHostId} />
             </NeedConnection>
+          ) : (
+            <Empty>Pick a server.</Empty>
+          ))}
+        {activity === "desktop" &&
+          (selectedHostId ? (
+            <RemoteDesktopView hostId={selectedHostId} />
+          ) : (
+            <Empty>Pick a server.</Empty>
+          ))}
+        {activity === "hostSettings" &&
+          (selectedHostId ? (
+            <HostSettingsPanel hostId={selectedHostId} />
           ) : (
             <Empty>Pick a server.</Empty>
           ))}
