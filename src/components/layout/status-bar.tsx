@@ -17,7 +17,7 @@ export function StatusBar() {
                 : "unlocked"}
         </span>
       </div>
-      <div>SSHBool 0.1.0</div>
+      <div>SSHBool 0.1.3</div>
     </footer>
   )
 }
