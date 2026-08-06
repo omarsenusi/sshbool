@@ -5,6 +5,9 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
   push:
+    branches:
+      - master
+      - main
     paths:
       - "src-tauri/Cargo.lock"
       - "bun.lock"
