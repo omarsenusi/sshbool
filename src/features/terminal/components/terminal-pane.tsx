@@ -10,6 +10,10 @@ import "@xterm/xterm/css/xterm.css"
 import { listen } from "@tauri-apps/api/event"
 
 import {
+  isArabicLetter,
+  prepareTextForXterm,
+} from "@/features/terminal/arabic-xterm"
+import {
   TERMINAL_FONT_FAMILY,
   TERMINAL_THEME,
 } from "@/features/terminal/terminal-theme"
@@ -37,8 +41,8 @@ function resizePty(paneId: string, fit: FitAddon, fallback = false) {
   }
 }
 
-export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
+export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const visibleRef = useRef(visible)
@@ -56,9 +60,6 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
       : TERMINAL_FONT_FAMILY
   }, [customFont])
 
-  const fontRef = useRef(font)
-  fontRef.current = font
-
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -67,15 +68,10 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
     let resizeTimer: number | null = null
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: "monospace",
+      fontFamily: font,
       fontSize,
-      lineHeight: 1.25,
       theme: TERMINAL_THEME,
       allowProposedApi: true,
-      scrollback: 10_000,
-      // Keep LF as-is — convertEol breaks fullscreen TUIs (htop/vim/tmux).
-      convertEol: false,
-      macOptionIsMeta: true,
     })
     const fit = new FitAddon()
     fitRef.current = fit
@@ -93,8 +89,7 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
     const onData = term.onData((data) => {
       let toSend = data
 
-      // WebKitGTK IME accumulation guard: If WebKitGTK appends text to uncleared textarea
-      // (e.g. "اح" after sending "ا", or "احم" after sending "اح"),
+      // WebKitGTK/IME accumulation guard: If input data is cumulative,
       // strip the already-sent prefix so only the newly typed character is forwarded to the PTY.
       if (
         lastData &&
@@ -106,7 +101,7 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
 
       lastData = data
 
-      // Clear helper textarea synchronously after reading input to prevent WebKitGTK from accumulating text for subsequent keypresses
+      // Clear helper textarea synchronously after reading input to prevent IME from accumulating text for subsequent keypresses
       const helperArea = el.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
       if (helperArea) {
         helperArea.value = ""
@@ -118,6 +113,10 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
     })
 
     let unlisten: (() => void) | undefined
+    const decoder = new TextDecoder("utf-8")
+    const isWindows =
+      typeof navigator !== "undefined" &&
+      /win/i.test(navigator.userAgent || navigator.platform)
 
     void (async () => {
       // Restore the authoritative PTY history from Rust (works across pop-out windows).
@@ -125,7 +124,15 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
         const history = await ipc.paneScrollback(paneId)
         if (disposed) return
         if (history.length > 0) {
-          term.write(Uint8Array.from(history))
+          const historyBytes = Uint8Array.from(history)
+          if (isWindows) {
+            const text = decoder.decode(historyBytes, { stream: true })
+            if ([...text].some(isArabicLetter)) {
+              term.write(prepareTextForXterm(text))
+              return
+            }
+          }
+          term.write(historyBytes)
         }
       } catch {
         /* pane may be brand new */
@@ -136,6 +143,13 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
       unlisten = await listen<{ bytes: number[] }>(`terminal://data/${paneId}`, (event) => {
         if (disposed) return
         const data = Uint8Array.from(event.payload.bytes)
+        if (isWindows) {
+          const chunk = decoder.decode(data, { stream: true })
+          if ([...chunk].some(isArabicLetter)) {
+            term.write(prepareTextForXterm(chunk))
+            return
+          }
+        }
         term.write(data)
       })
 
