@@ -127,7 +127,7 @@ checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "application"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "domain",
@@ -1404,7 +1404,7 @@ dependencies = [
 
 [[package]]
 name = "domain"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "serde",
@@ -2808,7 +2808,7 @@ dependencies = [
 
 [[package]]
 name = "infrastructure"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
@@ -5922,7 +5922,7 @@ dependencies = [
 
 [[package]]
 name = "sshbool"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "application",
  "base64 0.22.1",
@@ -5930,6 +5930,7 @@ dependencies = [
  "dirs",
  "domain",
  "ed25519-dalek 2.2.0",
+ "gethostname",
  "hex",
  "infrastructure",
  "rand 0.8.7",

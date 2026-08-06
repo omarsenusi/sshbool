@@ -423,3 +423,10 @@
     box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
   }
 }
+
+.xterm {
+  font-synthesis: none !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+

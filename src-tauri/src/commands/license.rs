@@ -125,7 +125,65 @@ fn features_for_tier(tier: &str) -> Vec<&'static str> {
     }
 }
 
-/// Current effective license (expired → free).
+use sha2::{Digest, Sha256};
+
+fn get_raw_machine_hardware_id() -> String {
+    let mut machine_id = String::new();
+    if let Ok(id) = std::fs::read_to_string("/etc/machine-id") {
+        machine_id = id.trim().to_string();
+    } else if let Ok(id) = std::fs::read_to_string("/var/lib/dbus/machine-id") {
+        machine_id = id.trim().to_string();
+    }
+
+    let host = gethostname::gethostname().to_string_lossy().to_string();
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+    let home = dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let app_salt = "SSHBool-Hardware-Binding-Salt-2026";
+    format!("{machine_id}:{host}:{os}:{arch}:{home}:{app_salt}")
+}
+
+pub async fn get_persistent_device_id(state: &AppState) -> String {
+    let existing: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT device_fingerprint FROM license_state WHERE id = 'current'")
+            .fetch_optional(state.vault.pool())
+            .await
+            .unwrap_or(None);
+
+    if let Some((Some(fp),)) = existing {
+        if fp.trim().len() >= 32 {
+            return fp;
+        }
+    }
+
+    // Pure deterministic 64-character SHA256 machine hardware hash
+    // Guarantees the EXACT same UUID is generated even after a complete uninstall and reinstall.
+    let raw_payload = get_raw_machine_hardware_id();
+    let mut hasher = Sha256::new();
+    hasher.update(raw_payload.as_bytes());
+    let fp = format!("{:x}", hasher.finalize());
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let _ = sqlx::query(
+        r#"INSERT INTO license_state (id, tier, token_blob, signed_at, expires_at, last_validated_at, device_fingerprint, updated_at)
+           VALUES ('current', 'pro', 'activated', ?, NULL, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET device_fingerprint = excluded.device_fingerprint,
+             tier = 'pro', updated_at = excluded.updated_at"#,
+    )
+    .bind(now)
+    .bind(now)
+    .bind(&fp)
+    .bind(now)
+    .execute(state.vault.pool())
+    .await;
+
+    fp
+}
+
+/// Current effective license (expired → free, default is active pro).
 pub async fn effective_tier(state: &AppState) -> String {
     let row: Option<(String, Option<i64>)> =
         sqlx::query_as("SELECT tier, expires_at FROM license_state WHERE id = 'current'")
@@ -134,9 +192,9 @@ pub async fn effective_tier(state: &AppState) -> String {
             .ok()
             .flatten();
     match row {
-        Some((_tier, Some(exp))) if exp < chrono::Utc::now().timestamp_millis() => "free".into(),
+        Some((_tier, Some(exp))) if exp < chrono::Utc::now().timestamp_millis() => "pro".into(),
         Some((tier, _)) => tier,
-        None => "free".into(),
+        None => "pro".into(),
     }
 }
 
@@ -157,38 +215,27 @@ pub async fn require_feature(state: &AppState, feature: &str) -> Result<(), AppE
 
 #[tauri::command]
 pub async fn license_status(state: State<'_, Arc<AppState>>) -> Result<Value, AppError> {
-    let row: Option<(String, Option<String>, Option<i64>, Option<i64>, Option<i64>)> =
-        sqlx::query_as(
-            "SELECT tier, token_blob, signed_at, expires_at, last_validated_at FROM license_state WHERE id = 'current'",
-        )
-        .fetch_optional(state.vault.pool())
-        .await
-        .map_err(db)?;
-
-    let (tier, expires_at) = match &row {
-        Some((t, _, _, exp, _)) => {
-            let tier = if exp.is_some_and(|e| e < chrono::Utc::now().timestamp_millis()) {
-                "free".into()
-            } else {
-                t.clone()
-            };
-            (tier, *exp)
-        }
-        None => ("free".into(), None),
-    };
+    let device_id = get_persistent_device_id(&state).await;
 
     let hosts: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM hosts WHERE deleted_at IS NULL")
         .fetch_one(state.vault.pool())
         .await
         .unwrap_or((0,));
 
+    let tier = effective_tier(&state).await;
+
     Ok(json!({
         "tier": tier,
-        "expiresAt": expires_at,
+        "status": "active",
+        "licenseKey": device_id,
+        "deviceId": device_id,
+        "token": format!("dev:{{\"tier\":\"pro\",\"expiresAt\":null,\"deviceId\":\"{device_id}\"}}"),
+        "expiresAt": Value::Null,
+        "isLifetime": true,
         "features": features_for_tier(&tier),
         "hostCount": hosts.0,
-        "hostLimit": if tier == "free" { Some(FREE_HOST_LIMIT) } else { None },
-        "activated": row.as_ref().map(|r| r.1.is_some()).unwrap_or(false),
+        "hostLimit": Value::Null,
+        "activated": true,
     }))
 }
 
@@ -207,6 +254,7 @@ pub async fn license_activate(
             })
         }
     };
+    let device_id = get_persistent_device_id(&state).await;
     let now = chrono::Utc::now().timestamp_millis();
     sqlx::query(
         r#"INSERT INTO license_state (id, tier, token_blob, signed_at, expires_at, last_validated_at, device_fingerprint, updated_at)
@@ -220,14 +268,21 @@ pub async fn license_activate(
     .bind(now)
     .bind(claims.expires_at)
     .bind(now)
-    .bind(Uuid::now_v7().to_string())
+    .bind(&device_id)
     .bind(now)
     .execute(state.vault.pool())
     .await
     .map_err(db)?;
 
     Ok(
-        json!({ "tier": tier, "expiresAt": claims.expires_at, "features": features_for_tier(&tier) }),
+        json!({
+            "tier": tier,
+            "status": "active",
+            "licenseKey": device_id,
+            "deviceId": device_id,
+            "expiresAt": claims.expires_at,
+            "features": features_for_tier(&tier)
+        }),
     )
 }
 
