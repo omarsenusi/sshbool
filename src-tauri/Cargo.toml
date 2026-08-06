@@ -67,6 +67,7 @@ regex = "1"
 ed25519-dalek = { version = "2", features = ["std"] }
 hex = "0.4"
 dirs = "6"
+gethostname = "1"
 
 [features]
 default = ["custom-protocol"]

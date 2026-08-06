@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { hostAccent, hostLetter } from "@/features/connections/host-appearance"
 import { ipc } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
@@ -36,7 +43,11 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
   const [shareClipboard, setShareClipboard] = useState<boolean>(true)
   const [smartSizing, setSmartSizing] = useState<boolean>(true)
   const [adminMode, setAdminMode] = useState<boolean>(false)
-  const [fullScreen, setFullScreen] = useState<boolean>(false)
+  const [resolutionMode, setResolutionMode] = useState<"fullscreen" | "1920x1080" | "1280x720" | "1024x768" | "custom">("1280x720")
+  const [customWidth, setCustomWidth] = useState<string>("1280")
+  const [customHeight, setCustomHeight] = useState<string>("720")
+  const [colorDepth, setColorDepth] = useState<"16" | "24" | "32">("32")
+  const [performancePreset, setPerformancePreset] = useState<"modem" | "broadband" | "lan" | "auto">("auto")
 
   // Connection & Per-Host Log Console State
   const [status, setStatus] = useState<
@@ -96,6 +107,21 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
     addLog(`Injecting credentials and bypass certificate prompts...`)
     addLog(`Launching native OS Remote Desktop Connection client...`)
 
+    let finalWidth: number | undefined
+    let finalHeight: number | undefined
+    let finalFullScreen = resolutionMode === "fullscreen"
+
+    if (resolutionMode === "custom") {
+      finalWidth = Number(customWidth) || 1280
+      finalHeight = Number(customHeight) || 720
+    } else if (resolutionMode !== "fullscreen") {
+      const [wStr, hStr] = resolutionMode.split("x")
+      if (wStr && hStr) {
+        finalWidth = Number(wStr)
+        finalHeight = Number(hStr)
+      }
+    }
+
     try {
       await ipc.rdpLaunchNative(
         targetHost,
@@ -105,7 +131,11 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
         shareClipboard,
         smartSizing,
         adminMode,
-        fullScreen
+        finalFullScreen,
+        finalWidth,
+        finalHeight,
+        Number(colorDepth),
+        performancePreset
       )
       setStatus("connected")
       addLog(`Remote Desktop Connection opened.`)
@@ -275,31 +305,116 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
               )}
             </div>
 
+            {/* Display & Quality Settings */}
+            <div className="space-y-3 pt-2 border-t border-border/40">
+              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Display & Quality Settings
+              </Label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Resolution</Label>
+                  <Select
+                    value={resolutionMode}
+                    onValueChange={(val) => setResolutionMode(val as any)}
+                  >
+                    <SelectTrigger className="h-8 w-full mt-1">
+                      <SelectValue placeholder="Select resolution" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fullscreen">Full Screen</SelectItem>
+                      <SelectItem value="1920x1080">1920 x 1080 (1080p)</SelectItem>
+                      <SelectItem value="1280x720">1280 x 720 (720p)</SelectItem>
+                      <SelectItem value="1024x768">1024 x 768 (XGA)</SelectItem>
+                      <SelectItem value="custom">Custom Size...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Connection Speed</Label>
+                  <Select
+                    value={performancePreset}
+                    onValueChange={(val) => setPerformancePreset(val as any)}
+                  >
+                    <SelectTrigger className="h-8 w-full mt-1">
+                      <SelectValue placeholder="Select speed" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto-detect Quality</SelectItem>
+                      <SelectItem value="lan">LAN (10 Mbps+ / High Quality)</SelectItem>
+                      <SelectItem value="broadband">Broadband (Good Performance)</SelectItem>
+                      <SelectItem value="modem">Modem (Low Quality / Fast)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {resolutionMode === "custom" && (
+                <div className="grid grid-cols-2 gap-3 animate-fade-in">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Custom Width (px)</Label>
+                    <Input
+                      type="number"
+                      className="h-7 text-xs mt-1"
+                      placeholder="1280"
+                      value={customWidth}
+                      onChange={(e) => setCustomWidth(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Custom Height (px)</Label>
+                    <Input
+                      type="number"
+                      className="h-7 text-xs mt-1"
+                      placeholder="720"
+                      value={customHeight}
+                      onChange={(e) => setCustomHeight(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Color Depth</Label>
+                  <Select
+                    value={colorDepth}
+                    onValueChange={(val) => setColorDepth(val as any)}
+                  >
+                    <SelectTrigger className="h-8 w-full mt-1">
+                      <SelectValue placeholder="Select colors" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="32">Highest Quality (32-bit color)</SelectItem>
+                      <SelectItem value="24">High Quality (24-bit color)</SelectItem>
+                      <SelectItem value="16">Medium Quality (16-bit color)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
             {/* Profile Overrides */}
             <div className="space-y-2 pt-1 border-t border-border/40">
               <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                 Profile Overrides & Resources
               </Label>
 
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer rounded-md p-1.5 hover:bg-muted/40 transition-colors">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <label className="flex items-center gap-1 cursor-pointer rounded-md p-1.5 hover:bg-muted/40 transition-colors">
                   <Switch checked={shareClipboard} onCheckedChange={setShareClipboard} />
-                  <span>Share clipboard</span>
+                  <span className="truncate">Clipboard</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer rounded-md p-1.5 hover:bg-muted/40 transition-colors">
+                <label className="flex items-center gap-1 cursor-pointer rounded-md p-1.5 hover:bg-muted/40 transition-colors">
                   <Switch checked={smartSizing} onCheckedChange={setSmartSizing} />
-                  <span>Smart sizing</span>
+                  <span className="truncate">Smart size</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer rounded-md p-1.5 hover:bg-muted/40 transition-colors">
+                <label className="flex items-center gap-1 cursor-pointer rounded-md p-1.5 hover:bg-muted/40 transition-colors">
                   <Switch checked={adminMode} onCheckedChange={setAdminMode} />
-                  <span>Admin / Console</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer rounded-md p-1.5 hover:bg-muted/40 transition-colors">
-                  <Switch checked={fullScreen} onCheckedChange={setFullScreen} />
-                  <span>Full-screen</span>
+                  <span className="truncate">Admin / Console</span>
                 </label>
               </div>
             </div>

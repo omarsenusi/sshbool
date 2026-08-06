@@ -680,24 +680,35 @@ pub async fn rdp_launch_native(
     smart_sizing: Option<bool>,
     admin_mode: Option<bool>,
     full_screen: Option<bool>,
+    width: Option<u32>,
+    height: Option<u32>,
+    color_depth: Option<u32>,
+    performance: Option<String>,
 ) -> Result<(), AppError> {
     let u = username.unwrap_or_default();
     let p = password.unwrap_or_default();
     let addr = format!("{host}:{port}");
 
-    let clipboard_val = if share_clipboard.unwrap_or(true) {
-        1
-    } else {
-        0
-    };
-    let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
-    let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
-    let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
-
     #[cfg(target_os = "windows")]
     {
         use std::io::Write;
         use std::process::Command;
+
+        let clipboard_val = if share_clipboard.unwrap_or(true) { 1 } else { 0 };
+        let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
+        let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
+        let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
+        
+        let w = width.unwrap_or(1920);
+        let h = height.unwrap_or(1080);
+        let bpp = color_depth.unwrap_or(32);
+        let perf_str = performance.as_deref().unwrap_or("auto");
+        let connection_val = match perf_str {
+            "modem" => 1,
+            "broadband" => 2,
+            "lan" => 5,
+            _ => 6, // auto
+        };
 
         // 1. Store credentials into Windows Credential Manager via cmdkey so mstsc auto-logins!
         if !u.is_empty() && !p.is_empty() {
@@ -728,9 +739,10 @@ pub async fn rdp_launch_native(
              smart sizing:i:{sizing_val}\r\n\
              administrative session:i:{admin_val}\r\n\
              screen mode id:i:{screen_mode_val}\r\n\
-             desktopwidth:i:1920\r\n\
-             desktopheight:i:1080\r\n\
-             session bpp:i:32\r\n"
+             desktopwidth:i:{w}\r\n\
+             desktopheight:i:{h}\r\n\
+             session bpp:i:{bpp}\r\n\
+             connection type:i:{connection_val}\r\n"
         );
 
         let temp_path = std::env::temp_dir().join("sshbool_remote_desktop.rdp");
@@ -763,6 +775,15 @@ pub async fn rdp_launch_native(
         use std::io::Write;
         use std::process::Command;
 
+        let clipboard_val = if share_clipboard.unwrap_or(true) { 1 } else { 0 };
+        let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
+        let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
+        let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
+        
+        let w = width.unwrap_or(1920);
+        let h = height.unwrap_or(1080);
+        let bpp = color_depth.unwrap_or(32);
+
         let rdp_content = format!(
             "full address:s:{addr}\r\n\
              username:s:{u}\r\n\
@@ -771,7 +792,10 @@ pub async fn rdp_launch_native(
              redirectclipboard:i:{clipboard_val}\r\n\
              smart sizing:i:{sizing_val}\r\n\
              administrative session:i:{admin_val}\r\n\
-             screen mode id:i:{screen_mode_val}\r\n"
+             screen mode id:i:{screen_mode_val}\r\n\
+             desktopwidth:i:{w}\r\n\
+             desktopheight:i:{h}\r\n\
+             session bpp:i:{bpp}\r\n"
         );
 
         let temp_path = std::env::temp_dir().join("sshbool_remote_desktop.rdp");
@@ -780,7 +804,7 @@ pub async fn rdp_launch_native(
             let _ = Command::new("open").arg(&temp_path).spawn();
         } else {
             let url = format!(
-                "rdp://full%20address=s:{addr}&username=s:{u}&redirectclipboard=i:{clipboard_val}&smartsizing=i:{sizing_val}"
+                "rdp://full%20address=s:{addr}&username=s:{u}&redirectclipboard=i:{clipboard_val}&smartsizing=i:{sizing_val}&desktopwidth=i:{w}&desktopheight=i:{h}&bpp=i:{bpp}"
             );
             let _ = Command::new("open").arg(&url).spawn();
         }
@@ -789,7 +813,17 @@ pub async fn rdp_launch_native(
     #[cfg(target_os = "linux")]
     {
         use std::process::Command;
-        let mut cmd = Command::new("xfreerdp");
+
+        let is_wayland = std::env::var("XDG_SESSION_TYPE")
+            .map(|v| v.to_lowercase() == "wayland")
+            .unwrap_or(false)
+            || std::env::var("WAYLAND_DISPLAY").is_ok();
+
+        let w = width.unwrap_or(1920);
+        let h = height.unwrap_or(1080);
+        let bpp = color_depth.unwrap_or(32);
+        let perf_str = performance.as_deref().unwrap_or("auto");
+
         let mut args = vec![
             format!("/v:{addr}"),
             format!("/u:{u}"),
@@ -809,9 +843,57 @@ pub async fn rdp_launch_native(
         }
         if full_screen.unwrap_or(false) {
             args.push("/f".to_string());
+        } else {
+            args.push(format!("/size:{w}x{h}"));
         }
-        cmd.args(args);
-        let _ = cmd.spawn();
+        args.push(format!("/bpp:{bpp}"));
+        args.push(format!("/network:{perf_str}"));
+
+        let mut spawned = false;
+        let mut last_error_msg = String::new();
+
+        // 1. Try Wayland native client if running in Wayland session
+        if is_wayland {
+            let mut cmd = Command::new("wlfreerdp");
+            cmd.args(&args);
+            match cmd.spawn() {
+                Ok(_) => { spawned = true; },
+                Err(e) => {
+                    last_error_msg = e.to_string();
+                }
+            }
+        }
+
+        // 2. Fallback to X11 client (xfreerdp)
+        if !spawned {
+            let mut cmd = Command::new("xfreerdp");
+            cmd.args(&args);
+            match cmd.spawn() {
+                Ok(_) => { spawned = true; },
+                Err(e) => {
+                    last_error_msg = e.to_string();
+                }
+            }
+        }
+
+        if !spawned {
+            let msg = if is_wayland {
+                format!(
+                    "RDP client not found (tried wlfreerdp and xfreerdp). \
+                     Please install FreeRDP to connect. Since you are on Wayland, you can run:\n\
+                     'sudo apt install freerdp2-wayland' (for native wlfreerdp)\n\
+                     or 'sudo apt install freerdp2-x11' (for xfreerdp via XWayland).\n\
+                     Details: {last_error_msg}"
+                )
+            } else {
+                format!(
+                    "RDP client 'xfreerdp' not found in PATH. Please install FreeRDP to connect, e.g. run:\n\
+                     'sudo apt install freerdp2-x11' or 'sudo apt install freerdp3-x11'.\n\
+                     Details: {last_error_msg}"
+                )
+            };
+            return Err(AppError::Internal { message: msg });
+        }
     }
 
     Ok(())

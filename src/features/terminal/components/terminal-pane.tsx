@@ -4,12 +4,11 @@ import { SearchAddon } from "@xterm/addon-search"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { Terminal } from "@xterm/xterm"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useMemo } from "react"
 import "@xterm/xterm/css/xterm.css"
 
 import { listen } from "@tauri-apps/api/event"
 
-import { ArabicXtermFixer } from "@/features/terminal/arabic-xterm"
 import {
   TERMINAL_FONT_FAMILY,
   TERMINAL_THEME,
@@ -50,16 +49,25 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
     queryFn: () => ipc.settingsGet("terminalFont") as Promise<string | null>,
   })
 
+  const customFont = terminalFontQuery.data?.trim()
+  const font = useMemo(() => {
+    return customFont
+      ? `"${customFont}", ${TERMINAL_FONT_FAMILY}`
+      : TERMINAL_FONT_FAMILY
+  }, [customFont])
+
+  const fontRef = useRef(font)
+  fontRef.current = font
+
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
 
     let disposed = false
     let resizeTimer: number | null = null
-    const arabicFix = new ArabicXtermFixer()
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: TERMINAL_FONT_FAMILY,
+      fontFamily: "monospace",
       fontSize,
       lineHeight: 1.25,
       theme: TERMINAL_THEME,
@@ -80,8 +88,33 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
     term.unicode.activeVersion = "11"
     term.open(el)
 
+    let lastData = ""
+
     const onData = term.onData((data) => {
-      void ipc.paneWrite(paneId, data)
+      let toSend = data
+
+      // WebKitGTK IME accumulation guard: If WebKitGTK appends text to uncleared textarea
+      // (e.g. "اح" after sending "ا", or "احم" after sending "اح"),
+      // strip the already-sent prefix so only the newly typed character is forwarded to the PTY.
+      if (
+        lastData &&
+        data.length > lastData.length &&
+        data.startsWith(lastData)
+      ) {
+        toSend = data.slice(lastData.length)
+      }
+
+      lastData = data
+
+      // Clear helper textarea synchronously after reading input to prevent WebKitGTK from accumulating text for subsequent keypresses
+      const helperArea = el.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
+      if (helperArea) {
+        helperArea.value = ""
+      }
+
+      if (toSend) {
+        void ipc.paneWrite(paneId, toSend)
+      }
     })
 
     let unlisten: (() => void) | undefined
@@ -92,8 +125,7 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
         const history = await ipc.paneScrollback(paneId)
         if (disposed) return
         if (history.length > 0) {
-          const fixed = arabicFix.feed(Uint8Array.from(history))
-          if (fixed) term.write(fixed)
+          term.write(Uint8Array.from(history))
         }
       } catch {
         /* pane may be brand new */
@@ -104,8 +136,7 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
       unlisten = await listen<{ bytes: number[] }>(`terminal://data/${paneId}`, (event) => {
         if (disposed) return
         const data = Uint8Array.from(event.payload.bytes)
-        const fixed = arabicFix.feed(data)
-        if (fixed) term.write(fixed)
+        term.write(data)
       })
 
       if (disposed) {
@@ -173,10 +204,6 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
   
   useEffect(() => {
     if (!termRef.current) return
-    const customFont = terminalFontQuery.data?.trim()
-    const font = customFont
-      ? `"${customFont}", ${TERMINAL_FONT_FAMILY}`
-      : TERMINAL_FONT_FAMILY
       
     if (termRef.current.options.fontFamily !== font) {
       termRef.current.options.fontFamily = font
@@ -196,15 +223,17 @@ export function TerminalPane({ paneId, fontSize = 13, visible = true }: Props) {
         }
       })
     }
-  }, [terminalFontQuery.data, fontSize])
+  }, [font, fontSize])
   
   return (
     <div
       ref={containerRef}
       className="h-full w-full"
       dir="ltr"
-      lang="ar"
-      style={{ unicodeBidi: "plaintext" }}
+      style={{
+        fontFamily: font,
+        fontSize: `${fontSize}px`,
+      }}
     />
   )
 }

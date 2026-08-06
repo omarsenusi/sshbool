@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { ipc } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
+import { LicenseSettings } from "@/features/license/components/license-settings"
 
 const SECTIONS = [
   "general",
@@ -84,7 +85,6 @@ function SecuritySettings() {
 
 export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
   const [section, setSection] = useState<Section>(initial)
-  const [token, setToken] = useState('dev:{"tier":"pro","expiresAt":null}')
   const [invite, setInvite] = useState("")
   const qc = useQueryClient()
 
@@ -93,20 +93,11 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
     queryKey: ["settings", "density"],
     queryFn: () => ipc.settingsGet("density"),
   })
-  const license = useQuery({ queryKey: ["license"], queryFn: () => ipc.licenseStatus() })
   const team = useQuery({ queryKey: ["team"], queryFn: () => ipc.teamStatus() })
 
   const setDensity = useMutation({
     mutationFn: (value: string) => ipc.settingsSet("density", value),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
-  })
-  const activate = useMutation({
-    mutationFn: () => ipc.licenseActivate(token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["license"] }),
-  })
-  const clearLicense = useMutation({
-    mutationFn: () => ipc.licenseClear(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["license"] }),
   })
   const joinTeam = useMutation({
     mutationFn: () => ipc.teamJoinStub(invite),
@@ -165,32 +156,7 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
           <AppearanceSettings />
         )}
         {section === "license" && (
-          <div className="space-y-3">
-            <h2 className="font-semibold">License / Upgrade</h2>
-            <pre className="bg-muted rounded-md p-2 font-mono text-xs">
-              {JSON.stringify(license.data ?? {}, null, 2)}
-            </pre>
-            <p className="text-muted-foreground text-xs">
-              Free includes core SSH/SFTP/terminal/keys (up to 10 hosts). Pro unlocks sync, AI,
-              dashboard extras. Use a <code>dev:{"{...}"}</code> token for local testing.
-            </p>
-            <textarea
-              className="border-input bg-background min-h-16 w-full rounded-md border px-2 py-1 font-mono text-xs"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => activate.mutate()}>
-                Activate
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => clearLicense.mutate()}>
-                Clear (Free)
-              </Button>
-            </div>
-            {activate.isError && (
-              <p className="text-destructive text-xs">{(activate.error as Error).message}</p>
-            )}
-          </div>
+          <LicenseSettings />
         )}
         {section === "team" && (
           <div className="space-y-3">

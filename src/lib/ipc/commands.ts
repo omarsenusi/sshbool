@@ -146,6 +146,10 @@ export const ipc = {
     smartSizing?: boolean,
     adminMode?: boolean,
     fullScreen?: boolean,
+    width?: number,
+    height?: number,
+    colorDepth?: number,
+    performance?: string,
   ) =>
     call<void>("rdp_launch_native", {
       host,
@@ -156,6 +160,10 @@ export const ipc = {
       smartSizing: smartSizing ?? true,
       adminMode: adminMode ?? false,
       fullScreen: fullScreen ?? false,
+      width: width ?? null,
+      height: height ?? null,
+      colorDepth: colorDepth ?? null,
+      performance: performance ?? null,
     }),
 
   workspaceWindowOpen: (wsId: string, title: string) =>
