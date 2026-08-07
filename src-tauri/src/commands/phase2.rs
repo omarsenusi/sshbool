@@ -694,11 +694,15 @@ pub async fn rdp_launch_native(
         use std::io::Write;
         use std::process::Command;
 
-        let clipboard_val = if share_clipboard.unwrap_or(true) { 1 } else { 0 };
+        let clipboard_val = if share_clipboard.unwrap_or(true) {
+            1
+        } else {
+            0
+        };
         let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
         let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
         let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
-        
+
         let w = width.unwrap_or(1920);
         let h = height.unwrap_or(1080);
         let bpp = color_depth.unwrap_or(32);
@@ -775,11 +779,15 @@ pub async fn rdp_launch_native(
         use std::io::Write;
         use std::process::Command;
 
-        let clipboard_val = if share_clipboard.unwrap_or(true) { 1 } else { 0 };
+        let clipboard_val = if share_clipboard.unwrap_or(true) {
+            1
+        } else {
+            0
+        };
         let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
         let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
         let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
-        
+
         let w = width.unwrap_or(1920);
         let h = height.unwrap_or(1080);
         let bpp = color_depth.unwrap_or(32);
@@ -857,7 +865,9 @@ pub async fn rdp_launch_native(
             let mut cmd = Command::new("wlfreerdp");
             cmd.args(&args);
             match cmd.spawn() {
-                Ok(_) => { spawned = true; },
+                Ok(_) => {
+                    spawned = true;
+                }
                 Err(e) => {
                     last_error_msg = e.to_string();
                 }
@@ -869,7 +879,9 @@ pub async fn rdp_launch_native(
             let mut cmd = Command::new("xfreerdp");
             cmd.args(&args);
             match cmd.spawn() {
-                Ok(_) => { spawned = true; },
+                Ok(_) => {
+                    spawned = true;
+                }
                 Err(e) => {
                     last_error_msg = e.to_string();
                 }

@@ -83,7 +83,11 @@ pub fn run() {
             {
                 let args: Vec<String> = std::env::args().collect();
                 tracing::info!("[STARTUP] args = {:?}", args);
-                let deep_link_arg = args.iter().skip(1).find(|a| a.starts_with("sshbool://")).cloned();
+                let deep_link_arg = args
+                    .iter()
+                    .skip(1)
+                    .find(|a| a.starts_with("sshbool://"))
+                    .cloned();
                 if let Some(url) = deep_link_arg {
                     tracing::info!("[STARTUP] deep link detected in args: {}", url);
                     // Write to handoff file so any running primary instance can read it
@@ -106,24 +110,23 @@ pub fn run() {
             // not wiring up correctly in dev mode.
             {
                 let handle = app.handle().clone();
-                std::thread::spawn(move || {
-                    loop {
-                        std::thread::sleep(std::time::Duration::from_millis(500));
-                        if let Some(mut path) = dirs::home_dir() {
-                            path.push("sshbool_deep_link_handoff.txt");
-                            if path.exists() {
-                                if let Ok(url) = std::fs::read_to_string(&path) {
-                                    let url = url.trim().to_string();
-                                    if !url.is_empty() {
-                                        tracing::info!("[POLLER] picked up deep link: {}", url);
-                                        let _ = std::fs::remove_file(&path);
-                                        let _ = handle.emit("single-instance-deep-link", vec![url.clone()]);
-                                        if let Some(window) = handle.get_webview_window("main") {
-                                            let _ = window.show();
-                                            let _ = window.unminimize();
-                                            let _ = window.set_focus();
-                                            let _ = window.emit("single-instance-deep-link", vec![url]);
-                                        }
+                std::thread::spawn(move || loop {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    if let Some(mut path) = dirs::home_dir() {
+                        path.push("sshbool_deep_link_handoff.txt");
+                        if path.exists() {
+                            if let Ok(url) = std::fs::read_to_string(&path) {
+                                let url = url.trim().to_string();
+                                if !url.is_empty() {
+                                    tracing::info!("[POLLER] picked up deep link: {}", url);
+                                    let _ = std::fs::remove_file(&path);
+                                    let _ =
+                                        handle.emit("single-instance-deep-link", vec![url.clone()]);
+                                    if let Some(window) = handle.get_webview_window("main") {
+                                        let _ = window.show();
+                                        let _ = window.unminimize();
+                                        let _ = window.set_focus();
+                                        let _ = window.emit("single-instance-deep-link", vec![url]);
                                     }
                                 }
                             }

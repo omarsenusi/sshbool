@@ -65,10 +65,11 @@ pub fn verify_license_token(token: &str) -> Result<LicenseClaims, AppError> {
         })?;
 
     // Parse the tokenData JSON to ensure it is valid
-    let token_data: serde_json::Value = serde_json::from_slice(&decoded_bytes).map_err(|e| AppError::Validation {
-        field: "token".into(),
-        message: format!("token JSON parse failed: {e}"),
-    })?;
+    let token_data: serde_json::Value =
+        serde_json::from_slice(&decoded_bytes).map_err(|e| AppError::Validation {
+            field: "token".into(),
+            message: format!("token JSON parse failed: {e}"),
+        })?;
 
     let payload = token_data.get("data").ok_or_else(|| AppError::Validation {
         field: "token".into(),
@@ -101,10 +102,11 @@ pub fn verify_license_token(token: &str) -> Result<LicenseClaims, AppError> {
     }
 
     // Deserialize into LicenseClaims
-    let claims: LicenseClaims = serde_json::from_value(payload.clone()).map_err(|e| AppError::Validation {
-        field: "token".into(),
-        message: e.to_string(),
-    })?;
+    let claims: LicenseClaims =
+        serde_json::from_value(payload.clone()).map_err(|e| AppError::Validation {
+            field: "token".into(),
+            message: e.to_string(),
+        })?;
 
     Ok(claims)
 }
@@ -113,11 +115,11 @@ fn extract_raw_data_field(json_str: &str) -> Option<&str> {
     let marker = "\"data\":";
     let start_idx = json_str.find(marker)? + marker.len();
     let sub = &json_str[start_idx..];
-    
+
     let open_brace = sub.find('{')?;
     let mut depth = 0;
     let mut end_brace = None;
-    
+
     for (i, c) in sub[open_brace..].char_indices() {
         if c == '{' {
             depth += 1;
@@ -129,7 +131,7 @@ fn extract_raw_data_field(json_str: &str) -> Option<&str> {
             }
         }
     }
-    
+
     end_brace.map(|end| &sub[open_brace..=end])
 }
 
@@ -265,7 +267,8 @@ pub async fn active_features(state: &AppState) -> Vec<String> {
         _ => (String::new(), String::new()),
     };
 
-    let is_activated = !token_blob.is_empty() && token_blob != "activated" && token_blob.contains('.');
+    let is_activated =
+        !token_blob.is_empty() && token_blob != "activated" && token_blob.contains('.');
     if !is_activated {
         return vec![
             "core_ssh".to_string(),
@@ -390,7 +393,8 @@ pub async fn license_activate(
     } else {
         claims.tier.clone()
     };
-    let features_json = serde_json::to_string(&claims.features).unwrap_or_else(|_| "[]".to_string());
+    let features_json =
+        serde_json::to_string(&claims.features).unwrap_or_else(|_| "[]".to_string());
     let device_id = get_persistent_device_id(&state).await;
     let now = chrono::Utc::now().timestamp_millis();
     sqlx::query(
@@ -414,16 +418,14 @@ pub async fn license_activate(
 
     let active_feats = active_features(&state).await;
 
-    Ok(
-        json!({
-            "tier": tier,
-            "status": "active",
-            "licenseKey": device_id,
-            "deviceId": device_id,
-            "expiresAt": claims.expires_at,
-            "features": active_feats
-        }),
-    )
+    Ok(json!({
+        "tier": tier,
+        "status": "active",
+        "licenseKey": device_id,
+        "deviceId": device_id,
+        "expiresAt": claims.expires_at,
+        "features": active_feats
+    }))
 }
 
 #[tauri::command]
