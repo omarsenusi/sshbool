@@ -11,18 +11,18 @@ Validation.
 
 ## 2. Threat model
 
-| Threat | Mitigation |
-|---|---|
-| Stolen laptop / disk theft | Full-DB SQLCipher encryption; vault locked by default on launch; secrets unreadable without master password/biometric |
-| Malware reading app memory | Secure memory (`zeroize`/`secrecy`), minimized secret lifetime in RAM, no swap-vulnerable long-lived plaintext buffers |
-| Malicious/compromised plugin | Capability sandbox (doc 21) — deny-by-default, no ambient FS/process access, signature-verified marketplace |
-| MITM on SSH connection | Strict host-key verification (TOFU/strict modes), fingerprint prompts, `AppError::HostKeyChanged` blocks by default |
-| MITM on sync/AI network calls | TLS everywhere (`reqwest` with rustls, cert validation on), E2E encryption for sync so a MITM relay sees only ciphertext regardless |
-| Credential/log leakage | `tracing` redaction layer; `AppError` messages redacted; AI context redaction (doc `features/20-ai-assistant.md` §3); no secrets in recordings/exported logs (doc `features/12-terminal.md` §7) |
-| Brute-force master password | Argon2id KDF with tuned memory/time cost; rate-limited unlock attempts with backoff; optional lockout after N failures |
-| Shoulder-surfing / unattended session | Auto-lock timer, session timeout, biometric re-auth for sensitive actions (private key export) |
-| Supply-chain (dependencies) | `cargo audit`/`npm audit` in CI (doc 24), pinned lockfiles, minimal dependency surface for crypto (RustCrypto/ring, not hand-rolled) |
-| Malicious update package | Tauri updater signature verification (doc 25) — unsigned/mismatched updates rejected |
+| Threat                                | Mitigation                                                                                                                                                                                      |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stolen laptop / disk theft            | Full-DB SQLCipher encryption; vault locked by default on launch; secrets unreadable without master password/biometric                                                                           |
+| Malware reading app memory            | Secure memory (`zeroize`/`secrecy`), minimized secret lifetime in RAM, no swap-vulnerable long-lived plaintext buffers                                                                          |
+| Malicious/compromised plugin          | Capability sandbox (doc 21) — deny-by-default, no ambient FS/process access, signature-verified marketplace                                                                                     |
+| MITM on SSH connection                | Strict host-key verification (TOFU/strict modes), fingerprint prompts, `AppError::HostKeyChanged` blocks by default                                                                             |
+| MITM on sync/AI network calls         | TLS everywhere (`reqwest` with rustls, cert validation on), E2E encryption for sync so a MITM relay sees only ciphertext regardless                                                             |
+| Credential/log leakage                | `tracing` redaction layer; `AppError` messages redacted; AI context redaction (doc `features/20-ai-assistant.md` §3); no secrets in recordings/exported logs (doc `features/12-terminal.md` §7) |
+| Brute-force master password           | Argon2id KDF with tuned memory/time cost; rate-limited unlock attempts with backoff; optional lockout after N failures                                                                          |
+| Shoulder-surfing / unattended session | Auto-lock timer, session timeout, biometric re-auth for sensitive actions (private key export)                                                                                                  |
+| Supply-chain (dependencies)           | `cargo audit`/`npm audit` in CI (doc 24), pinned lockfiles, minimal dependency surface for crypto (RustCrypto/ring, not hand-rolled)                                                            |
+| Malicious update package              | Tauri updater signature verification (doc 25) — unsigned/mismatched updates rejected                                                                                                            |
 
 ## 3. Key hierarchy
 

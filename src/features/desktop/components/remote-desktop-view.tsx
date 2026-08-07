@@ -109,7 +109,7 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
 
     let finalWidth: number | undefined
     let finalHeight: number | undefined
-    let finalFullScreen = resolutionMode === "fullscreen"
+    const finalFullScreen = resolutionMode === "fullscreen"
 
     if (resolutionMode === "custom") {
       finalWidth = Number(customWidth) || 1280
@@ -316,7 +316,7 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
                   <Label className="text-[10px] text-muted-foreground">Resolution</Label>
                   <Select
                     value={resolutionMode}
-                    onValueChange={(val) => setResolutionMode(val as any)}
+                    onValueChange={(val) => setResolutionMode(val as "fullscreen" | "1920x1080" | "1280x720" | "1024x768" | "custom")}
                   >
                     <SelectTrigger className="h-8 w-full mt-1">
                       <SelectValue placeholder="Select resolution" />
@@ -335,7 +335,7 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
                   <Label className="text-[10px] text-muted-foreground">Connection Speed</Label>
                   <Select
                     value={performancePreset}
-                    onValueChange={(val) => setPerformancePreset(val as any)}
+                    onValueChange={(val) => setPerformancePreset(val as "modem" | "broadband" | "lan" | "auto")}
                   >
                     <SelectTrigger className="h-8 w-full mt-1">
                       <SelectValue placeholder="Select speed" />
@@ -380,7 +380,7 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
                   <Label className="text-[10px] text-muted-foreground">Color Depth</Label>
                   <Select
                     value={colorDepth}
-                    onValueChange={(val) => setColorDepth(val as any)}
+                    onValueChange={(val) => setColorDepth(val as "16" | "24" | "32")}
                   >
                     <SelectTrigger className="h-8 w-full mt-1">
                       <SelectValue placeholder="Select colors" />

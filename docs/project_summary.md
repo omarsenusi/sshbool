@@ -6,10 +6,11 @@ This document provides a comprehensive technical overview of **SSHBool**, detail
 
 ## 1. Vision & Strategy
 
-**SSHBool** is a native, premium, blazing-fast desktop workspace that unifies remote infrastructure workflows. 
-Instead of fragmenting work across terminal emulators, SFTP clients, database GUIs, Docker panels, and browser tabs, SSHBool operates on a **"Connect once, do everything"** model. 
+**SSHBool** is a native, premium, blazing-fast desktop workspace that unifies remote infrastructure workflows.
+Instead of fragmenting work across terminal emulators, SFTP clients, database GUIs, Docker panels, and browser tabs, SSHBool operates on a **"Connect once, do everything"** model.
 
 ### Core Product Pillars
+
 1. **Native Performance**: Built on Rust core + Tauri v2, avoiding the heavy memory footprint of Electron. Cold starts are sub-second (< 800ms).
 2. **Premium UX**: Keyboard-first design featuring modern glassmorphism, dynamic color themes, and fluid animations.
 3. **Security by Default**: Secure local memory storage, Argon2id key derivation, AES-256 encrypted local vaults, and support for hardware keys (FIDO2/YubiKey).
@@ -20,19 +21,19 @@ Instead of fragmenting work across terminal emulators, SFTP clients, database GU
 
 ## 2. Technical Stack
 
-| Layer | Technologies / Libraries |
-|---|---|
-| **Shell/OS Desktop Wrapper** | **Tauri v2** (Rust) |
-| **Frontend Framework** | **React 19** + **TypeScript** + **Vite** |
-| **Routing & Navigation** | **TanStack Router** |
-| **State Management** | **Zustand** (Local UI state), **TanStack Query (v5)** (Server data fetching/caching) |
-| **Styling & Components** | **TailwindCSS v4**, **Base UI**, **Shadcn** (utility patterns) |
-| **Terminal Emulator** | **Xterm.js** + WebGL/Canvas renderers + WebLinks & Fit addons |
-| **Text Editor** | **Monaco Editor** (Remote files syntax-highlighting & diffing) |
-| **Backend Language** | **Rust** (Clean/Hexagonal Architecture) |
-| **Database Storage** | **SQLite** + **SQLx** (Encrypted via **SQLCipher** AES-256) |
-| **Crypto & KDF** | **Argon2id** (KDF), **Ring** / **RustCrypto** (Enveloping) |
-| **SSH Transport** | **russh** (Async SSH client library in Rust) |
+| Layer                        | Technologies / Libraries                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| **Shell/OS Desktop Wrapper** | **Tauri v2** (Rust)                                                                  |
+| **Frontend Framework**       | **React 19** + **TypeScript** + **Vite**                                             |
+| **Routing & Navigation**     | **TanStack Router**                                                                  |
+| **State Management**         | **Zustand** (Local UI state), **TanStack Query (v5)** (Server data fetching/caching) |
+| **Styling & Components**     | **TailwindCSS v4**, **Base UI**, **Shadcn** (utility patterns)                       |
+| **Terminal Emulator**        | **Xterm.js** + WebGL/Canvas renderers + WebLinks & Fit addons                        |
+| **Text Editor**              | **Monaco Editor** (Remote files syntax-highlighting & diffing)                       |
+| **Backend Language**         | **Rust** (Clean/Hexagonal Architecture)                                              |
+| **Database Storage**         | **SQLite** + **SQLx** (Encrypted via **SQLCipher** AES-256)                          |
+| **Crypto & KDF**             | **Argon2id** (KDF), **Ring** / **RustCrypto** (Enveloping)                           |
+| **SSH Transport**            | **russh** (Async SSH client library in Rust)                                         |
 
 ---
 
@@ -41,6 +42,7 @@ Instead of fragmenting work across terminal emulators, SFTP clients, database GU
 The project follows a **Hexagonal / Clean Architecture** pattern inside the Rust backend and a **Feature-based Structure** in the React frontend.
 
 ### Folder Structure
+
 ```
 sshbool/
 ├── docs/                      # Single source of truth specifications
@@ -75,6 +77,7 @@ sshbool/
 ## 4. How SSHBool Works (Core Flows)
 
 ### A. Bootstrapping & Vault Security
+
 1. On start, `src-tauri/src/lib.rs` executes `AppState::bootstrap()`.
 2. It checks if `sshbool.db` exists and whether the vault is initialized.
 3. If locked, the frontend displays `UnlockScreen`. The user enters the master password.
@@ -82,6 +85,7 @@ sshbool/
 5. In-memory data structures are initialized, and the SQLite connections are established.
 
 ### B. Multiplexed SSH Connections
+
 1. The user selects a host from the side panel and clicks **Connect**.
 2. Frontend calls `ipc.sessionOpen(hostId)`.
 3. The backend connection manager (`infrastructure/src/ssh/manager.rs`):
@@ -91,6 +95,7 @@ sshbool/
 4. When a user opens terminal tabs, SFTP file panels, Docker explorers, or Database queries, Tauri initiates independent async SSH channels over the **same, single TCP connection**, ensuring no overhead or duplicate connections are created.
 
 ### C. Database Auto-Detection & Query Execution
+
 1. In the **Databases** feature, users can click **Scan Server**.
 2. Backend runs a custom light-weight bash script on the remote host over SSH:
    - Probes local ports `5432` (Postgres), `3306` (MySQL), `6379` (Redis), `27017` (MongoDB) by checking `/proc/net/tcp` or `ss` sockets.

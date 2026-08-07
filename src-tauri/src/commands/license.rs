@@ -12,7 +12,7 @@ use crate::error::AppError;
 /// Dev public key (hex) for verifying license tokens. Replace at release with real key.
 /// Corresponding test private key is only used in unit tests / docs — never ship private key.
 const LICENSE_VERIFY_PUBKEY_HEX: &str =
-    "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
+    "ae12814e6d3c2652b42d2b3ae69192135ae743543764e43e5db85ba3d3b5c6f9";
 
 /// Free tier host limit (doc 27).
 pub const FREE_HOST_LIMIT: i64 = 10;
@@ -25,14 +25,15 @@ fn db(e: sqlx::Error) -> AppError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct LicenseClaims {
-    tier: String,
+    #[serde(alias = "type")]
+    pub tier: String,
     #[serde(default)]
-    features: Vec<String>,
-    expires_at: Option<i64>,
-    #[serde(default)]
-    major_version: Option<String>,
+    pub features: Vec<String>,
+    #[serde(default, alias = "expires_at")]
+    pub expires_at: Option<i64>,
+    #[serde(default, alias = "major_version")]
+    pub major_version: Option<String>,
 }
 
 /// Parse `base64(claims).base64(signature)` and verify Ed25519.
@@ -48,35 +49,88 @@ pub fn verify_license_token(token: &str) -> Result<LicenseClaims, AppError> {
     }
 
     use base64::Engine;
-    let (claims_b64, sig_b64) = token.split_once('.').ok_or_else(|| AppError::Validation {
+    // Split token and signature
+    let (token_b64, sig_hex) = token.split_once('.').ok_or_else(|| AppError::Validation {
         field: "token".into(),
-        message: "expected claims.signature".into(),
+        message: "expected token.signature".into(),
     })?;
-    let claims_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(claims_b64.as_bytes())
-        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(claims_b64.as_bytes()))
+
+    // Decode token_b64 to get the tokenData JSON
+    let decoded_bytes = base64::engine::general_purpose::STANDARD
+        .decode(token_b64.as_bytes())
+        .or_else(|_| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(token_b64.as_bytes()))
         .map_err(|e| AppError::Validation {
             field: "token".into(),
-            message: format!("claims b64: {e}"),
-        })?;
-    let sig_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(sig_b64.as_bytes())
-        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(sig_b64.as_bytes()))
-        .map_err(|e| AppError::Validation {
-            field: "token".into(),
-            message: format!("sig b64: {e}"),
+            message: format!("token b64 decode failed: {e}"),
         })?;
 
+    // Parse the tokenData JSON to ensure it is valid
+    let token_data: serde_json::Value = serde_json::from_slice(&decoded_bytes).map_err(|e| AppError::Validation {
+        field: "token".into(),
+        message: format!("token JSON parse failed: {e}"),
+    })?;
+
+    let payload = token_data.get("data").ok_or_else(|| AppError::Validation {
+        field: "token".into(),
+        message: "missing data field in token".into(),
+    })?;
+
+    // Convert decoded bytes to string to extract raw data payload and preserve key order
+    let decoded_str = std::str::from_utf8(&decoded_bytes).map_err(|e| AppError::Validation {
+        field: "token".into(),
+        message: format!("token utf8 decode failed: {e}"),
+    })?;
+
+    let payload_json = extract_raw_data_field(decoded_str).ok_or_else(|| AppError::Validation {
+        field: "token".into(),
+        message: "failed to extract raw data payload from JSON".into(),
+    })?;
+
+    // Parse signature hex
+    let sig_bytes = hex::decode(sig_hex).map_err(|e| AppError::Validation {
+        field: "signature".into(),
+        message: format!("signature hex decode failed: {e}"),
+    })?;
+
+    // Verify using the public key
     let pubkey = parse_ed25519_pubkey(LICENSE_VERIFY_PUBKEY_HEX)?;
-    if !ed25519_verify(&pubkey, &claims_bytes, &sig_bytes) {
+    if !ed25519_verify(&pubkey, payload_json.as_bytes(), &sig_bytes) {
         return Err(AppError::Unauthorized {
             reason: "invalid_license_signature".into(),
         });
     }
-    serde_json::from_slice(&claims_bytes).map_err(|e| AppError::Validation {
+
+    // Deserialize into LicenseClaims
+    let claims: LicenseClaims = serde_json::from_value(payload.clone()).map_err(|e| AppError::Validation {
         field: "token".into(),
         message: e.to_string(),
-    })
+    })?;
+
+    Ok(claims)
+}
+
+fn extract_raw_data_field(json_str: &str) -> Option<&str> {
+    let marker = "\"data\":";
+    let start_idx = json_str.find(marker)? + marker.len();
+    let sub = &json_str[start_idx..];
+    
+    let open_brace = sub.find('{')?;
+    let mut depth = 0;
+    let mut end_brace = None;
+    
+    for (i, c) in sub[open_brace..].char_indices() {
+        if c == '{' {
+            depth += 1;
+        } else if c == '}' {
+            depth -= 1;
+            if depth == 0 {
+                end_brace = Some(open_brace + i);
+                break;
+            }
+        }
+    }
+    
+    end_brace.map(|end| &sub[open_brace..=end])
 }
 
 fn parse_ed25519_pubkey(hex: &str) -> Result<[u8; 32], AppError> {
@@ -112,7 +166,7 @@ fn features_for_tier(tier: &str) -> Vec<&'static str> {
             "marketplace_paid",
             "audit_agg",
         ],
-        "pro" => vec![
+        "pro" | "lifetime" | "ultimate" | "enterprise" | "basic" => vec![
             "unlimited_hosts",
             "editor",
             "dashboard",
@@ -198,14 +252,88 @@ pub async fn effective_tier(state: &AppState) -> String {
     }
 }
 
+pub async fn active_features(state: &AppState) -> Vec<String> {
+    let row: Option<(Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT token_blob, features_json FROM license_state WHERE id = 'current'")
+            .fetch_optional(state.vault.pool())
+            .await
+            .unwrap_or(None);
+
+    let (token_blob, features_json) = match row {
+        Some((Some(tb), Some(fj))) => (tb, fj),
+        Some((Some(tb), None)) => (tb, String::new()),
+        _ => (String::new(), String::new()),
+    };
+
+    let is_activated = !token_blob.is_empty() && token_blob != "activated" && token_blob.contains('.');
+    if !is_activated {
+        return vec![
+            "core_ssh".to_string(),
+            "sftp".to_string(),
+            "terminal".to_string(),
+            "keys".to_string(),
+            "vault".to_string(),
+        ];
+    }
+
+    if let Ok(parsed_feats) = serde_json::from_str::<Vec<String>>(&features_json) {
+        let mut mapped = Vec::new();
+        for f in parsed_feats {
+            match f.as_str() {
+                "ai_copilot" => {
+                    mapped.push("ai".to_string());
+                }
+                "sftp_editor" => {
+                    mapped.push("editor".to_string());
+                }
+                "teams_workspaces" => {
+                    mapped.push("team".to_string());
+                }
+                "unlimited_hosts" => {
+                    mapped.push("unlimited_hosts".to_string());
+                    mapped.push("sync".to_string());
+                    mapped.push("dashboard".to_string());
+                    mapped.push("docker".to_string());
+                    mapped.push("marketplace_paid".to_string());
+                }
+                other => {
+                    mapped.push(other.to_string());
+                }
+            }
+        }
+        mapped.push("core_ssh".to_string());
+        mapped.push("sftp".to_string());
+        mapped.push("terminal".to_string());
+        mapped.push("keys".to_string());
+        mapped.push("vault".to_string());
+        mapped.sort();
+        mapped.dedup();
+        return mapped;
+    }
+
+    vec![
+        "core_ssh".to_string(),
+        "sftp".to_string(),
+        "terminal".to_string(),
+        "keys".to_string(),
+        "vault".to_string(),
+        "unlimited_hosts".to_string(),
+        "editor".to_string(),
+        "dashboard".to_string(),
+        "docker".to_string(),
+        "ai".to_string(),
+        "sync".to_string(),
+        "marketplace_paid".to_string(),
+    ]
+}
+
 /// Soft gate helper — Free keeps core SSH; Pro/Team unlock sync/team/paid plugins.
 pub async fn require_feature(state: &AppState, feature: &str) -> Result<(), AppError> {
     if matches!(feature, "core_ssh" | "sftp" | "terminal" | "keys" | "vault") {
         return Ok(());
     }
-    let tier = effective_tier(state).await;
-    let feats = features_for_tier(&tier);
-    if feats.contains(&feature) {
+    let feats = active_features(state).await;
+    if feats.contains(&feature.to_string()) {
         return Ok(());
     }
     Err(AppError::Unauthorized {
@@ -222,20 +350,32 @@ pub async fn license_status(state: State<'_, Arc<AppState>>) -> Result<Value, Ap
         .await
         .unwrap_or((0,));
 
-    let tier = effective_tier(&state).await;
+    let row: Option<(Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT tier, token_blob FROM license_state WHERE id = 'current'")
+            .fetch_optional(state.vault.pool())
+            .await
+            .unwrap_or(None);
+
+    let (tier, token_blob) = match row {
+        Some((Some(t), Some(tb))) => (t, tb),
+        _ => ("free".to_string(), "activated".to_string()),
+    };
+
+    let is_activated = token_blob != "activated" && token_blob.contains('.');
+    let active_feats = active_features(&state).await;
 
     Ok(json!({
-        "tier": tier,
-        "status": "active",
+        "tier": if is_activated { tier.clone() } else { "free".to_string() },
+        "status": if is_activated { "active" } else { "inactive" },
         "licenseKey": device_id,
         "deviceId": device_id,
-        "token": format!("dev:{{\"tier\":\"pro\",\"expiresAt\":null,\"deviceId\":\"{device_id}\"}}"),
+        "token": if is_activated { token_blob } else { "".to_string() },
         "expiresAt": Value::Null,
         "isLifetime": true,
-        "features": features_for_tier(&tier),
+        "features": active_feats,
         "hostCount": hosts.0,
         "hostLimit": Value::Null,
-        "activated": true,
+        "activated": is_activated,
     }))
 }
 
@@ -245,26 +385,24 @@ pub async fn license_activate(
     token: String,
 ) -> Result<Value, AppError> {
     let claims = verify_license_token(&token)?;
-    let tier = match claims.tier.as_str() {
-        "pro" | "team" | "free" => claims.tier.clone(),
-        other => {
-            return Err(AppError::Validation {
-                field: "tier".into(),
-                message: format!("unknown tier: {other}"),
-            })
-        }
+    let tier = if claims.tier.trim().is_empty() {
+        "pro".to_string()
+    } else {
+        claims.tier.clone()
     };
+    let features_json = serde_json::to_string(&claims.features).unwrap_or_else(|_| "[]".to_string());
     let device_id = get_persistent_device_id(&state).await;
     let now = chrono::Utc::now().timestamp_millis();
     sqlx::query(
-        r#"INSERT INTO license_state (id, tier, token_blob, signed_at, expires_at, last_validated_at, device_fingerprint, updated_at)
-           VALUES ('current', ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET tier=excluded.tier, token_blob=excluded.token_blob,
+        r#"INSERT INTO license_state (id, tier, token_blob, features_json, signed_at, expires_at, last_validated_at, device_fingerprint, updated_at)
+           VALUES ('current', ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET tier=excluded.tier, token_blob=excluded.token_blob, features_json=excluded.features_json,
              signed_at=excluded.signed_at, expires_at=excluded.expires_at,
              last_validated_at=excluded.last_validated_at, updated_at=excluded.updated_at"#,
     )
     .bind(&tier)
     .bind(&token)
+    .bind(&features_json)
     .bind(now)
     .bind(claims.expires_at)
     .bind(now)
@@ -274,6 +412,8 @@ pub async fn license_activate(
     .await
     .map_err(db)?;
 
+    let active_feats = active_features(&state).await;
+
     Ok(
         json!({
             "tier": tier,
@@ -281,7 +421,7 @@ pub async fn license_activate(
             "licenseKey": device_id,
             "deviceId": device_id,
             "expiresAt": claims.expires_at,
-            "features": features_for_tier(&tier)
+            "features": active_feats
         }),
     )
 }

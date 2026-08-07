@@ -29,6 +29,7 @@ hooks, and the IPC layer. Building blocks are shadcn/ui + Tailwind v4 (design to
 ## 2. State management (ADR‑005)
 
 ### 2.1 Zustand stores (`src/stores/`)
+
 - `layout.store.ts` — activity bar selection, sidebar sizes, pane grid tree, tab order.
 - `session.store.ts` — open sessions, active pane, per‑pane runtime handles (xterm instances kept in a non‑reactive `Map`).
 - `vault.store.ts` — lock state (mirrors backend `app://lock`).
@@ -37,11 +38,13 @@ hooks, and the IPC layer. Building blocks are shadcn/ui + Tailwind v4 (design to
 - `theme.store.ts` — theme id, density, motion preference.
 
 ### 2.2 React Query (`src/app/query-client.ts`)
+
 - All command reads (`hosts_list_tree`, `snippets_list`, `db_list`, …) are queries.
 - Mutations (`hosts_create`, …) invalidate the relevant query keys and support optimistic updates.
 - Query keys are centralized in `src/lib/ipc/keys.ts`.
 
 ### 2.3 Events → state
+
 - `useEvent(topic, handler)` subscribes to Tauri events; handlers write to Zustand or push xterm bytes.
 - Terminal bytes bypass React entirely (written straight to the xterm instance) for performance.
 
@@ -59,24 +62,28 @@ hooks, and the IPC layer. Building blocks are shadcn/ui + Tailwind v4 (design to
 Each feature folder = `components/ hooks/ store.ts api.ts index.ts`.
 
 ### 4.1 `connections/`
+
 - `HostTree` (virtualized TreeView of groups/hosts), `HostTreeNode`, `HostContextMenu`.
 - `QuickConnectBar`, `HostCard` (favorites/pinned grid), `RecentHostsList`.
 - `HostEditorDialog` (tabs: General, Auth, Proxy/Jump, Tunnels, Terminal, Advanced), `GroupDialog`, `TagPicker`, `ImportHostsDialog`, `ExportHostsDialog`.
 - Hooks: `useHostTree`, `useHost`, `useHostMutations`, `useHostSearch`.
 
 ### 4.2 `vault/`
+
 - `UnlockScreen` (password + biometric button), `SetupVaultDialog`, `ChangePasswordDialog`.
 - `KeyManager` (list), `KeyRow`, `GenerateKeyDialog`, `ImportKeyDialog`, `KeyDetailsPanel`, `PassphraseDialog`, `HardwareKeyDialog`.
 - `CredentialPicker` (inline in HostEditor).
 - Hooks: `useVaultStatus`, `useKeys`, `useAutoLock`.
 
 ### 4.3 `terminal/`
+
 - `TerminalPane` (wraps xterm.js; webgl renderer, fit/search/weblinks/unicode11 addons), `TerminalTabs`, `TerminalSplit`, `TerminalSearchBar`, `TerminalToolbar` (copy/paste/clear/record).
 - `SessionProfilePicker`, `RecordingIndicator`.
 - Hooks: `useTerminal(paneId)` (creates xterm, wires `terminal://data`, sends keystrokes via `pane_write`), `useTerminalResize`, `useTerminalSearch`.
 - Non‑reactive: xterm instances live in `session.store` `Map`, disposed on pane close.
 
 ### 4.4 `sftp/`
+
 - `DualPaneExplorer` (left local / right remote or remote/remote), `FileList` (virtualized, sortable), `FileRow`, `Breadcrumb`, `PathBar`, `FileToolbar`.
 - `TransferQueue` (in secondary sidebar), `TransferRow`, `TransferProgressBar`.
 - Dialogs: `PermissionsDialog` (chmod matrix + chown), `RenameDialog`, `NewFolderDialog`, `ConfirmDeleteDialog`, `FolderCompareDialog`, `SyncSetupDialog`.
@@ -84,47 +91,56 @@ Each feature folder = `components/ hooks/ store.ts api.ts index.ts`.
 - Hooks: `useDir`, `useTransfers`, `useDragDropUpload`, `useSelection`.
 
 ### 4.5 `editor/`
+
 - `RemoteEditor` (Monaco), `EditorTabs`, `DiffViewer`, `EditorStatusBar` (encoding/EOL/lang/git).
 - `SaveIndicator` (autosave + upload‑on‑save), `FindReplacePanel`, `MinimapToggle`.
 - Hooks: `useRemoteFile(hostId, path)` (load via sftp read, save via sftp write + optional diff), `useAutosave`, `useGitStatus`.
 
 ### 4.6 `dashboard/`
+
 - `DashboardGrid` (draggable widgets), widgets: `CpuWidget`, `MemoryWidget`, `SwapWidget`, `LoadWidget`, `DiskWidget`, `FilesystemWidget`, `NetworkWidget`, `TemperatureWidget`, `UptimeWidget`, `KernelWidget`, `ProcessesWidget` (virtualized, killable), `ServicesWidget` (systemd control), `UpdatesWidget`.
 - Charts: `Sparkline`, `AreaChart`, `Gauge` (lightweight SVG/canvas, no heavy chart lib).
 - Hooks: `useSnapshot(hostId)` (subscribes `metrics://snapshot`), `useSeries`, `useProcesses`, `useServices`.
 
 ### 4.7 `containers/`
+
 - `DockerPanel` with tabs: `ContainersTab`, `ImagesTab`, `VolumesTab`, `NetworksTab`, `ComposeTab`.
 - `ContainerRow` (start/stop/restart/shell/logs/stats), `ContainerLogsView` (virtualized stream), `ContainerStatsView`, `ImageRow`, `ComposeProjectCard`.
 - `KubernetesPanel` (feature‑gated): `PodsTab`, `PodLogsView`, `ContextPicker`.
 - Hooks: `useContainers`, `useContainerLogs`, `useContainerStats`, `useCompose`.
 
 ### 4.8 `databases/`
+
 - `DbSidebar` (connections tree → schemas → tables), `DbConnectionDialog`, `SchemaTree`.
 - `QueryEditor` (Monaco SQL + autocomplete from schema), `ResultGrid` (virtualized DataTable, editable where safe), `ResultToolbar` (export csv/json), `SavedQueries`, `QueryHistoryList`.
 - `RedisConsole`, `MongoQueryPanel`.
 - Hooks: `useDbConnections`, `useSchema`, `useRunQuery`, `useQueryHistory`.
 
 ### 4.9 `devtools/`
+
 - `DevToolsPanel` with detected‑tool cards: `GitPanel` (status/branches/commit/log), `PackageManagerPanel` (npm/pnpm/bun/composer), `RuntimePanel` (node/go/python/php/rust versions), `AdbPanel`, `KubectlPanel`.
 - These are thin UIs over `session_run_command` with structured parsers.
 - Hooks: `useGitStatus`, `useToolDetection`.
 
 ### 4.10 `ai/`
+
 - `AiCopilotPanel` (secondary sidebar), `ChatThread`, `MessageBubble` (markdown + code blocks with copy/run), `PromptBar`, `ContextChips` (host/last command/selected log), `ProviderPicker`, `AiSettingsDialog`.
 - Quick actions: `ExplainSelectionButton`, `AnalyzeLogsButton`, `GenerateCommandButton`, `GenerateConfigDialog`.
 - Hooks: `useAiStream(requestId)` (consumes `ai://token`), `useAiProviders`.
 
 ### 4.11 `productivity/`
+
 - `SnippetLibrary`, `SnippetEditorDialog`, `SnippetQuickPick` (in palette), `NotesPanel` (markdown editor + preview), `NoteCard`, `TemplateGallery`, `TemplateRenderDialog`.
 - `CommandPalette` (global): fuzzy over commands, hosts, snippets, files, settings (federated `search_global`).
 - Hooks: `useSnippets`, `useNotes`, `useGlobalSearch`.
 
 ### 4.12 `sync/`
+
 - `SyncSettings`, `DevicePairingDialog` (QR/code), `DeviceList`, `SyncStatusIndicator`, `ConflictResolverDialog`, `VersionHistoryDialog`.
 - Hooks: `useSyncStatus`, `useDevices`.
 
 ### 4.13 `plugins/`
+
 - `MarketplacePanel`, `PluginCard`, `PluginDetailsSheet`, `PermissionGrantDialog`, `InstalledPluginsList`, `PluginHostFrame` (sandboxed iframe surface), `WidgetSlot`.
 - Hooks: `useMarketplace`, `useInstalledPlugins`, `usePluginBridge`.
 

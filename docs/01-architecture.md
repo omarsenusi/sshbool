@@ -30,12 +30,12 @@ IPC: **commands** (request/response) and **events** (server→client streams).
 
 Dependencies point **inward only**. Domain knows nothing about Tauri, SQLx, or SSH crates.
 
-| Layer | Responsibility | May depend on | Rust location |
-|---|---|---|---|
-| **Domain** | Entities, value objects, invariants, port traits, domain errors | nothing (std + `thiserror`) | `crates/domain` |
-| **Application** | Use cases (commands/queries), orchestration, DTO mapping, transactions | Domain | `crates/application` |
-| **Infrastructure** | Concrete adapters implementing domain ports (SSH, DB, crypto, OS keychain) | Domain, Application (ports only) | `crates/infrastructure` |
-| **Interface** | Tauri command handlers, event emitters, DI wiring | Application, Domain | `crates/app` (`src-tauri`) |
+| Layer              | Responsibility                                                             | May depend on                    | Rust location              |
+| ------------------ | -------------------------------------------------------------------------- | -------------------------------- | -------------------------- |
+| **Domain**         | Entities, value objects, invariants, port traits, domain errors            | nothing (std + `thiserror`)      | `crates/domain`            |
+| **Application**    | Use cases (commands/queries), orchestration, DTO mapping, transactions     | Domain                           | `crates/application`       |
+| **Infrastructure** | Concrete adapters implementing domain ports (SSH, DB, crypto, OS keychain) | Domain, Application (ports only) | `crates/infrastructure`    |
+| **Interface**      | Tauri command handlers, event emitters, DI wiring                          | Application, Domain              | `crates/app` (`src-tauri`) |
 
 **Ports & adapters (hexagonal):** the Domain declares traits (ports) like `HostRepository`,
 `SshTransport`, `SecretStore`, `MetricsCollector`. Infrastructure provides adapters. Application
@@ -45,19 +45,19 @@ depends only on the traits. This makes every external system swappable and mocka
 
 Each context maps to a domain module and (usually) an application module + a UI feature.
 
-| Bounded context | Aggregate roots | Notes |
-|---|---|---|
-| **Connections** | `Host`, `Group`, `Identity` | Servers, folders/groups, tags, favorites, jump hosts |
-| **Vault / Secrets** | `Vault`, `Credential`, `SshKey` | Master password, encryption, key manager |
-| **Sessions** | `Session`, `TerminalPane`, `Recording` | Live SSH/PTY sessions, splits, recordings |
-| **Transfers** | `TransferJob`, `TransferItem` | SFTP queue, resume, sync |
-| **Monitoring** | `HostSnapshot`, `MetricSeries` | Dashboard metrics |
-| **Containers** | `Container`, `Image`, `Compose`, `K8sResource` | Docker/K8s |
-| **DataStores** | `DbConnection`, `Query`, `ResultSet` | DB clients |
-| **Knowledge** | `Snippet`, `Note`, `Template` | Productivity |
-| **AI** | `AiConversation`, `AiRequest` | Copilot |
-| **Sync** | `SyncState`, `DeviceKey`, `ChangeSet` | E2E sync |
-| **Plugins** | `Plugin`, `PluginManifest`, `Permission` | Plugin host |
+| Bounded context     | Aggregate roots                                | Notes                                                |
+| ------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| **Connections**     | `Host`, `Group`, `Identity`                    | Servers, folders/groups, tags, favorites, jump hosts |
+| **Vault / Secrets** | `Vault`, `Credential`, `SshKey`                | Master password, encryption, key manager             |
+| **Sessions**        | `Session`, `TerminalPane`, `Recording`         | Live SSH/PTY sessions, splits, recordings            |
+| **Transfers**       | `TransferJob`, `TransferItem`                  | SFTP queue, resume, sync                             |
+| **Monitoring**      | `HostSnapshot`, `MetricSeries`                 | Dashboard metrics                                    |
+| **Containers**      | `Container`, `Image`, `Compose`, `K8sResource` | Docker/K8s                                           |
+| **DataStores**      | `DbConnection`, `Query`, `ResultSet`           | DB clients                                           |
+| **Knowledge**       | `Snippet`, `Note`, `Template`                  | Productivity                                         |
+| **AI**              | `AiConversation`, `AiRequest`                  | Copilot                                              |
+| **Sync**            | `SyncState`, `DeviceKey`, `ChangeSet`          | E2E sync                                             |
+| **Plugins**         | `Plugin`, `PluginManifest`, `Permission`       | Plugin host                                          |
 
 Contexts communicate through **application services**, never by reaching into each other's
 repositories. Cross‑context needs are expressed as explicit use cases.

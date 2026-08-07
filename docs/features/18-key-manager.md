@@ -33,7 +33,7 @@ and duplicate detection.
   (`PEM`/new `OPENSSH PRIVATE KEY` format), and PuTTY `.ppk` (auto-converted).
 - If the key is passphrase-protected, the user supplies the passphrase once to decrypt-and-reencrypt
   under our own vault encryption (we never store the original passphrase); `has_passphrase` remains
-  informational metadata about whether *our* copy also requires the original passphrase to use
+  informational metadata about whether _our_ copy also requires the original passphrase to use
   (configurable: re-wrap without passphrase, or keep requiring it — trade-off explained in-dialog).
 - Duplicate detection by fingerprint prevents accidental duplicate imports (offers to just rename/tag
   the existing one instead).
@@ -67,7 +67,7 @@ and duplicate detection.
   public key + fingerprint. Actual signing happens on the device via the SSH agent or platform
   security-key APIs (ADR‑003, doc `features/10-ssh-connections.md` §3).
 - `HardwareKeyDialog` walks the user through: plug in device → touch/PIN to generate (`ssh-keygen
-  -t ed25519-sk` equivalent flow) or register an existing resident key → verify presence.
+-t ed25519-sk` equivalent flow) or register an existing resident key → verify presence.
 - YubiKey is supported as a FIDO2 security key through this same flow (and, as a fast-follow, PIV
   smart-card mode via the agent — tracked as an incremental enhancement, not a v1 blocker).
 

@@ -17,7 +17,7 @@ Sync: Cloud Sync · End-to-End Encryption · Multiple Devices · Auto Backup · 
   JSON/YAML/`ssh_config`). This doc focuses on the **backup and multi-device** dimension: how that
   data (hosts, groups, tags, keys, credentials, snippets, notes) is protected and propagated.
 - **Encrypted backup** here is the superset path already introduced in doc
-  `features/18-key-manager.md` §9 (`vault_backup`/`vault_restore`) — it snapshots the *entire*
+  `features/18-key-manager.md` §9 (`vault_backup`/`vault_restore`) — it snapshots the _entire_
   local database (hosts, vault, keys, snippets, notes, etc.), not just keys, re-encrypted under a
   user-chosen backup password. This is the offline, no-account-required disaster-recovery path.
 - **Auto Backup** is a scheduled variant: a background task periodically produces a
@@ -45,7 +45,7 @@ Sync: Cloud Sync · End-to-End Encryption · Multiple Devices · Auto Backup · 
 
 ## 4. Multiple devices & pairing
 
-- `DevicePairingDialog`: pairing a new device uses a short-lived code/QR shown on the *existing*
+- `DevicePairingDialog`: pairing a new device uses a short-lived code/QR shown on the _existing_
   unlocked device; the new device scans/enters it, the two devices perform an authenticated
   key-exchange (over the relay, but end-to-end) to securely wrap the sync root key for the new
   device — the relay never sees the unwrapped key.

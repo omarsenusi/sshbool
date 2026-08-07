@@ -36,44 +36,46 @@ Below, `PK` = primary key, `FK` = foreign key, `NN` = NOT NULL, `IX` = indexed.
 ### 3.1 Connections context
 
 **`groups`** — folders/groups for organizing hosts (self‑nesting tree).
-| col | type | notes |
-|---|---|---|
-| id | TEXT PK | uuidv7 |
-| parent_id | TEXT FK→groups.id | nullable (root) |
-| name | TEXT NN | |
-| color | TEXT | color label |
-| icon | TEXT | icon key |
-| sort_order | INTEGER NN | |
-| created_at / updated_at | INTEGER NN | |
+
+| col                     | type              | notes           |
+| ----------------------- | ----------------- | --------------- |
+| id                      | TEXT PK           | uuidv7          |
+| parent_id               | TEXT FK→groups.id | nullable (root) |
+| name                    | TEXT NN           |                 |
+| color                   | TEXT              | color label     |
+| icon                    | TEXT              | icon key        |
+| sort_order              | INTEGER NN        |                 |
+| created_at / updated_at | INTEGER NN        |                 |
 
 **`hosts`** — a server/connection profile.
-| col | type | notes |
-|---|---|---|
-| id | TEXT PK | |
-| group_id | TEXT FK→groups.id | nullable |
-| label | TEXT NN | display name |
-| hostname | TEXT NN | host/IP |
-| port | INTEGER NN | default 22 |
-| username | TEXT | |
-| identity_id | TEXT FK→identities.id | preferred auth identity |
-| auth_method | TEXT NN | `password`\|`key`\|`agent`\|`interactive`\|`fido2` |
-| jump_host_id | TEXT FK→hosts.id | ProxyJump (self‑ref, nullable) |
-| proxy_id | TEXT FK→proxies.id | SOCKS/HTTP proxy |
-| use_compression | INTEGER NN | |
-| keepalive_secs | INTEGER | |
-| connection_sharing | INTEGER NN | ControlMaster‑like |
-| terminal_profile_id | TEXT FK→terminal_profiles.id | |
-| startup_command | TEXT | run on connect |
-| environment | TEXT (json) | env vars |
-| color | TEXT | label |
-| is_favorite | INTEGER NN | |
-| is_pinned | INTEGER NN | |
-| notes | TEXT | |
-| last_connected_at | INTEGER | IX |
-| connect_count | INTEGER NN | |
-| created_at / updated_at | INTEGER NN | |
-| deleted_at | INTEGER | soft delete |
-Indexes: `IX(group_id)`, `IX(is_favorite)`, `IX(is_pinned)`, `IX(last_connected_at)`, FTS on `label,hostname,notes`.
+
+| col                                                                                                                  | type                         | notes                                              |
+| -------------------------------------------------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------- |
+| id                                                                                                                   | TEXT PK                      |                                                    |
+| group_id                                                                                                             | TEXT FK→groups.id            | nullable                                           |
+| label                                                                                                                | TEXT NN                      | display name                                       |
+| hostname                                                                                                             | TEXT NN                      | host/IP                                            |
+| port                                                                                                                 | INTEGER NN                   | default 22                                         |
+| username                                                                                                             | TEXT                         |                                                    |
+| identity_id                                                                                                          | TEXT FK→identities.id        | preferred auth identity                            |
+| auth_method                                                                                                          | TEXT NN                      | `password`\|`key`\|`agent`\|`interactive`\|`fido2` |
+| jump_host_id                                                                                                         | TEXT FK→hosts.id             | ProxyJump (self‑ref, nullable)                     |
+| proxy_id                                                                                                             | TEXT FK→proxies.id           | SOCKS/HTTP proxy                                   |
+| use_compression                                                                                                      | INTEGER NN                   |                                                    |
+| keepalive_secs                                                                                                       | INTEGER                      |                                                    |
+| connection_sharing                                                                                                   | INTEGER NN                   | ControlMaster‑like                                 |
+| terminal_profile_id                                                                                                  | TEXT FK→terminal_profiles.id |                                                    |
+| startup_command                                                                                                      | TEXT                         | run on connect                                     |
+| environment                                                                                                          | TEXT (json)                  | env vars                                           |
+| color                                                                                                                | TEXT                         | label                                              |
+| is_favorite                                                                                                          | INTEGER NN                   |                                                    |
+| is_pinned                                                                                                            | INTEGER NN                   |                                                    |
+| notes                                                                                                                | TEXT                         |                                                    |
+| last_connected_at                                                                                                    | INTEGER                      | IX                                                 |
+| connect_count                                                                                                        | INTEGER NN                   |                                                    |
+| created_at / updated_at                                                                                              | INTEGER NN                   |                                                    |
+| deleted_at                                                                                                           | INTEGER                      | soft delete                                        |
+| Indexes: `IX(group_id)`, `IX(is_favorite)`, `IX(is_pinned)`, `IX(last_connected_at)`, FTS on `label,hostname,notes`. |
 
 **`identities`** — reusable auth identity (username + key/credential reference).
 | id PK | name NN | username | ssh_key_id FK→ssh_keys.id | credential_id FK→credentials.id | agent_forwarding INT | created_at/updated_at |
@@ -98,20 +100,21 @@ Indexes: `IX(group_id)`, `IX(is_favorite)`, `IX(is_pinned)`, `IX(last_connected_
 | id PK | name NN | kind (`password`\|`token`\|`passphrase`) | ciphertext BLOB NN | nonce BLOB NN | aad TEXT | created_at/updated_at |
 
 **`ssh_keys`** — key material (private encrypted, public plaintext).
-| col | type | notes |
-|---|---|---|
-| id PK | | |
-| name NN | | |
-| key_type | TEXT NN | `ed25519`\|`rsa`\|`ecdsa`\|`ed25519-sk`\|`ecdsa-sk` |
-| public_key | TEXT NN | OpenSSH pub |
-| private_ciphertext | BLOB | encrypted priv (null for hardware‑only) |
-| private_nonce | BLOB | |
-| fingerprint_sha256 | TEXT NN IX | |
-| comment | TEXT | |
-| has_passphrase | INTEGER NN | |
-| hardware_backed | INTEGER NN | FIDO2/YubiKey |
-| source | TEXT | `generated`\|`imported`\|`agent` |
-| created_at/updated_at | INTEGER NN | |
+
+| col                   | type       | notes                                               |
+| --------------------- | ---------- | --------------------------------------------------- |
+| id PK                 |            |                                                     |
+| name NN               |            |                                                     |
+| key_type              | TEXT NN    | `ed25519`\|`rsa`\|`ecdsa`\|`ed25519-sk`\|`ecdsa-sk` |
+| public_key            | TEXT NN    | OpenSSH pub                                         |
+| private_ciphertext    | BLOB       | encrypted priv (null for hardware‑only)             |
+| private_nonce         | BLOB       |                                                     |
+| fingerprint_sha256    | TEXT NN IX |                                                     |
+| comment               | TEXT       |                                                     |
+| has_passphrase        | INTEGER NN |                                                     |
+| hardware_backed       | INTEGER NN | FIDO2/YubiKey                                       |
+| source                | TEXT       | `generated`\|`imported`\|`agent`                    |
+| created_at/updated_at | INTEGER NN |                                                     |
 
 ### 3.3 Sessions context
 

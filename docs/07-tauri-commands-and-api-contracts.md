@@ -39,21 +39,21 @@ with credentials.
 
 ## 3. Event topics (server → client streams)
 
-| Topic | Payload | Emitter |
-|---|---|---|
-| `terminal://data/{paneId}` | `{ bytes: number[] }` (or base64) | pty task |
-| `terminal://exit/{paneId}` | `{ code: number \| null }` | pty task |
-| `transfer://progress/{jobId}` | `TransferProgress` | transfer service |
-| `transfer://item/{jobId}` | `TransferItemUpdate` | transfer service |
-| `metrics://snapshot/{hostId}` | `HostSnapshot` | monitoring scheduler |
-| `docker://logs/{containerId}` | `{ line: string; stream: "stdout"\|"stderr" }` | docker |
-| `docker://stats/{containerId}` | `ContainerStats` | docker |
-| `ai://token/{requestId}` | `{ delta: string }` | ai stream |
-| `ai://done/{requestId}` | `{ usage?: TokenUsage }` | ai stream |
-| `connection://state/{hostId}` | `ConnectionState` | connection actor |
-| `sync://state` | `SyncStatus` | sync service |
-| `plugin://event/{slug}` | `PluginEvent` | plugin host |
-| `app://lock` | `{}` | auto‑lock timer |
+| Topic                          | Payload                                        | Emitter              |
+| ------------------------------ | ---------------------------------------------- | -------------------- |
+| `terminal://data/{paneId}`     | `{ bytes: number[] }` (or base64)              | pty task             |
+| `terminal://exit/{paneId}`     | `{ code: number \| null }`                     | pty task             |
+| `transfer://progress/{jobId}`  | `TransferProgress`                             | transfer service     |
+| `transfer://item/{jobId}`      | `TransferItemUpdate`                           | transfer service     |
+| `metrics://snapshot/{hostId}`  | `HostSnapshot`                                 | monitoring scheduler |
+| `docker://logs/{containerId}`  | `{ line: string; stream: "stdout"\|"stderr" }` | docker               |
+| `docker://stats/{containerId}` | `ContainerStats`                               | docker               |
+| `ai://token/{requestId}`       | `{ delta: string }`                            | ai stream            |
+| `ai://done/{requestId}`        | `{ usage?: TokenUsage }`                       | ai stream            |
+| `connection://state/{hostId}`  | `ConnectionState`                              | connection actor     |
+| `sync://state`                 | `SyncStatus`                                   | sync service         |
+| `plugin://event/{slug}`        | `PluginEvent`                                  | plugin host          |
+| `app://lock`                   | `{}`                                           | auto‑lock timer      |
 
 Frontend subscribes via a typed `useEvent(topic, handler)` hook (doc 06 §hooks). All topics are
 throttled/coalesced server‑side (doc 23).
@@ -63,6 +63,7 @@ throttled/coalesced server‑side (doc 23).
 Grouped by context. Format: `command_name(Input) -> Output`.
 
 ### 4.1 Connections
+
 ```
 hosts_create(NewHostDto) -> HostId
 hosts_update(HostDto) -> ()
@@ -93,6 +94,7 @@ known_hosts_trust({ host, port, fingerprint }) -> ()
 ```
 
 ### 4.2 Vault & Keys
+
 ```
 vault_status() -> { initialized: bool, locked: bool, biometric: bool }
 vault_init({ password }) -> ()
@@ -117,6 +119,7 @@ vault_restore({ blob, password }) -> ()
 ```
 
 ### 4.3 Sessions & Terminal
+
 ```
 session_open({ hostId }) -> SessionId
 session_close(SessionId) -> ()
@@ -135,6 +138,7 @@ layout_get(SessionId) -> LayoutDto
 ```
 
 ### 4.4 SFTP & Transfers
+
 ```
 sftp_list_dir({ hostId, path, showHidden }) -> DirEntryDto[]
 sftp_stat({ hostId, path }) -> DirEntryDto
@@ -160,6 +164,7 @@ bookmarks_add({ hostId, path, label }) -> ()
 ```
 
 ### 4.5 Monitoring
+
 ```
 monitoring_start({ hostId, intervalMs }) -> ()
 monitoring_stop(hostId) -> ()
@@ -175,6 +180,7 @@ updates_list(hostId) -> UpdateDto[]
 ```
 
 ### 4.6 Containers
+
 ```
 docker_list_containers(hostId) -> ContainerDto[]
 docker_container_action({ hostId, id, action }) -> ()  // start|stop|restart|remove
@@ -194,6 +200,7 @@ k8s_pod_logs({ hostId, namespace, pod }) -> ()
 ```
 
 ### 4.7 Databases
+
 ```
 db_list() -> DbConnectionDto[]
 db_upsert(DbConnectionDto) -> DbConnectionId
@@ -210,6 +217,7 @@ mongo_find({ connectionId, db, collection, filter, limit }) -> MongoDocDto[]
 ```
 
 ### 4.8 Knowledge / Productivity
+
 ```
 snippets_list() -> SnippetDto[]
 snippets_upsert(SnippetDto) -> SnippetId
@@ -224,6 +232,7 @@ search_global({ query, scopes[] }) -> SearchResultDto[]  // federated FTS
 ```
 
 ### 4.9 AI
+
 ```
 ai_providers_list() -> AiProviderDto[]
 ai_providers_upsert(AiProviderDto) -> AiProviderId
@@ -239,6 +248,7 @@ ai_conversations_list() -> ConversationSummaryDto[]
 ```
 
 ### 4.10 Sync
+
 ```
 sync_status() -> SyncStatusDto
 sync_configure({ enabled, endpoint? }) -> ()
@@ -254,6 +264,7 @@ sync_resolve_conflict({ entity, choice }) -> ()  // local|remote LWW stub
 ```
 
 ### 4.10b License / Team (Phase 4 client)
+
 ```
 license_status() -> { tier, expiresAt?, features[], hostCount, hostLimit? }
 license_activate({ token }) -> { tier, features[] }  // Ed25519 or dev:{json}
@@ -266,6 +277,7 @@ retention_prune({ days? }) -> { deleted }
 ```
 
 ### 4.11 Plugins
+
 ```
 plugins_list() -> PluginDto[]
 plugins_search_marketplace({ query }) -> MarketplaceItemDto[]
@@ -275,6 +287,7 @@ plugins_set_enabled({ id, enabled }) -> ()
 ```
 
 ### 4.12 App / Settings
+
 ```
 settings_get(key) -> JsonValue
 settings_set({ key, value }) -> ()

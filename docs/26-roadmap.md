@@ -43,14 +43,14 @@ useful daily. Ordered by dependency, not just priority.
    snippets, notes, global search, keyboard shortcuts — the connective tissue that makes the rest
    feel like one product rather than four bolted-together tools.
 7. **Packaging & auto-update** (doc 25): signed builds for all three OSes, updater wired to a
-   stable channel — MVP must be *installable and self-updating*, not just runnable from source.
+   stable channel — MVP must be _installable and self-updating_, not just runnable from source.
 
 **Gate**: a real user can install the app, create a vault, add and organize hosts, open a terminal,
 transfer files, edit a remote config, and receive an auto-update — end to end, on all three OSes.
 
 ## 3. Phase 2 — Post-MVP hardening & differentiation (weeks 11–18)
 
-Fills in the remaining brief features that make SSHBool distinctly *more* than a terminal+SFTP app:
+Fills in the remaining brief features that make SSHBool distinctly _more_ than a terminal+SFTP app:
 
 1. Jump hosts/ProxyJump, SOCKS/HTTP proxy, port forwarding/tunnels (doc `features/10-ssh-connections.md` §6–7).
 2. Server Dashboard (doc `features/14-dashboard.md`) — the first "workspace, not just client" moment.
@@ -88,7 +88,7 @@ Layers a hosted/subscription dimension on top of the (still fully functional off
 2. **Team workspaces**: shared host directories/snippets/templates across a team's paid seats,
    with role-based sharing (view/connect/manage) — an extension of the E2E sync model where the
    "device" pairing concept generalizes to "team member," still without the server reading plaintext
-   for the *encrypted* categories, but shared metadata (which hosts exist) necessarily becomes
+   for the _encrypted_ categories, but shared metadata (which hosts exist) necessarily becomes
    team-visible by design at this tier.
 3. **Centralized license/seat management** (doc 27) and usage-based AI provider proxying (optional
    convenience tier for teams who don't want to manage individual provider keys).

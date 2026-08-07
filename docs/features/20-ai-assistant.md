@@ -46,21 +46,21 @@ Each quick action is a dedicated command with a purpose-built system prompt
 (`infrastructure/ai/prompts.rs`) rather than a generic chat message, so outputs are consistently
 structured and scoped:
 
-| Action | Command | Behavior |
-|---|---|---|
-| Explain command | `ai_explain_command` | Plain-language breakdown of a shell command, flag by flag |
-| Generate command | `ai_generate_command` | Natural-language intent → shell command, OS-aware, with a safety note for destructive ones |
-| Analyze logs | `ai_analyze_logs` | Summarize, cluster errors, highlight likely root cause in a log excerpt |
-| Explain error | `ai_explain_error` | Take a stack trace/error string → likely cause + fix suggestions |
-| Optimize SSH | (chat with `optimize-ssh` prompt) | Reviews a host's config (compression, keepalive, ciphers) and suggests changes |
-| Docker assistant | (chat, docker context) | Answers scoped to the active container/compose context |
-| Kubernetes assistant | (chat, k8s context) | Answers scoped to the active pod/namespace context |
-| Generate Nginx config | `ai_generate_config({ kind: "nginx" })` | Spec (domain, proxy target, TLS) → ready config, opens in Remote Editor |
-| Generate Apache config | `ai_generate_config({ kind: "apache" })` | Same pattern for Apache vhosts |
-| Generate Docker Compose | `ai_generate_config({ kind: "compose" })` | Services/spec → `docker-compose.yml` |
-| Generate Laravel commands | (chat, laravel context) | Suggests the right `artisan` invocation for a described task |
-| Generate SQL queries | `ai_generate_sql` | Natural language + introspected schema (doc `features/16-databases.md`) → SQL, shown in `QueryEditor` before running (never auto-run) |
-| Translate terminal output | `ai_translate_output` | Translates selected output/errors to the user's chosen language |
+| Action                    | Command                                   | Behavior                                                                                                                              |
+| ------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Explain command           | `ai_explain_command`                      | Plain-language breakdown of a shell command, flag by flag                                                                             |
+| Generate command          | `ai_generate_command`                     | Natural-language intent → shell command, OS-aware, with a safety note for destructive ones                                            |
+| Analyze logs              | `ai_analyze_logs`                         | Summarize, cluster errors, highlight likely root cause in a log excerpt                                                               |
+| Explain error             | `ai_explain_error`                        | Take a stack trace/error string → likely cause + fix suggestions                                                                      |
+| Optimize SSH              | (chat with `optimize-ssh` prompt)         | Reviews a host's config (compression, keepalive, ciphers) and suggests changes                                                        |
+| Docker assistant          | (chat, docker context)                    | Answers scoped to the active container/compose context                                                                                |
+| Kubernetes assistant      | (chat, k8s context)                       | Answers scoped to the active pod/namespace context                                                                                    |
+| Generate Nginx config     | `ai_generate_config({ kind: "nginx" })`   | Spec (domain, proxy target, TLS) → ready config, opens in Remote Editor                                                               |
+| Generate Apache config    | `ai_generate_config({ kind: "apache" })`  | Same pattern for Apache vhosts                                                                                                        |
+| Generate Docker Compose   | `ai_generate_config({ kind: "compose" })` | Services/spec → `docker-compose.yml`                                                                                                  |
+| Generate Laravel commands | (chat, laravel context)                   | Suggests the right `artisan` invocation for a described task                                                                          |
+| Generate SQL queries      | `ai_generate_sql`                         | Natural language + introspected schema (doc `features/16-databases.md`) → SQL, shown in `QueryEditor` before running (never auto-run) |
+| Translate terminal output | `ai_translate_output`                     | Translates selected output/errors to the user's chosen language                                                                       |
 
 All "Generate config" outputs open directly in the Remote Editor / Query Editor as a **draft** —
 the user reviews and explicitly saves/runs, preserving the "AI suggests, human confirms" boundary

@@ -21,11 +21,11 @@ naming cleanup.
 
 ## 3. Packaging per OS
 
-| OS | Format(s) | Notes |
-|---|---|---|
-| Windows | MSI + NSIS `.exe` | Tauri's bundler produces both; NSIS preferred for the updater-friendly installer UX |
-| macOS | `.app` in `.dmg`, and a Universal Binary (arm64 + x86_64) | single download works on Apple Silicon and Intel |
-| Linux | `.deb`, `.rpm`, and **AppImage** (portable, distro-agnostic) | AppImage is the primary "just works everywhere" path; `.deb`/`.rpm` for native package manager users |
+| OS      | Format(s)                                                    | Notes                                                                                                |
+| ------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Windows | MSI + NSIS `.exe`                                            | Tauri's bundler produces both; NSIS preferred for the updater-friendly installer UX                  |
+| macOS   | `.app` in `.dmg`, and a Universal Binary (arm64 + x86_64)    | single download works on Apple Silicon and Intel                                                     |
+| Linux   | `.deb`, `.rpm`, and **AppImage** (portable, distro-agnostic) | AppImage is the primary "just works everywhere" path; `.deb`/`.rpm` for native package manager users |
 
 - `tauri.conf.json`'s `bundle.targets: "all"` already opts into every available target per host
   OS; CI (doc 24 `release.yml`) builds on native runners per OS (Tauri bundling is not reliably

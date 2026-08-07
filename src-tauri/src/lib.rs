@@ -10,11 +10,36 @@ use std::sync::Arc;
 
 use infrastructure::AppState;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tracing_subscriber::EnvFilter;
+
+#[cfg(target_os = "windows")]
+mod win32 {
+    #[link(name = "kernel32")]
+    extern "system" {
+        pub fn GetConsoleWindow() -> *mut std::ffi::c_void;
+    }
+    #[link(name = "user32")]
+    extern "system" {
+        pub fn ShowWindow(hwnd: *mut std::ffi::c_void, nCmdShow: i32) -> i32;
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn hide_console_window() {
+    unsafe {
+        let hwnd = win32::GetConsoleWindow();
+        if !hwnd.is_null() {
+            win32::ShowWindow(hwnd, 0); // 0 is SW_HIDE
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // #[cfg(target_os = "windows")]
+    // hide_console_window();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::from_default_env().add_directive("sshbool=info".parse().unwrap()),
@@ -22,11 +47,91 @@ pub fn run() {
         .init();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            println!("[DEBUG] Single instance triggered with args: {:?}", args);
+            if let Some(mut path) = dirs::home_dir() {
+                path.push("sshbool_activation_log.txt");
+                let _ = std::fs::write(path, format!("Args: {:?}", args));
+            }
+            let _ = app.emit("single-instance-deep-link", &args);
+            let _ = app.emit("deep-link://new-url", &args);
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+                let _ = window.emit("single-instance-deep-link", &args);
+                let _ = window.emit("deep-link://new-url", &args);
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            use tauri_plugin_deep_link::DeepLinkExt;
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            if let Err(e) = app.deep_link().register_all() {
+                tracing::warn!("Failed to register deep link URL schemes: {e}");
+            }
+
+            // ── Deep-link startup args ───────────────────────────────────
+            // If this instance was launched directly with a sshbool:// URL
+            // (e.g. registry protocol handler), emit it immediately to the
+            // frontend. Also write it to a handoff file so the primary
+            // dev-mode instance can pick it up via the poller below.
+            {
+                let args: Vec<String> = std::env::args().collect();
+                tracing::info!("[STARTUP] args = {:?}", args);
+                let deep_link_arg = args.iter().skip(1).find(|a| a.starts_with("sshbool://")).cloned();
+                if let Some(url) = deep_link_arg {
+                    tracing::info!("[STARTUP] deep link detected in args: {}", url);
+                    // Write to handoff file so any running primary instance can read it
+                    if let Some(mut path) = dirs::home_dir() {
+                        path.push("sshbool_deep_link_handoff.txt");
+                        let _ = std::fs::write(&path, &url);
+                    }
+                    let _ = app.emit("single-instance-deep-link", vec![url.clone()]);
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                        let _ = window.emit("single-instance-deep-link", vec![url]);
+                    }
+                }
+            }
+
+            // ── File-based deep-link poller ──────────────────────────────
+            // Poll for the handoff file written by secondary instances.
+            // This is the reliable fallback when single-instance IPC is
+            // not wiring up correctly in dev mode.
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                        if let Some(mut path) = dirs::home_dir() {
+                            path.push("sshbool_deep_link_handoff.txt");
+                            if path.exists() {
+                                if let Ok(url) = std::fs::read_to_string(&path) {
+                                    let url = url.trim().to_string();
+                                    if !url.is_empty() {
+                                        tracing::info!("[POLLER] picked up deep link: {}", url);
+                                        let _ = std::fs::remove_file(&path);
+                                        let _ = handle.emit("single-instance-deep-link", vec![url.clone()]);
+                                        if let Some(window) = handle.get_webview_window("main") {
+                                            let _ = window.show();
+                                            let _ = window.unminimize();
+                                            let _ = window.set_focus();
+                                            let _ = window.emit("single-instance-deep-link", vec![url]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
                 let state = AppState::bootstrap()

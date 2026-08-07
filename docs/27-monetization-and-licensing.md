@@ -5,12 +5,12 @@
 A **tiered, perpetual-fallback + subscription** model, common among premium dev-tool desktop apps
 (mirrors how Termius/JetBrains-style products balance one-time buyers with recurring revenue):
 
-| Tier | Price shape | Includes |
-|---|---|---|
-| **Free** | $0 | Core SSH client: connections, terminal, SFTP, key manager, local vault, up to N saved hosts (e.g. 10) — enough to be genuinely useful, not a crippled trial |
-| **Pro** | Monthly/annual subscription *or* one-time perpetual license for the current major version | Unlimited hosts, Remote Editor, Dashboard, Docker panel, AI assistant (bring-your-own key), Sync (personal, e.g. 3 devices), snippets/templates/notes |
-| **Team** | Per-seat monthly/annual | Everything in Pro + Team workspaces (shared hosts/snippets), centralized policy (doc 26 Phase 4), audit log aggregation, priority support |
-| **Enterprise** | Custom | Team + SSO, on-prem/self-hosted sync relay option, custom SLAs, procurement-friendly invoicing |
+| Tier           | Price shape                                                                               | Includes                                                                                                                                                    |
+| -------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Free**       | $0                                                                                        | Core SSH client: connections, terminal, SFTP, key manager, local vault, up to N saved hosts (e.g. 10) — enough to be genuinely useful, not a crippled trial |
+| **Pro**        | Monthly/annual subscription _or_ one-time perpetual license for the current major version | Unlimited hosts, Remote Editor, Dashboard, Docker panel, AI assistant (bring-your-own key), Sync (personal, e.g. 3 devices), snippets/templates/notes       |
+| **Team**       | Per-seat monthly/annual                                                                   | Everything in Pro + Team workspaces (shared hosts/snippets), centralized policy (doc 26 Phase 4), audit log aggregation, priority support                   |
+| **Enterprise** | Custom                                                                                    | Team + SSO, on-prem/self-hosted sync relay option, custom SLAs, procurement-friendly invoicing                                                              |
 
 - The **perpetual license option** for Pro (pay once, keep that major version forever, subscribe
   only if you want future major-version upgrades + ongoing sync/AI-proxy service) directly targets
@@ -25,7 +25,7 @@ A **tiered, perpetual-fallback + subscription** model, common among premium dev-
   fundamentals, local encrypted vault, and full data ownership (export always works, even on Free).
   Users should never feel their own data is hostage to a subscription.
 - **Gated by scale, not by function**, where possible (e.g. "10 hosts free, unlimited on Pro") —
-  preferred over gating a *feature* outright, since scale-gating rewards growth naturally as a
+  preferred over gating a _feature_ outright, since scale-gating rewards growth naturally as a
   user's needs grow, and free users still get a fully functional (if smaller-scale) experience.
 - **Genuinely Pro/Team-only** (function-gated because they have real marginal cost or target a
   different buyer): Cloud Sync (hosted relay infra cost), Team workspaces (shared infra + admin
@@ -38,7 +38,7 @@ A **tiered, perpetual-fallback + subscription** model, common among premium dev-
   signed license token (public-key signature verification, mirroring the update-manifest signing
   model in doc 25 §5) with periodic (not constant) online re-validation — so a Pro user on a plane
   isn't locked out, but a leaked/shared license key can be revoked and will eventually re-check.
-- **No DRM theater**: no online phone-home required to *launch* the app or to use core features —
+- **No DRM theater**: no online phone-home required to _launch_ the app or to use core features —
   consistent with the offline-first pillar (doc 00 §2, §7) and avoids the trust-eroding pattern of
   competitors who require constant connectivity for a fundamentally local tool.
 - Perpetual license tokens are scoped to a major version range; a subscription token has an

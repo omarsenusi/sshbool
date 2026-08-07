@@ -2,24 +2,24 @@
 
 ## 1. Glossary
 
-| Term | Meaning |
-|---|---|
-| **Host** | A saved server/connection profile (`hosts` table) — hostname, port, auth, org metadata |
-| **Identity** | A reusable username + key/credential pairing, attachable to multiple hosts |
-| **Vault** | The encrypted store for credentials/keys, unlocked by the master password/biometric |
-| **DEK / KEK** | Data Encryption Key / Key Encryption Key — see key hierarchy, doc 22 §3 |
-| **Session** | A live or historical connected instance of a host (`sessions` table) |
-| **Pane** | A single terminal/SFTP/editor/dashboard surface within a session (`session_panes`) |
-| **Connection actor** | The Rust task owning one host's authenticated SSH socket (doc 01 §7–8) |
-| **Multiplexing / connection sharing** | Reusing one SSH connection for terminal+SFTP+metrics+docker |
-| **Port** | A Domain-defined trait for an external capability (e.g. `HostRepository`) implemented by an Infrastructure adapter |
-| **Bounded context** | A DDD subdomain boundary (e.g. Connections, Vault, Sessions) with its own aggregates and ubiquitous language (doc 01 §3) |
-| **Use case** | An Application-layer command or query (CQRS) orchestrating domain + ports |
-| **DTO** | Data Transfer Object — the serializable shape crossing the Rust↔TS IPC boundary |
-| **AppError** | The discriminated-union error type returned by every Tauri command (doc 07 §2) |
-| **Capability (plugin)** | A permission string gating a plugin's access to a host function (doc 21 §3) |
-| **ChangeSet** | An encrypted, versioned unit of sync data (doc `features/19-sync-backup.md`) |
-| **Ring buffer (metrics)** | A capped, oldest-evicted-first storage pattern used for `metric_series` |
+| Term                                  | Meaning                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Host**                              | A saved server/connection profile (`hosts` table) — hostname, port, auth, org metadata                                   |
+| **Identity**                          | A reusable username + key/credential pairing, attachable to multiple hosts                                               |
+| **Vault**                             | The encrypted store for credentials/keys, unlocked by the master password/biometric                                      |
+| **DEK / KEK**                         | Data Encryption Key / Key Encryption Key — see key hierarchy, doc 22 §3                                                  |
+| **Session**                           | A live or historical connected instance of a host (`sessions` table)                                                     |
+| **Pane**                              | A single terminal/SFTP/editor/dashboard surface within a session (`session_panes`)                                       |
+| **Connection actor**                  | The Rust task owning one host's authenticated SSH socket (doc 01 §7–8)                                                   |
+| **Multiplexing / connection sharing** | Reusing one SSH connection for terminal+SFTP+metrics+docker                                                              |
+| **Port**                              | A Domain-defined trait for an external capability (e.g. `HostRepository`) implemented by an Infrastructure adapter       |
+| **Bounded context**                   | A DDD subdomain boundary (e.g. Connections, Vault, Sessions) with its own aggregates and ubiquitous language (doc 01 §3) |
+| **Use case**                          | An Application-layer command or query (CQRS) orchestrating domain + ports                                                |
+| **DTO**                               | Data Transfer Object — the serializable shape crossing the Rust↔TS IPC boundary                                          |
+| **AppError**                          | The discriminated-union error type returned by every Tauri command (doc 07 §2)                                           |
+| **Capability (plugin)**               | A permission string gating a plugin's access to a host function (doc 21 §3)                                              |
+| **ChangeSet**                         | An encrypted, versioned unit of sync data (doc `features/19-sync-backup.md`)                                             |
+| **Ring buffer (metrics)**             | A capped, oldest-evicted-first storage pattern used for `metric_series`                                                  |
 
 ## 2. Naming conventions
 

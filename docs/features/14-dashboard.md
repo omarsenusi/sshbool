@@ -15,20 +15,20 @@ Bandwidth · Processes · Docker · Services · Systemd · Uptime · Kernel · D
 - Probes prefer parsing `/proc` and standard CLI tools already present on virtually all Linux
   distros, with per-distro fallbacks so the dashboard degrades gracefully rather than failing:
 
-| Metric | Primary source | Fallback |
-|---|---|---|
-| CPU % | `/proc/stat` delta | `top -bn1` |
-| Memory / Swap | `/proc/meminfo` | `free -b` |
-| Load | `/proc/loadavg` | `uptime` |
-| Disk / Filesystem | `df -PB1` | `/proc/mounts` + `statvfs` via `stat -f` |
-| Network / Bandwidth | `/proc/net/dev` delta (bytes/sec) | `ip -s link` |
-| Temperature | `/sys/class/thermal/thermal_zone*/temp` | `sensors -j` (if `lm-sensors` present; omitted otherwise) |
-| Processes | `/proc/[pid]/stat` + `/proc/[pid]/status` | `ps aux` |
-| Services (systemd) | `systemctl list-units --type=service --output=json` | `service --status-all` (non-systemd) |
-| Uptime | `/proc/uptime` | `uptime -p` |
-| Kernel / Distro | `uname -r` + `/etc/os-release` | `lsb_release -a` |
-| Updates | distro package manager dry-run (`apt list --upgradable`, `dnf check-update`, `pacman -Qu`) | omitted if unsupported |
-| Docker | via the Containers feature (doc `features/15-docker-kubernetes.md`) surfaced as a dashboard widget | — |
+| Metric              | Primary source                                                                                     | Fallback                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| CPU %               | `/proc/stat` delta                                                                                 | `top -bn1`                                                |
+| Memory / Swap       | `/proc/meminfo`                                                                                    | `free -b`                                                 |
+| Load                | `/proc/loadavg`                                                                                    | `uptime`                                                  |
+| Disk / Filesystem   | `df -PB1`                                                                                          | `/proc/mounts` + `statvfs` via `stat -f`                  |
+| Network / Bandwidth | `/proc/net/dev` delta (bytes/sec)                                                                  | `ip -s link`                                              |
+| Temperature         | `/sys/class/thermal/thermal_zone*/temp`                                                            | `sensors -j` (if `lm-sensors` present; omitted otherwise) |
+| Processes           | `/proc/[pid]/stat` + `/proc/[pid]/status`                                                          | `ps aux`                                                  |
+| Services (systemd)  | `systemctl list-units --type=service --output=json`                                                | `service --status-all` (non-systemd)                      |
+| Uptime              | `/proc/uptime`                                                                                     | `uptime -p`                                               |
+| Kernel / Distro     | `uname -r` + `/etc/os-release`                                                                     | `lsb_release -a`                                          |
+| Updates             | distro package manager dry-run (`apt list --upgradable`, `dnf check-update`, `pacman -Qu`)         | omitted if unsupported                                    |
+| Docker              | via the Containers feature (doc `features/15-docker-kubernetes.md`) surfaced as a dashboard widget | —                                                         |
 
 - Parsers live in `infrastructure/monitoring/parsers/*.rs`, each independently unit-tested against
   captured real-world command output fixtures (no live host needed for tests).

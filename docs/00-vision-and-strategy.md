@@ -22,13 +22,13 @@ the same authenticated, multiplexed transport.
 
 ## 3. Target personas
 
-| Persona | Primary jobs-to-be-done | Killer features for them |
-|---|---|---|
-| **Backend / full‑stack developer** | SSH into staging, tail logs, edit config, run migrations | Remote Monaco editor, snippets, AI log analysis |
-| **DevOps / SRE** | Manage fleets, tunnels, docker, k8s, incident triage | Jump hosts, dashboard, Docker/K8s panels, session recording |
-| **Sysadmin** | Maintain many servers, transfer files, patch | Dual‑pane SFTP, folder sync, updates panel, groups/tags |
-| **Cloud engineer** | Bastion access, port forwards, DB access | ProxyJump, dynamic/reverse tunnels, DB clients |
-| **Security‑conscious team** | Enforce key auth, audit, rotate secrets | FIDO2/YubiKey, master password, audit log, E2E sync |
+| Persona                            | Primary jobs-to-be-done                                  | Killer features for them                                    |
+| ---------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------- |
+| **Backend / full‑stack developer** | SSH into staging, tail logs, edit config, run migrations | Remote Monaco editor, snippets, AI log analysis             |
+| **DevOps / SRE**                   | Manage fleets, tunnels, docker, k8s, incident triage     | Jump hosts, dashboard, Docker/K8s panels, session recording |
+| **Sysadmin**                       | Maintain many servers, transfer files, patch             | Dual‑pane SFTP, folder sync, updates panel, groups/tags     |
+| **Cloud engineer**                 | Bastion access, port forwards, DB access                 | ProxyJump, dynamic/reverse tunnels, DB clients              |
+| **Security‑conscious team**        | Enforce key auth, audit, rotate secrets                  | FIDO2/YubiKey, master password, audit log, E2E sync         |
 
 ## 4. Positioning vs competitors
 

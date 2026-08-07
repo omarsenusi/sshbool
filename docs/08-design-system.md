@@ -31,10 +31,10 @@ feature components (HostTree, TerminalPane, DialogX, …)
 2. **Changing a value once changes it everywhere.** Want a different accent, a smaller radius, a
    thinner border? Edit the variable in `globals.css` — never patch an individual component's
    className with a one‑off `border-2` or `rounded-2xl` override. If a component needs to look
-   different, that's a signal a new *semantic* token or a shadcn `variant` is missing — add the
+   different, that's a signal a new _semantic_ token or a shadcn `variant` is missing — add the
    token/variant centrally, don't hardcode the exception locally.
 3. **Never hand‑edit generated files under `components/ui/`.** They come from `shadcn add
-   <component>`. If a primitive needs a behavior change, either use its documented `variant`/`size`
+<component>`. If a primitive needs a behavior change, either use its documented `variant`/`size`
    props, wrap it in a feature‑level component, or (rarely, deliberately) eject and document the
    change — but don't silently diverge from upstream shadcn so future `shadcn diff`/updates stay clean.
 4. **No inline styles, no ad‑hoc hex/oklch colors, no magic pixel borders in feature code.** Every
@@ -128,16 +128,17 @@ a whisper, not a frame**.
   always use one of the derived utility classes (`rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl`).
   Reference guide:
 
-  | Element | Radius class |
-  |---|---|
-  | Buttons, inputs, badges, small controls | `rounded-md` |
+  | Element                                     | Radius class                               |
+  | ------------------------------------------- | ------------------------------------------ |
+  | Buttons, inputs, badges, small controls     | `rounded-md`                               |
   | Cards, list rows, menus, popovers, tooltips | `rounded-lg` (maps 1:1 to base `--radius`) |
-  | Dialogs, sheets | `rounded-xl` |
-  | Small chips/dots/avatars | `rounded-sm` or `rounded-full` |
+  | Dialogs, sheets                             | `rounded-xl`                               |
+  | Small chips/dots/avatars                    | `rounded-sm` or `rounded-full`             |
 
   `--radius: 0.625rem` (10px) is deliberately modest — softly rounded, never bubbly. If the whole
   app's roundedness ever needs adjusting, change **only** this one variable in `globals.css`; every
   derived step and every component follows automatically.
+
 - **No border on dense/data surfaces.** Data tables, file lists, process lists, log/terminal
   panes separate rows via subtle background alternation or a 1px `--border`‑colored divider
   between rows — never a bordered "card" wrapped around every row.
@@ -155,19 +156,20 @@ a whisper, not a frame**.
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 ```
+
 Applied to: sidebars, command palette, dialogs/sheets, status bar, floating toolbars.
 **Never** applied behind dense data grids or the terminal (readability + perf).
 
 ## 3. Typography scale
 
-| Token | Size / line | Use |
-|---|---|---|
-| display | 28 / 34 | onboarding titles |
-| h1 | 22 / 28 | screen titles |
-| h2 | 18 / 24 | section headers |
-| body | 14 / 20 | default |
-| small | 12 / 16 | metadata, captions |
-| mono | 13 / 18 | terminal, code, paths |
+| Token   | Size / line | Use                   |
+| ------- | ----------- | --------------------- |
+| display | 28 / 34     | onboarding titles     |
+| h1      | 22 / 28     | screen titles         |
+| h2      | 18 / 24     | section headers       |
+| body    | 14 / 20     | default               |
+| small   | 12 / 16     | metadata, captions    |
+| mono    | 13 / 18     | terminal, code, paths |
 
 ## 4. Spacing & layout
 

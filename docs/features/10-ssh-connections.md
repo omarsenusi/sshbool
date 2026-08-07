@@ -22,14 +22,14 @@ Favorite Servers · Groups · Folders · Tags · Search · Pinned Servers.
 
 ## 3. Authentication
 
-| Method | Implementation |
-|---|---|
-| Password | prompt or from vault credential; never persisted plaintext |
-| Public key | key from vault (`ssh_keys`), decrypt priv in secure memory, sign; supports Ed25519/RSA/ECDSA |
-| Keyboard‑interactive | prompt flow (2FA/OTP), UI dialog per challenge |
-| SSH agent | `agent.rs` talks to unix agent / Windows OpenSSH agent / Pageant; delegates signing |
-| FIDO2 / `sk-ed25519`, `sk-ecdsa` | via agent (touch/PIN) or system‑ssh fallback (ADR‑003) |
-| YubiKey | as a FIDO2 security key or PIV via agent |
+| Method                           | Implementation                                                                               |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| Password                         | prompt or from vault credential; never persisted plaintext                                   |
+| Public key                       | key from vault (`ssh_keys`), decrypt priv in secure memory, sign; supports Ed25519/RSA/ECDSA |
+| Keyboard‑interactive             | prompt flow (2FA/OTP), UI dialog per challenge                                               |
+| SSH agent                        | `agent.rs` talks to unix agent / Windows OpenSSH agent / Pageant; delegates signing          |
+| FIDO2 / `sk-ed25519`, `sk-ecdsa` | via agent (touch/PIN) or system‑ssh fallback (ADR‑003)                                       |
+| YubiKey                          | as a FIDO2 security key or PIV via agent                                                     |
 
 Auth order per host follows `auth_method` with graceful fallback + clear `AppError::Auth`.
 
@@ -56,11 +56,11 @@ Auth order per host follows `auth_method` with graceful fallback + clear `AppErr
 
 ## 7. Port forwarding & tunnels
 
-| Type | Direction | russh channel |
-|---|---|---|
-| Local (`-L`) | local port → remote dest | `direct-tcpip` |
-| Remote / reverse (`-R`) | remote port → local dest | `tcpip-forward` + `forwarded-tcpip` |
-| Dynamic (`-D`, SOCKS) | local SOCKS proxy → any | SOCKS server → `direct-tcpip` per conn |
+| Type                    | Direction                | russh channel                          |
+| ----------------------- | ------------------------ | -------------------------------------- |
+| Local (`-L`)            | local port → remote dest | `direct-tcpip`                         |
+| Remote / reverse (`-R`) | remote port → local dest | `tcpip-forward` + `forwarded-tcpip`    |
+| Dynamic (`-D`, SOCKS)   | local SOCKS proxy → any  | SOCKS server → `direct-tcpip` per conn |
 
 - Defined per host (`port_forwards`), `auto_start` on connect, toggled live in a Tunnels panel.
 - Status + throughput shown; errors surfaced without dropping the main session.

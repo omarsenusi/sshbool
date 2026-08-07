@@ -12,9 +12,9 @@ UI: `features/sftp`. Backend: `commands/transfers.rs` + `ConnectionManager` SFTP
 
 ### Context menu (right-click)
 
-**Remote:** Open · Open in editor · Download · Rename · Copy · Cut · Paste · Delete (confirm) · New folder · Copy path · Permissions (chmod octal) · Refresh  
+**Remote:** Open · Open in editor · Download · Rename · Copy · Cut · Paste · Delete (confirm) · New folder · Copy path · Permissions (chmod octal) · Refresh
 
-**Local:** Open · Upload to remote · Reveal in explorer · Rename · Copy · Cut · Paste · Delete (confirm) · New folder · Copy path · Refresh  
+**Local:** Open · Upload to remote · Reveal in explorer · Rename · Copy · Cut · Paste · Delete (confirm) · New folder · Copy path · Refresh
 
 Delete always shows a confirmation dialog; directories delete recursively.
 
@@ -33,15 +33,15 @@ Delete always shows a confirmation dialog; directories delete recursively.
 
 ### Backend commands
 
-| Command | Notes |
-|---|---|
-| `sftp_list_dir` / `sftp_stat` / `sftp_mkdir` / `sftp_rename` / `sftp_chmod` | Remote ops; `sftp_stat` uses metadata |
-| `sftp_delete` | Honors `recursive` |
-| `sftp_copy` | Remote copy (dirs recursive) |
-| `sftp_read` / `sftp_write` | Editor UTF-8 path (5MB cap) |
-| `local_home` / `local_list_dir` / `local_mkdir` / `local_rename` / `local_delete` | Local pane |
-| `transfer_upload` / `transfer_upload_many` / `transfer_download` | Binary bytes |
-| `transfers_list` / pause / resume / cancel | Queue metadata (pause/resume are status flags) |
+| Command                                                                           | Notes                                          |
+| --------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `sftp_list_dir` / `sftp_stat` / `sftp_mkdir` / `sftp_rename` / `sftp_chmod`       | Remote ops; `sftp_stat` uses metadata          |
+| `sftp_delete`                                                                     | Honors `recursive`                             |
+| `sftp_copy`                                                                       | Remote copy (dirs recursive)                   |
+| `sftp_read` / `sftp_write`                                                        | Editor UTF-8 path (5MB cap)                    |
+| `local_home` / `local_list_dir` / `local_mkdir` / `local_rename` / `local_delete` | Local pane                                     |
+| `transfer_upload` / `transfer_upload_many` / `transfer_download`                  | Binary bytes                                   |
+| `transfers_list` / pause / resume / cancel                                        | Queue metadata (pause/resume are status flags) |
 
 ## Later (not in this pass)
 

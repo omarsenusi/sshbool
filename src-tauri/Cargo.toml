@@ -68,8 +68,10 @@ ssh-key = {
 }
 tauri = { version = "2", features = ["image-png", "tray-icon"] }
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-deep-link = "2.4.9"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }
 tauri-plugin-updater = "2"
 thiserror = { workspace = true }
 tokio = { workspace = true }

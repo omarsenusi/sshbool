@@ -3,9 +3,11 @@
 ## 1. Locked stack
 
 ### Desktop shell
+
 - **Tauri v2** (Rust host + webview). Auto‑updater, single‑instance, deep‑link, tray plugins.
 
 ### Rust core
+
 - **Tokio** (async runtime), **Rayon** (CPU parallelism).
 - **russh** + **russh-keys** / **russh-sftp** — SSH2 transport, auth, SFTP.
 - **SQLx** (compile‑checked queries) + **SQLite** with **SQLCipher** (at‑rest encryption).
@@ -21,6 +23,7 @@
 - **wasmtime** — plugin sandbox (logic plugins).
 
 ### Frontend
+
 - **React 19** + **TypeScript 5** (`strict`).
 - **Vite** (see ADR‑002) as the dev server & bundler.
 - **TailwindCSS v4** + **shadcn/ui** (already scaffolded, style `base-nova`).
@@ -35,6 +38,7 @@
 - **i18next** — localization (RTL‑ready; the shadcn config exposes `rtl`).
 
 ### Tooling / quality
+
 - **Storybook** (component workshop), **Vitest** + **Testing Library** (unit/component),
   **Playwright** (E2E via `tauri-driver`/WebDriver), **cargo nextest** + **cargo test** (Rust),
   **clippy** + **rustfmt**, **ESLint** + **Prettier**, **GitHub Actions** CI.
@@ -47,6 +51,7 @@
 app router, `next dev`). `AGENTS.md` warns Next.js has breaking changes vs training data.
 
 **Problem with keeping Next.js for a Tauri desktop app.**
+
 - Tauri serves a **static frontend**; it does not run a Node server. Next.js would need
   `output: 'export'`, which **disables** RSC/server actions/route handlers/ISR — i.e., most of what
   Next.js 16 is for. You keep the complexity and lose the value.
@@ -55,6 +60,7 @@ app router, `next dev`). `AGENTS.md` warns Next.js has breaking changes vs train
 - The brief explicitly specifies Vite.
 
 **Decision.** **Use Vite + React SPA.** Migrate the existing scaffold:
+
 1. Add `vite`, `@vitejs/plugin-react`, keep React 19 + TS + Tailwind v4 + shadcn.
 2. Replace `app/layout.tsx` + `app/page.tsx` (Next app router) with `index.html` + `src/main.tsx` + `src/App.tsx` and a client router (**@tanstack/react-router** or **react-router**).
 3. Move `app/globals.css` → `src/styles/globals.css`; keep `components/ui` and `lib/utils` (shadcn works with Vite; update `components.json` `rsc: false`, `tailwind.css` path).
@@ -81,6 +87,7 @@ brief. The migration is mechanical and low‑risk because almost no Next‑speci
 **Options:** (a) `russh` pure‑Rust; (b) bind `libssh2` via `ssh2` crate; (c) shell out to system `ssh`.
 
 **Decision: `russh` + `russh-keys` + `russh-sftp`.**
+
 - Pure Rust → easy cross‑compilation, no C toolchain/OpenSSL headaches on Windows, memory‑safe.
 - Async‑native (Tokio) → fits our actor‑per‑connection model and streaming.
 - Modern algorithm support (Ed25519, curve25519, chacha20‑poly1305, aes‑gcm).
@@ -128,13 +135,13 @@ import `sqlx` or `tauri` because it doesn't depend on them. See docs 02 & 05.
 
 ## 7. ADR summary table
 
-| ADR | Decision | Status |
-|---|---|---|
-| 001 | Tauri v2 (no Electron) | Accepted (given) |
-| 002 | Vite SPA (migrate off Next.js) | Accepted |
-| 003 | russh (pure Rust) w/ agent + system‑ssh fallbacks | Accepted |
-| 004 | SQLite + SQLx + SQLCipher | Accepted |
-| 005 | Zustand + React Query + Tauri events | Accepted |
-| 006 | Cargo multi‑crate workspace | Accepted |
+| ADR | Decision                                                    | Status                |
+| --- | ----------------------------------------------------------- | --------------------- |
+| 001 | Tauri v2 (no Electron)                                      | Accepted (given)      |
+| 002 | Vite SPA (migrate off Next.js)                              | Accepted              |
+| 003 | russh (pure Rust) w/ agent + system‑ssh fallbacks           | Accepted              |
+| 004 | SQLite + SQLx + SQLCipher                                   | Accepted              |
+| 005 | Zustand + React Query + Tauri events                        | Accepted              |
+| 006 | Cargo multi‑crate workspace                                 | Accepted              |
 | 007 | Wasmtime for logic plugins; sandboxed iframe for UI plugins | Accepted (see doc 21) |
-| 008 | i18next + RTL support from day one | Accepted |
+| 008 | i18next + RTL support from day one                          | Accepted              |

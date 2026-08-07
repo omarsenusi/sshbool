@@ -9,10 +9,10 @@ Plugin SDK · Marketplace · Themes · Extensions · Widgets.
 
 ## 2. Two extension surfaces
 
-| Surface | Runtime | Use for | Isolation |
-|---|---|---|---|
-| **Logic plugins** | WASM (compiled from Rust/AssemblyScript/C/etc. to `wasm32-wasi`), run in **Wasmtime** inside the Rust core | Custom parsers, generators, integrations, background automations | Wasmtime sandbox + explicit capability-gated host functions (no ambient system access) |
-| **UI plugins** | React micro-frontend loaded in a sandboxed `<iframe>` (`PluginHostFrame`) | Custom panels, dashboard widgets, palette commands with a visual surface | `iframe sandbox` attribute + a strictly-typed `postMessage` bridge (`usePluginBridge`) — no direct DOM/window access to the host app |
+| Surface           | Runtime                                                                                                    | Use for                                                                  | Isolation                                                                                                                            |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Logic plugins** | WASM (compiled from Rust/AssemblyScript/C/etc. to `wasm32-wasi`), run in **Wasmtime** inside the Rust core | Custom parsers, generators, integrations, background automations         | Wasmtime sandbox + explicit capability-gated host functions (no ambient system access)                                               |
+| **UI plugins**    | React micro-frontend loaded in a sandboxed `<iframe>` (`PluginHostFrame`)                                  | Custom panels, dashboard widgets, palette commands with a visual surface | `iframe sandbox` attribute + a strictly-typed `postMessage` bridge (`usePluginBridge`) — no direct DOM/window access to the host app |
 
 A single plugin manifest can declare both a logic module and a UI entry, or just one.
 
@@ -25,7 +25,10 @@ A single plugin manifest can declare both a logic module and a UI entry, or just
   "version": "1.0.0",
   "sshboolApiVersion": "1",
   "logic": { "wasmEntry": "logic.wasm" },
-  "ui": { "entry": "ui/index.html", "surfaces": ["dashboard-widget", "palette-command"] },
+  "ui": {
+    "entry": "ui/index.html",
+    "surfaces": ["dashboard-widget", "palette-command"]
+  },
   "permissions": [
     "hosts.read",
     "sessions.exec",

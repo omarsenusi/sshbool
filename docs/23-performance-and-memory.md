@@ -5,16 +5,16 @@ budgets, techniques, and verification methods.
 
 ## 1. Performance budget (targets)
 
-| Metric | Target | Notes |
-|---|---|---|
-| Cold start (app launch → interactive Home) | < 800 ms | measured on mid-range hardware, release build |
-| Connect to saved host (auth → first shell prompt) | < 1.2 s on LAN | includes handshake + auth + PTY alloc |
-| Idle RAM (app open, no sessions) | < 180 MB | webview + Rust core combined |
-| Per active terminal session RAM | < 15 MB | scrollback-capped |
-| UI input latency (keystroke → terminal echo, local test) | < 16 ms | one frame at 60Hz |
-| Dashboard widget re-render rate | ≤ 4 Hz | throttled regardless of sampling rate |
-| Command palette open → results | < 50 ms | for a DB with 10k+ hosts/snippets |
-| SFTP directory listing (1000 entries) | < 300 ms render | virtualized list |
+| Metric                                                   | Target          | Notes                                         |
+| -------------------------------------------------------- | --------------- | --------------------------------------------- |
+| Cold start (app launch → interactive Home)               | < 800 ms        | measured on mid-range hardware, release build |
+| Connect to saved host (auth → first shell prompt)        | < 1.2 s on LAN  | includes handshake + auth + PTY alloc         |
+| Idle RAM (app open, no sessions)                         | < 180 MB        | webview + Rust core combined                  |
+| Per active terminal session RAM                          | < 15 MB         | scrollback-capped                             |
+| UI input latency (keystroke → terminal echo, local test) | < 16 ms         | one frame at 60Hz                             |
+| Dashboard widget re-render rate                          | ≤ 4 Hz          | throttled regardless of sampling rate         |
+| Command palette open → results                           | < 50 ms         | for a DB with 10k+ hosts/snippets             |
+| SFTP directory listing (1000 entries)                    | < 300 ms render | virtualized list                              |
 
 These are **gates**, not aspirations — doc 24 wires perf regression checks into CI where feasible
 (startup timing, bundle size budget) and manual profiling passes before each release (doc 25).
@@ -64,16 +64,16 @@ These are **gates**, not aspirations — doc 24 wires perf regression checks int
 
 ## 5. Memory optimization specifics
 
-| Concern | Bound | Mechanism |
-|---|---|---|
-| Terminal scrollback | configurable, default 10,000 lines/pane | xterm ring buffer + eviction |
-| `metric_series` rows | capped per host per metric | delete trigger / ring buffer (doc 04 §5) |
-| `command_history`/`query_history`/`audit_log` | retention window (default 90 days) | scheduled prune task |
-| Transfer buffers | fixed-size chunk (e.g. 256KB–1MB) reused per stream, not per file | streaming write, no full-file buffering |
-| DB result sets (SQL/Mongo/Redis) | paged/streamed, default page size cap | never `SELECT *` fully materialized into a Vec unbounded |
-| Docker log/stats views | virtualized + capped in-memory line buffer, older lines evicted | mirrors terminal scrollback pattern |
-| Recording files | written to disk incrementally, not buffered in RAM | streamed asciicast writer |
-| Secrets in memory | scoped to operation lifetime, zeroized on drop | `secrecy`/`zeroize` (doc 22 §5) |
+| Concern                                       | Bound                                                             | Mechanism                                                |
+| --------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------- |
+| Terminal scrollback                           | configurable, default 10,000 lines/pane                           | xterm ring buffer + eviction                             |
+| `metric_series` rows                          | capped per host per metric                                        | delete trigger / ring buffer (doc 04 §5)                 |
+| `command_history`/`query_history`/`audit_log` | retention window (default 90 days)                                | scheduled prune task                                     |
+| Transfer buffers                              | fixed-size chunk (e.g. 256KB–1MB) reused per stream, not per file | streaming write, no full-file buffering                  |
+| DB result sets (SQL/Mongo/Redis)              | paged/streamed, default page size cap                             | never `SELECT *` fully materialized into a Vec unbounded |
+| Docker log/stats views                        | virtualized + capped in-memory line buffer, older lines evicted   | mirrors terminal scrollback pattern                      |
+| Recording files                               | written to disk incrementally, not buffered in RAM                | streamed asciicast writer                                |
+| Secrets in memory                             | scoped to operation lifetime, zeroized on drop                    | `secrecy`/`zeroize` (doc 22 §5)                          |
 
 ### Enforcement note (shipped)
 
@@ -85,7 +85,7 @@ These are **gates**, not aspirations — doc 24 wires perf regression checks int
 ## 6. Profiling & verification
 
 - **Rust**: `cargo flamegraph`/`tokio-console` for async task diagnostics; `dhat`/`valgrind
-  massif` (Linux CI job) for heap profiling on suspected leak paths (long-lived actors, plugin host).
+massif` (Linux CI job) for heap profiling on suspected leak paths (long-lived actors, plugin host).
 - **Frontend**: React DevTools Profiler for render cost; Chrome/WebView DevTools Performance panel
   for frame timing on the terminal/dashboard hot paths; bundle-size tracked via a CI budget check
   (fails if a route's chunk grows past its allotted size — doc 24).
