@@ -47,16 +47,8 @@ hex = "0.4"
 infrastructure = { workspace = true }
 rand = "0.8"
 regex = "1"
-reqwest = {
-  version = "0.12",
-  default-features = false,
-  features = ["json", "rustls-tls"]
-}
-russh = {
-  version = "0.62",
-  default-features = false,
-  features = ["flate2", "ring", "rsa"]
-}
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+russh = { version = "0.62", default-features = false, features = ["flate2", "ring", "rsa"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
