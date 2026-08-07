@@ -54,10 +54,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sha2 = "0.10"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
-ssh-key = {
-  version = "0.6",
-  features = ["alloc", "ecdsa", "ed25519", "encryption", "rsa"]
-}
+ssh-key = { version = "0.6", features = ["alloc", "ecdsa", "ed25519", "encryption", "rsa"] }
 tauri = { version = "2", features = ["image-png", "tray-icon"] }
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-deep-link = "2.4.9"
