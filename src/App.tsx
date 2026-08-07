@@ -33,7 +33,7 @@ import { onOpenUrl, getCurrent } from "@tauri-apps/plugin-deep-link"
 import { listen } from "@tauri-apps/api/event"
 import { toast } from "@/stores/toast.store"
 import { useState } from "react"
-import { ShieldCheck, ExternalLink } from "lucide-react"
+import { ShieldCheck, ExternalLink, KeyRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function App() {
