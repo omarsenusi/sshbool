@@ -272,7 +272,7 @@ export function App() {
                 <span className="text-xs font-medium text-muted-foreground">Awaiting Activation</span>
               </div>
               <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border">
-                {appInfo?.version ? `v${appInfo.version}` : "v0.1.3"}
+                {appInfo?.version ? `v${appInfo.version}` : "v0.1.4"}
               </span>
             </div>
 
