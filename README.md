@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/Vite-Fast-646CFF?logo=vite" alt="Vite" />
   <img src="https://img.shields.io/badge/Security-AES--256-green" alt="AES-256 Encrypted" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
 </p>
 
 ---
@@ -119,3 +120,10 @@ Make sure you have the following installed on your machine:
 ## 📂 Project Blueprint
 
 For in-depth architectural documents, data schemas, and the development roadmap, refer to the [`docs/README.md`](docs/README.md) file.
+
+---
+
+## 📄 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+

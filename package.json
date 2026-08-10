@@ -1,6 +1,7 @@
 {
   "name": "sshbool",
   "version": "0.1.4",
+  "license": "Apache-2.0",
   "type": "module",
   "private": true,
   "scripts": {

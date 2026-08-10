@@ -12,7 +12,7 @@ members = [".", "crates/application", "crates/domain", "crates/infrastructure"]
 version = "0.1.4"
 authors = ["SSHBool"]
 edition = "2021"
-license = "Proprietary"
+license = "Apache-2.0"
 
 [workspace.dependencies]
 anyhow = "1"
