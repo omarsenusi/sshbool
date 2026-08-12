@@ -202,7 +202,6 @@ fn build_db_cmd(conn: &DbConn, sql: &str, structured: bool) -> Result<String, Ap
         }
         "redis" => {
             let cmd_name = sql
-                .trim()
                 .split_whitespace()
                 .next()
                 .unwrap_or("")

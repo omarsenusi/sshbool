@@ -757,6 +757,7 @@ pub async fn rdp_launch_native(
     let mut p = password.as_deref().unwrap_or("").to_string();
     if p == "••••••••" || p.is_empty() {
         if let Some(ref hid) = host_id {
+            tracing::info!("RDP Launch: Resolving encrypted password for host_id = {}", hid);
             let cred_id: Option<(String,)> =
                 sqlx::query_as("SELECT value FROM settings WHERE key = ?")
                     .bind(format!("host:{hid}:cred"))
@@ -765,6 +766,7 @@ pub async fn rdp_launch_native(
                     .ok()
                     .flatten();
             if let Some((cid,)) = cred_id {
+                tracing::info!("RDP Launch: Found credential association = {}", cid);
                 let secret: Option<(Vec<u8>, Vec<u8>)> =
                     sqlx::query_as("SELECT ciphertext, nonce FROM credentials WHERE id = ?")
                         .bind(&cid)
@@ -773,15 +775,27 @@ pub async fn rdp_launch_native(
                         .ok()
                         .flatten();
                 if let Some((ct, nonce)) = secret {
-                    if let Ok(plain) = state
+                    match state
                         .vault
                         .open_secret(&ct, &nonce, &format!("cred:{cid}"))
                         .await
                     {
-                        p = String::from_utf8_lossy(&plain).into_owned();
+                        Ok(plain) => {
+                            p = String::from_utf8_lossy(&plain).into_owned();
+                            tracing::info!("RDP Launch: Successfully decrypted password from vault (len={})", p.len());
+                        }
+                        Err(e) => {
+                            tracing::error!("RDP Launch: Failed to decrypt credential {}: {:?}", cid, e);
+                        }
                     }
+                } else {
+                    tracing::warn!("RDP Launch: Credential record {} not found in database", cid);
                 }
+            } else {
+                tracing::warn!("RDP Launch: No credential association found in settings for host {}", hid);
             }
+        } else {
+            tracing::warn!("RDP Launch: No host_id provided for RDP password resolution");
         }
     }
     #[cfg(target_os = "windows")]
