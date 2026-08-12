@@ -101,6 +101,7 @@
 
   --titlebar-h: 36px;
   --activitybar-w: 48px;
+  /* Fallback only — the rail width is driven by the layout store at runtime. */
   --hostrail-w: 52px;
   --sidebar-w: 220px;
   --statusbar-h: 26px;

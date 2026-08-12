@@ -57,6 +57,28 @@ export type LastViewed = {
   at: number
 }
 
+/**
+ * How the host rail renders entries.
+ * - `icon`: compact vertical strip of host tiles (default).
+ * - `label`: full-width rows showing the host name instead of an icon.
+ */
+export type HostRailMode = "icon" | "label"
+
+/** Width bounds per rail mode, in px. Each mode remembers its own width. */
+export const HOST_RAIL_SIZING: Record<
+  HostRailMode,
+  { min: number; max: number; default: number }
+> = {
+  icon: { min: 44, max: 120, default: 52 },
+  label: { min: 150, max: 400, default: 220 },
+}
+
+export function clampHostRailWidth(mode: HostRailMode, width: number): number {
+  const { min, max, default: fallback } = HOST_RAIL_SIZING[mode]
+  if (!Number.isFinite(width)) return fallback
+  return Math.min(Math.max(Math.round(width), min), max)
+}
+
 type LayoutState = {
   activity: ActivityId
   sidebarOpen: boolean
@@ -71,6 +93,12 @@ type LayoutState = {
   /** Width of context sidebar in px. */
   sidebarWidth: number
   setSidebarWidth: (width: number) => void
+  /** How the host rail renders entries. */
+  hostRailMode: HostRailMode
+  /** Rail width in px, tracked per mode so switching modes restores each size. */
+  hostRailWidth: Record<HostRailMode, number>
+  setHostRailMode: (mode: HostRailMode) => void
+  setHostRailWidth: (mode: HostRailMode, width: number) => void
   setActivity: (activity: ActivityId) => void
   toggleSidebar: () => void
   setSelectedHostId: (id: string | null) => void
@@ -91,6 +119,19 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   addHostOpen: false,
   sidebarWidth: 220,
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
+  hostRailMode: "icon",
+  hostRailWidth: {
+    icon: HOST_RAIL_SIZING.icon.default,
+    label: HOST_RAIL_SIZING.label.default,
+  },
+  setHostRailMode: (mode) => set({ hostRailMode: mode }),
+  setHostRailWidth: (mode, width) =>
+    set((s) => ({
+      hostRailWidth: {
+        ...s.hostRailWidth,
+        [mode]: clampHostRailWidth(mode, width),
+      },
+    })),
   lastViewed: null,
   editorPath: "",
   setActivity: (activity) =>
