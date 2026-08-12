@@ -8,6 +8,11 @@ import type {
   GroupDto,
   HostDto,
   HostSummaryDto,
+  ImportedKey,
+  ImportedSnippet,
+  ImportPreview,
+  ImportResult,
+  ImportSourceInfo,
   HostTreeNode,
   KnownHostDto,
   NewHostDto,
@@ -428,6 +433,15 @@ export const ipc = {
   teamApplyPolicy: (teamId: string) => call<void>("team_apply_policy", { teamId }),
   retentionPrune: (days?: number) =>
     call<Record<string, unknown>>("retention_prune", { days: days ?? 30 }),
+
+  importSources: () => call<ImportSourceInfo[]>("import_sources"),
+  importScan: (source: string, secret?: string) =>
+    call<ImportPreview>("import_scan", { source, secret: secret ?? null }),
+  importCommit: (selection: {
+    hosts: NewHostDto[]
+    keys: ImportedKey[]
+    snippets: ImportedSnippet[]
+  }) => call<ImportResult>("import_commit", { selection }),
 }
 
 export type { GroupDto }

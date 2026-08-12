@@ -4,6 +4,7 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { ImportPanel } from "@/features/connections/components/import-panel"
 import { KnownHostKeysPanel } from "@/features/vault/components/known-hosts-panel"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -22,6 +23,7 @@ import { LicenseSettings } from "@/features/license/components/license-settings"
 
 const SECTIONS = [
   "general",
+  "import",
   "appearance",
   "terminal",
   "editor",
@@ -214,7 +216,10 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
         {section === "hostKeys" && (
           <KnownHostKeysPanel />
         )}
-        {!["general", "appearance", "terminal", "about", "updates", "security", "license", "team", "hostKeys"].includes(
+        {section === "import" && (
+          <ImportPanel />
+        )}
+        {!["general", "import", "appearance", "terminal", "about", "updates", "security", "license", "team", "hostKeys"].includes(
           section,
         ) && (
             <div>

@@ -314,3 +314,59 @@ export type DbConnectionDto = {
   database?: string | null
   username?: string | null
 }
+
+/** Whether an import source can be read on this machine. */
+export type SourceAvailability =
+  | "ready"
+  | { needsInput: { reason: string } }
+  | "notFound"
+
+export type ImportSourceInfo = {
+  id: string
+  name: string
+  description: string
+  detectedPath?: string | null
+  availability: SourceAvailability
+  supportsSecrets: boolean
+}
+
+/** Confidence that an imported secret belongs to the host it is attached to. */
+export type MatchConfidence = "exact" | "inferred" | "ambiguous"
+
+export type ImportedHost = {
+  label: string
+  hostname: string
+  port: number
+  username?: string | null
+  group?: string | null
+  notes?: string | null
+  keyLabel?: string | null
+  password?: string | null
+  passwordConfidence?: MatchConfidence | null
+  passwordNote?: string | null
+}
+
+export type ImportedKey = {
+  label: string
+  privateKey: string
+  passphrase?: string | null
+}
+
+export type ImportedSnippet = {
+  label: string
+  script: string
+}
+
+export type ImportPreview = {
+  hosts: ImportedHost[]
+  keys: ImportedKey[]
+  snippets: ImportedSnippet[]
+  warnings: string[]
+}
+
+export type ImportResult = {
+  hosts: number
+  keys: number
+  snippets: number
+  failures: string[]
+}

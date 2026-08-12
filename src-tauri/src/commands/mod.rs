@@ -1,6 +1,7 @@
 //! Tauri command modules.
 
 pub mod hosts;
+pub mod import;
 pub mod license;
 pub mod monitoring;
 pub mod phase2;

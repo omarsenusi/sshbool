@@ -34,3 +34,12 @@ ssh-encoding = "0.2"
 regex = "1"
 dirs = "6"
 chrono = { version = "0.4", features = ["serde"] }
+crypto_secretbox = "0.1"
+
+# OS keychain access, used by the Termius importer to read its local key.
+# Platform-scoped so the Linux CI image doesn't need dbus/secret-service headers.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }

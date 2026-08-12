@@ -2,6 +2,7 @@
 
 pub mod crypto;
 pub mod db;
+pub mod import;
 pub mod ssh;
 pub mod state;
 pub mod vault;
