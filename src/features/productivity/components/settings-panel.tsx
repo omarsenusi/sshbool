@@ -149,7 +149,6 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
                 </SelectContent>
               </Select>
             </label>
-            <HostRailSettings />
             <Button size="sm" variant="outline" onClick={() => prune.mutate()}>
               Prune old metrics/audit (30d)
             </Button>
@@ -238,54 +237,56 @@ function HostRailSettings() {
   const bounds = HOST_RAIL_SIZING[mode]
 
   return (
-    <div className="max-w-lg space-y-3 rounded-lg border p-4">
-      <div className="space-y-0.5">
-        <h3 className="text-sm font-medium">Host rail</h3>
-        <p className="text-muted-foreground text-xs">
+    <div className="space-y-3 max-w-md">
+      <div>
+        <h3 className="text-sm font-semibold">Host Rail</h3>
+        <p className="text-muted-foreground mt-1 text-xs mb-3">
           Show hosts as compact icons, or as horizontal tabs labelled with the
           server name. Drag the rail's right edge to resize it — each style
           remembers its own width.
         </p>
       </div>
 
-      <label className="flex items-center gap-2">
-        Style
-        <Select
-          value={mode}
-          onValueChange={(v) => {
-            if (v !== "icon" && v !== "label") return
-            setHostRailMode(v)
-            saveHostRailPrefs()
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="icon">Icons</SelectItem>
-            <SelectItem value="label">Server names</SelectItem>
-          </SelectContent>
-        </Select>
-      </label>
+      <div className="space-y-3">
+        <label className="flex items-center gap-3 text-xs font-medium">
+          <span className="w-12 shrink-0">Style</span>
+          <Select
+            value={mode}
+            onValueChange={(v) => {
+              if (v !== "icon" && v !== "label") return
+              setHostRailMode(v)
+              saveHostRailPrefs()
+            }}
+          >
+            <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="icon">Icons</SelectItem>
+              <SelectItem value="label">Server names</SelectItem>
+            </SelectContent>
+          </Select>
+        </label>
 
-      <label className="flex items-center gap-3">
-        <span className="shrink-0">Width</span>
-        <input
-          type="range"
-          className="flex-1 accent-primary"
-          min={bounds.min}
-          max={bounds.max}
-          step={2}
-          value={width}
-          aria-label="Host rail width"
-          onChange={(e) => setHostRailWidth(mode, Number(e.target.value))}
-          onPointerUp={() => saveHostRailPrefs()}
-          onKeyUp={() => saveHostRailPrefs()}
-        />
-        <span className="text-muted-foreground w-12 shrink-0 text-right font-mono text-xs">
-          {width}px
-        </span>
-      </label>
+        <label className="flex items-center gap-3 text-xs font-medium">
+          <span className="w-12 shrink-0">Width</span>
+          <input
+            type="range"
+            className="flex-1 accent-primary"
+            min={bounds.min}
+            max={bounds.max}
+            step={2}
+            value={width}
+            aria-label="Host rail width"
+            onChange={(e) => setHostRailWidth(mode, Number(e.target.value))}
+            onPointerUp={() => saveHostRailPrefs()}
+            onKeyUp={() => saveHostRailPrefs()}
+          />
+          <span className="text-muted-foreground w-10 shrink-0 text-right font-mono text-xs">
+            {width}px
+          </span>
+        </label>
+      </div>
     </div>
   )
 }
@@ -459,6 +460,10 @@ function AppearanceSettings() {
             {current === "system" && resolvedTheme ? ` → ${resolvedTheme}` : null}
           </p>
         )}
+      </div>
+
+      <div className="space-y-4 pt-4 border-t border-border">
+        <HostRailSettings />
       </div>
 
       <div className="space-y-4 pt-4 border-t border-border">
