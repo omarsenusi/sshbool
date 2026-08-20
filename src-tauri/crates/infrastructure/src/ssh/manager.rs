@@ -614,6 +614,77 @@ impl ConnectionManager {
             .unwrap_or_default()
     }
 
+    /// Find an existing PTY pane for a host, if any.
+    pub async fn find_pane_for_host(&self, host_id: &str) -> Option<String> {
+        let panes = self.panes.read().await;
+        panes
+            .iter()
+            .find(|(_, pane)| pane.host_id == host_id)
+            .map(|(id, _)| id.clone())
+    }
+
+    /// Open a PTY pane and retain scrollback without requiring the webview listener.
+    pub async fn pane_open_mcp(
+        self: &Arc<Self>,
+        host_id: &str,
+        cols: u32,
+        rows: u32,
+    ) -> Result<(String, String), DomainError> {
+        let (pane_id, session_id, mut rx) = self.pane_open(host_id, cols, rows).await?;
+        let connections = self.clone();
+        let pane_id_sb = pane_id.clone();
+        tokio::spawn(async move {
+            while let Some(bytes) = rx.recv().await {
+                connections
+                    .pane_scrollback_append(&pane_id_sb, &bytes)
+                    .await;
+            }
+        });
+        Ok((pane_id, session_id))
+    }
+
+    /// Write a command to a pane and capture output delta from scrollback.
+    pub async fn exec_in_pane(
+        &self,
+        pane_id: &str,
+        command: &str,
+        timeout_ms: u64,
+    ) -> Result<String, DomainError> {
+        let baseline = self.pane_scrollback_get(pane_id).await;
+        let baseline_len = baseline.len();
+
+        let mut cmd_bytes = command.as_bytes().to_vec();
+        cmd_bytes.push(b'\n');
+        self.pane_write(pane_id, &cmd_bytes).await?;
+
+        let deadline =
+            tokio::time::Instant::now() + std::time::Duration::from_millis(timeout_ms.max(1000));
+        let mut last_len = baseline_len;
+        let mut stable_ticks = 0u32;
+
+        while tokio::time::Instant::now() < deadline {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            let scrollback = self.pane_scrollback_get(pane_id).await;
+            if scrollback.len() == last_len {
+                stable_ticks += 1;
+                if stable_ticks >= 3 {
+                    break;
+                }
+            } else {
+                stable_ticks = 0;
+                last_len = scrollback.len();
+            }
+        }
+
+        let final_scrollback = self.pane_scrollback_get(pane_id).await;
+        let delta = if final_scrollback.len() > baseline_len {
+            String::from_utf8_lossy(&final_scrollback[baseline_len..]).to_string()
+        } else {
+            String::new()
+        };
+        Ok(delta)
+    }
+
     /// Run a non-interactive command on the host and return stdout+stderr.
     pub async fn exec_command(&self, host_id: &str, command: &str) -> Result<String, DomainError> {
         let session_id = self.session_open(host_id).await?;

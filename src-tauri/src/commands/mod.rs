@@ -2,6 +2,7 @@
 
 pub mod hosts;
 pub mod license;
+pub mod mcp;
 pub mod monitoring;
 pub mod phase2;
 pub mod phase3;

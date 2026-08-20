@@ -1,0 +1,4 @@
+{"cmd":"touch /etc/test.conf","tier":"dangerous","rules":[],"note":"write under /etc"}
+{"cmd":"mkdir /usr/local/test","tier":"dangerous","rules":[],"note":"write under /usr"}
+{"cmd":"cp /tmp/a /boot/a","tier":"dangerous","rules":[],"note":"write under /boot"}
+{"cmd":"cp /tmp/a /var/lib/a","tier":"dangerous","rules":[],"note":"write under /var/lib"}

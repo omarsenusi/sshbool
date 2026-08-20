@@ -16,6 +16,9 @@ import { EditorWorkspace } from "@/features/editor/components/editor-workspace"
 import { K8sPanel } from "@/features/kubernetes/components/k8s-panel"
 import { PluginsPanel } from "@/features/plugins/components/plugins-panel"
 import { SettingsPanel } from "@/features/productivity/components/settings-panel"
+import { McpPanel } from "@/features/mcp/components/mcp-panel"
+import { McpApprovalDialog } from "@/features/mcp/components/mcp-approval-dialog"
+import { useMcpPaneBridge } from "@/features/mcp/hooks/use-mcp-pane-bridge"
 import { SftpExplorer } from "@/features/sftp/components/sftp-explorer"
 import { SyncPanel } from "@/features/sync/components/sync-panel"
 import { TerminalWorkspace } from "@/features/terminal/components/terminal-workspace"
@@ -48,6 +51,8 @@ export function App() {
     selectedHostId ? s.byHost[selectedHostId]?.status === "connected" : false,
   )
   const unlocked = !!status?.initialized && !status.locked
+
+  useMcpPaneBridge()
 
   // Activation & Licensing States
   const [isActivated, setIsActivated] = useState<boolean | null>(null)
@@ -462,9 +467,11 @@ export function App() {
         {activity === "audit" && <AuditPanel />}
         {activity === "sync" && <SyncPanel />}
         {activity === "settings" && <SettingsPanel />}
+        {activity === "mcp" && <McpPanel />}
       </AppShell>
       <CommandPalette />
       <FingerprintVerificationModal />
+      <McpApprovalDialog />
     </>
   )
 }

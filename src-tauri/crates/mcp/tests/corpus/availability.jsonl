@@ -1,0 +1,13 @@
+{"cmd":"shutdown -h now","tier":"dangerous","rules":["avail.system_shutdown"],"note":"system shutdown"}
+{"cmd":"reboot","tier":"dangerous","rules":["avail.system_shutdown"],"note":"system reboot"}
+{"cmd":"halt","tier":"dangerous","rules":["avail.system_shutdown"],"note":"system halt"}
+{"cmd":"poweroff","tier":"dangerous","rules":["avail.system_shutdown"],"note":"system poweroff"}
+{"cmd":"systemctl stop nginx","tier":"dangerous","rules":["avail.service_stop"],"note":"stop service"}
+{"cmd":"systemctl disable sshd","tier":"dangerous","rules":["avail.service_stop"],"note":"disable sshd"}
+{"cmd":"systemctl mask networking","tier":"dangerous","rules":["avail.service_stop"],"note":"mask networking"}
+{"cmd":"service apache2 stop","tier":"dangerous","rules":["avail.service_stop"],"note":"service stop"}
+{"cmd":"kill -9 1234","tier":"dangerous","rules":["avail.process_kill"],"note":"kill -9"}
+{"cmd":"killall -9 nginx","tier":"dangerous","rules":["avail.process_kill"],"note":"killall"}
+{"cmd":"pkill -9 python","tier":"dangerous","rules":["avail.process_kill"],"note":"pkill"}
+{"cmd":"iptables -F","tier":"dangerous","rules":["avail.firewall_flush"],"note":"iptables flush"}
+{"cmd":"ufw disable","tier":"dangerous","rules":["avail.firewall_flush"],"note":"ufw disable"}

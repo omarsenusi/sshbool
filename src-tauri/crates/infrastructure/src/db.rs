@@ -74,6 +74,7 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), DomainError> {
         include_str!("../../../migrations/0016_host_icon.sql"),
         include_str!("../../../migrations/0017_license_features.sql"),
         include_str!("../../../migrations/0018_reset_unverified_known_hosts.sql"),
+        include_str!("../../../migrations/0019_mcp.sql"),
     ] {
         // Split on `;` and strip comment-only lines. Do NOT skip a whole chunk just because
         // it begins with a `--` header comment (that used to drop CREATE TABLE statements).

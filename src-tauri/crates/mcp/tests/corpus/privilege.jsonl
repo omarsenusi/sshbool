@@ -1,0 +1,9 @@
+{"cmd":"sudo rm -rf /tmp/x","tier":"dangerous","rules":["priv.sudo_su"],"note":"sudo command"}
+{"cmd":"su - root","tier":"dangerous","rules":["priv.sudo_su"],"note":"su root"}
+{"cmd":"doas apt update","tier":"dangerous","rules":["priv.sudo_su"],"note":"doas command"}
+{"cmd":"chmod -R 777 /var/www","tier":"dangerous","rules":["priv.chmod_chown_system"],"note":"recursive chmod 777"}
+{"cmd":"chown -R root:root /var/lib","tier":"dangerous","rules":["priv.chmod_chown_system"],"note":"recursive chown"}
+{"cmd":"usermod -aG sudo hacker","tier":"dangerous","rules":["priv.user_group_mod"],"note":"usermod"}
+{"cmd":"userdel -r admin","tier":"dangerous","rules":["priv.user_group_mod"],"note":"userdel"}
+{"cmd":"passwd root","tier":"dangerous","rules":["priv.user_group_mod"],"note":"passwd"}
+{"cmd":"visudo","tier":"dangerous","rules":["priv.user_group_mod"],"note":"visudo"}

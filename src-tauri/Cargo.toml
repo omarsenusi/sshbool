@@ -6,7 +6,7 @@ description = "SSHBool — Infrastructure Workspace"
 
 [workspace]
 resolver = "2"
-members = [".", "crates/application", "crates/domain", "crates/infrastructure"]
+members = [".", "crates/application", "crates/domain", "crates/infrastructure", "crates/mcp"]
 
 [workspace.package]
 version = "0.1.7"
@@ -19,6 +19,7 @@ application = { path = "crates/application" }
 async-trait = "0.1"
 domain = { path = "crates/domain" }
 infrastructure = { path = "crates/infrastructure" }
+mcp = { path = "crates/mcp" }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -36,6 +37,7 @@ name = "sshbool_lib"
 
 [dependencies]
 application = { workspace = true }
+async-trait = { workspace = true }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
@@ -44,6 +46,7 @@ ed25519-dalek = { version = "2", features = ["std"] }
 gethostname = "1"
 hex = "0.4"
 infrastructure = { workspace = true }
+mcp = { workspace = true }
 rand = "0.8"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

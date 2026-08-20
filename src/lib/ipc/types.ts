@@ -47,6 +47,7 @@ export type HostDto = {
   proxyId?: string | null
   password?: string | null
   sshKeyId?: string | null
+  production?: boolean
 }
 
 export type GroupDto = {

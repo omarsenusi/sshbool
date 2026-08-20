@@ -23,6 +23,7 @@ export type ActivityId =
   | "audit"
   | "sync"
   | "settings"
+  | "mcp"
 
 /** Tools that require a selected host (shown in context sidebar). */
 export const HOST_SCOPED_ACTIVITIES: ActivityId[] = [
@@ -48,6 +49,7 @@ export const GLOBAL_ACTIVITIES: ActivityId[] = [
   "plugins",
   "audit",
   "sync",
+  "mcp",
   "settings",
 ]
 

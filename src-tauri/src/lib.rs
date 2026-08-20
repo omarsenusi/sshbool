@@ -5,6 +5,7 @@ mod commands;
 mod container;
 mod error;
 mod events;
+mod mcp_executor;
 
 use std::sync::Arc;
 
@@ -14,6 +15,7 @@ use tauri::{Emitter, Manager};
 use tracing_subscriber::EnvFilter;
 
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 mod win32 {
     #[link(name = "kernel32")]
     extern "system" {
@@ -26,6 +28,7 @@ mod win32 {
 }
 
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 fn hide_console_window() {
     unsafe {
         let hwnd = win32::GetConsoleWindow();
@@ -411,6 +414,26 @@ pub fn run() {
             commands::team::team_list_shared,
             commands::team::team_apply_policy,
             commands::team::retention_prune,
+            commands::mcp::mcp_server_start,
+            commands::mcp::mcp_server_stop,
+            commands::mcp::mcp_server_status,
+            commands::mcp::mcp_pairing_code_create,
+            commands::mcp::mcp_client_pair,
+            commands::mcp::mcp_clients_list,
+            commands::mcp::mcp_client_set_mode,
+            commands::mcp::mcp_client_set_enabled,
+            commands::mcp::mcp_client_delete,
+            commands::mcp::mcp_client_grant_host,
+            commands::mcp::mcp_client_revoke_host,
+            commands::mcp::mcp_calls_list,
+            commands::mcp::mcp_approvals_pending,
+            commands::mcp::mcp_approval_respond,
+            commands::mcp::mcp_kill_switch,
+            commands::mcp::mcp_grants_list,
+            commands::mcp::mcp_grant_revoke,
+            commands::mcp::mcp_budgets_get,
+            commands::mcp::mcp_budgets_set,
+            commands::mcp::mcp_policy_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SSHBool");

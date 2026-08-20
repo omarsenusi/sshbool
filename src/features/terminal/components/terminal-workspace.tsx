@@ -38,9 +38,12 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
     : undefined
   const hostLabel = selectedHost?.label ?? null
 
-  /** Only panes for the selected server — never mix hosts in the UI. */
+  /** Only visible panes for the selected server — MCP hidden panes stay mounted off-tab. */
   const hostPanes = useMemo(
-    () => (selectedHostId ? panes.filter((p) => p.hostId === selectedHostId) : []),
+    () =>
+      selectedHostId
+        ? panes.filter((p) => p.hostId === selectedHostId && !p.mcpHidden)
+        : [],
     [panes, selectedHostId],
   )
 

@@ -4,6 +4,7 @@ import {
   Cloud,
   FolderKey,
   Home,
+  Plug,
   Plus,
   Settings,
   Shield,
@@ -34,6 +35,7 @@ const bottomGlobals: { id: ActivityId; icon: typeof Home; label: string }[] = [
   { id: "keys", icon: FolderKey, label: "Keys" },
   // Plugins hidden for now — bring back when ready.
   { id: "audit", icon: Shield, label: "Audit" },
+  { id: "mcp", icon: Plug, label: "MCP" },
   { id: "sync", icon: Cloud, label: "Sync" },
   { id: "settings", icon: Settings, label: "Settings" },
 ]

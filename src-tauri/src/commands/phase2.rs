@@ -1,6 +1,6 @@
 //! Phase 2 commands: tunnels, monitoring, docker, AI, recording/sync extras.
 
-use infrastructure::AppState;
+use infrastructure::{redact, validate_container_id, validate_safe_remote_path, AppState};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tauri::State;
@@ -188,34 +188,6 @@ pub async fn auth_fido2_status() -> Result<Value, AppError> {
     }))
 }
 
-fn validate_safe_remote_path(path: &str) -> Result<String, AppError> {
-    if path
-        .chars()
-        .any(|c| matches!(c, ';' | '&' | '|' | '`' | '$' | '(' | ')' | '\n' | '\r'))
-    {
-        return Err(AppError::Validation {
-            field: "path".into(),
-            message: "path contains disallowed shell characters".into(),
-        });
-    }
-    let escaped = path.replace('\'', "'\\''");
-    Ok(format!("'{escaped}'"))
-}
-
-fn validate_container_id(id: &str) -> Result<&str, AppError> {
-    let valid = !id.is_empty()
-        && id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.');
-    if !valid {
-        return Err(AppError::Validation {
-            field: "container_id".into(),
-            message: "invalid container ID or name format".into(),
-        });
-    }
-    Ok(id)
-}
-
 #[tauri::command]
 pub async fn editor_git_status(
     state: State<'_, Arc<AppState>>,
@@ -384,21 +356,6 @@ pub async fn docker_compose_action(
 }
 
 // ── AI Assistant ─────────────────────────────────────────────────────
-
-fn redact(text: &str) -> String {
-    let mut out = text.to_string();
-    for pat in [
-        r"(?i)password\s*[:=]\s*\S+",
-        r"(?i)api[_-]?key\s*[:=]\s*\S+",
-        r"-----BEGIN[^-]+PRIVATE KEY-----[\s\S]*?-----END[^-]+PRIVATE KEY-----",
-        r"(?i)Bearer\s+[A-Za-z0-9\-._~+/]+=*",
-    ] {
-        if let Ok(re) = regex::Regex::new(pat) {
-            out = re.replace_all(&out, "[REDACTED]").into_owned();
-        }
-    }
-    out
-}
 
 #[tauri::command]
 pub async fn ai_providers_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Value>, AppError> {

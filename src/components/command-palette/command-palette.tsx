@@ -42,6 +42,7 @@ export function CommandPalette() {
       { id: "act-sftp", title: "Go to SFTP", run: () => setActivity("sftp") },
       { id: "act-editor", title: "Go to Editor", run: () => setActivity("editor") },
       { id: "act-keys", title: "Go to Keys", run: () => setActivity("keys") },
+      { id: "act-mcp", title: "Go to MCP Server", run: () => setActivity("mcp") },
       { id: "act-settings", title: "Go to Settings", run: () => setActivity("settings") },
       { id: "lock", title: "Lock vault", run: () => void ipc.vaultLock() },
     ],

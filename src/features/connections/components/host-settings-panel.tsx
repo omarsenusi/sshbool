@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -246,6 +247,18 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                     placeholder="root"
                     value={form.username ?? ""}
                     onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2">
+                  <div>
+                    <Label className="text-[11px] font-medium">Production host</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      Blocks MCP session grants and requires extra confirmation for dangerous actions.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={Boolean(form.production)}
+                    onCheckedChange={(checked) => setForm({ ...form, production: checked })}
                   />
                 </div>
                 <div>

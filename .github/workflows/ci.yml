@@ -84,6 +84,7 @@ jobs:
         with:
           workspaces: src-tauri
       - run: cargo test --workspace --lib
+      - run: cargo test --package mcp --all-targets
 
   audit:
     runs-on: ubuntu-latest

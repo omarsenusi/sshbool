@@ -34,12 +34,14 @@ pub async fn vault_unlock(
     password: String,
 ) -> Result<(), AppError> {
     state.vault.unlock(&password).await?;
+    mcp::runtime::McpRuntimeState::global().clear_vault_lock();
     Ok(())
 }
 
 #[tauri::command]
 pub async fn vault_lock(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<(), AppError> {
     state.vault.lock().await?;
+    mcp::runtime::McpRuntimeState::global().on_vault_lock();
     let _ = app.emit(APP_LOCK, ());
     Ok(())
 }

@@ -95,6 +95,9 @@ pub struct HostDto {
     pub has_password: Option<bool>,
     /// SSH key id (`auto` = latest vault key).
     pub ssh_key_id: Option<String>,
+    /// Production host flag — blocks session grants and tightens MCP policy.
+    #[serde(default)]
+    pub production: bool,
 }
 
 /// Host summary.

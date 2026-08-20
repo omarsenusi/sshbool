@@ -27,6 +27,7 @@ struct HostRow {
     connect_count: i64,
     jump_host_id: Option<String>,
     proxy_id: Option<String>,
+    production: i64,
 }
 
 fn host_from_row(h: HostRow) -> HostDto {
@@ -48,6 +49,7 @@ fn host_from_row(h: HostRow) -> HostDto {
         h.connect_count,
         h.jump_host_id,
         h.proxy_id,
+        h.production,
     )
 }
 
@@ -70,6 +72,7 @@ fn map_host(
     connect_count: i64,
     jump_host_id: Option<String>,
     proxy_id: Option<String>,
+    production: i64,
 ) -> HostDto {
     HostDto {
         id,
@@ -92,6 +95,7 @@ fn map_host(
         password: None,
         has_password: None,
         ssh_key_id: None,
+        production: production != 0,
     }
 }
 
@@ -158,7 +162,7 @@ pub async fn hosts_list_tree(
 
     let hosts: Vec<HostRow> = sqlx::query_as(
         r#"SELECT id, group_id, label, hostname, port, username, auth_method, identity_id, color, icon,
-           is_favorite, is_pinned, notes, last_connected_at, connect_count, jump_host_id, proxy_id
+           is_favorite, is_pinned, notes, last_connected_at, connect_count, jump_host_id, proxy_id, production
            FROM hosts WHERE deleted_at IS NULL ORDER BY is_pinned DESC, label"#,
     )
     .fetch_all(state.vault.pool())
@@ -202,7 +206,7 @@ pub async fn hosts_list_tree(
 pub async fn hosts_get(state: State<'_, Arc<AppState>>, id: String) -> Result<HostDto, AppError> {
     let row: Option<HostRow> = sqlx::query_as(
         r#"SELECT id, group_id, label, hostname, port, username, auth_method, identity_id, color, icon,
-           is_favorite, is_pinned, notes, last_connected_at, connect_count, jump_host_id, proxy_id FROM hosts WHERE id = ?"#,
+           is_favorite, is_pinned, notes, last_connected_at, connect_count, jump_host_id, proxy_id, production FROM hosts WHERE id = ?"#,
     )
     .bind(&id)
     .fetch_optional(state.vault.pool())
@@ -345,7 +349,7 @@ pub async fn hosts_create(
 pub async fn hosts_update(state: State<'_, Arc<AppState>>, host: HostDto) -> Result<(), AppError> {
     let now = chrono::Utc::now().timestamp_millis();
     sqlx::query(
-        r#"UPDATE hosts SET group_id=?, label=?, hostname=?, port=?, username=?, auth_method=?, identity_id=?, jump_host_id=?, proxy_id=?, color=?, icon=?, notes=?, is_favorite=?, is_pinned=?, updated_at=? WHERE id=?"#,
+        r#"UPDATE hosts SET group_id=?, label=?, hostname=?, port=?, username=?, auth_method=?, identity_id=?, jump_host_id=?, proxy_id=?, color=?, icon=?, notes=?, is_favorite=?, is_pinned=?, production=?, updated_at=? WHERE id=?"#,
     )
     .bind(&host.group_id)
     .bind(&host.label)
@@ -361,6 +365,7 @@ pub async fn hosts_update(state: State<'_, Arc<AppState>>, host: HostDto) -> Res
     .bind(&host.notes)
     .bind(if host.is_favorite { 1 } else { 0 })
     .bind(if host.is_pinned { 1 } else { 0 })
+    .bind(if host.production { 1 } else { 0 })
     .bind(now)
     .bind(&host.id)
     .execute(state.vault.pool())
