@@ -14,7 +14,7 @@ import {
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { KnownHostKeysManager } from "@/components/ssh/known-hosts-manager"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -26,7 +26,7 @@ import { formatAppError, IpcError, ipc } from "@/lib/ipc/commands"
 import type { GenerateKeyDto, SshKeyDto } from "@/lib/ipc/types"
 import { cn } from "@/lib/utils"
 import { toast } from "@/stores/toast.store"
-import { useLayoutStore } from "@/stores/layout.store"
+import { KnownHostKeysPanel } from "@/features/vault/components/known-hosts-panel"
 
 function errMsg(e: unknown) {
   if (e instanceof IpcError) return formatAppError(e.appError)
@@ -61,6 +61,12 @@ export function KeyManager() {
   const [renameValue, setRenameValue] = useState("")
 
   const keys = useQuery({ queryKey: ["keys"], queryFn: () => ipc.keysList() })
+  const hostKeys = useQuery({
+    queryKey: ["known_hosts"],
+    queryFn: () => ipc.knownHostsList(),
+  })
+
+  const [activeTab, setActiveTab] = useState<"ssh-keys" | "host-keys">("ssh-keys")
 
   const activeWorkspaceIdQuery = useQuery<string>({
     queryKey: ["settings", "activeWorkspaceId"],
@@ -219,40 +225,43 @@ export function KeyManager() {
 
   const canImport = !!importPath || (!!importContent.trim() && !!importName.trim())
   const keyCount = filteredKeys.length
-
-  const [showKnownHostsModal, setShowKnownHostsModal] = useState(false)
+  const hostKeyCount = hostKeys.data?.length ?? 0
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="border-border flex shrink-0 items-center justify-between gap-4 border-b px-5 py-3.5">
         <div>
-          <h2 className="text-base font-semibold tracking-tight">SSH Key Manager</h2>
+          <h2 className="text-base font-semibold tracking-tight">Key Manager</h2>
           <p className="text-muted-foreground mt-0.5 text-xs">
-            Keys stay encrypted in your vault. Copy the public key into{" "}
-            <code className="font-mono text-[11px]">authorized_keys</code>.
+            Manage SSH keys in your vault and trusted server host fingerprints.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => useLayoutStore.getState().setActivity("knownHosts")}
-            className="border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 gap-1.5 text-xs font-medium"
-          >
-            <ShieldCheck className="h-4 w-4" />
-            Host Keys Verification
-          </Button>
-          <div className="text-muted-foreground shrink-0 text-right text-[11px]">
-            <div className="text-foreground text-lg font-semibold tabular-nums leading-none">
-              {keyCount}
-            </div>
-            <div className="mt-0.5 uppercase tracking-wider">in workspace</div>
-          </div>
-        </div>
       </header>
-      <KnownHostKeysManager open={showKnownHostsModal} onClose={() => setShowKnownHostsModal(false)} />
 
-      <div className="flex min-h-0 flex-1">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          if (v === "ssh-keys" || v === "host-keys") setActiveTab(v)
+        }}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="border-border shrink-0 border-b px-5 py-2">
+          <TabsList variant="line" className="h-9 w-fit gap-1 bg-transparent p-0">
+            <TabsTrigger value="ssh-keys" className="gap-1.5 px-3 text-xs">
+              <KeyRound className="size-3.5" />
+              SSH Keys
+              <span className="text-muted-foreground font-mono text-[10px]">({keyCount})</span>
+            </TabsTrigger>
+            <TabsTrigger value="host-keys" className="gap-1.5 px-3 text-xs">
+              <ShieldCheck className="size-3.5" />
+              Host Keys
+              <span className="text-muted-foreground font-mono text-[10px]">({hostKeyCount})</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="ssh-keys" className="mt-0 min-h-0 flex-1 overflow-hidden">
+          <div className="flex h-full min-h-0">
         {/* Actions rail — full height, not floating in the middle */}
         <aside className="border-border bg-muted/15 flex w-[340px] shrink-0 flex-col gap-0 overflow-y-auto border-r">
           <section className="border-border space-y-3 border-b p-4">
@@ -586,7 +595,13 @@ export function KeyManager() {
             </ul>
           </div>
         </main>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="host-keys" className="mt-0 min-h-0 flex-1 overflow-hidden">
+          <KnownHostKeysPanel embedded />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

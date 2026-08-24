@@ -30,7 +30,12 @@ import { toast } from "@/stores/toast.store"
 type SortField = "host" | "port" | "keyType" | "date"
 type SortOrder = "asc" | "desc"
 
-export function KnownHostKeysPanel() {
+type KnownHostKeysPanelProps = {
+  /** When true, hides the page header (used inside Key Manager tabs). */
+  embedded?: boolean
+}
+
+export function KnownHostKeysPanel({ embedded = false }: KnownHostKeysPanelProps) {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
   const [algoFilter, setAlgoFilter] = useState<string>("all")
@@ -149,49 +154,50 @@ export function KnownHostKeysPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
-      {/* Header */}
-      <header className="border-b border-border flex shrink-0 items-center justify-between gap-4 px-5 py-3.5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold tracking-tight">Host Keys Manager</h2>
-            <span className="text-[11px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border">
-              {stats.total} Saved
-            </span>
+      {!embedded && (
+        <header className="border-b border-border flex shrink-0 items-center justify-between gap-4 px-5 py-3.5">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold tracking-tight">Host Keys Manager</h2>
+              <span className="text-[11px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border">
+                {stats.total} Saved
+              </span>
+            </div>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              Manage trusted SSH server fingerprints (`known_hosts`) and revoke trust when needed.
+            </p>
           </div>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Manage trusted SSH server fingerprints (`known_hosts`) and revoke trust when needed.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            className="h-8 text-xs gap-1.5"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-
-          {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2">
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
-              onClick={handleBulkDelete}
-              disabled={isBulkDeleting}
+              onClick={() => refetch()}
+              disabled={isRefetching}
               className="h-8 text-xs gap-1.5"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Revoke {selectedIds.size} Selected
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
-          )}
-        </div>
-      </header>
+
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="h-8 text-xs gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Revoke {selectedIds.size} Selected
+              </Button>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* Body Area */}
-      <div className="flex-1 flex flex-col min-h-0 p-5 overflow-hidden">
+      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${embedded ? "p-4" : "p-5"}`}>
         {/* Search & Filter Controls */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5 shrink-0">
           <div className="relative flex-1 min-w-[260px]">
@@ -206,6 +212,32 @@ export function KnownHostKeysPanel() {
           </div>
 
           <div className="flex items-center gap-2">
+            {embedded && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  disabled={isRefetching}
+                  className="h-8 text-xs gap-1.5"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+                {selectedIds.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkDeleting}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Revoke {selectedIds.size}
+                  </Button>
+                )}
+              </>
+            )}
             <div className="flex items-center gap-1.5">
               <Select value={algoFilter} onValueChange={(v) => { if (v) setAlgoFilter(v) }}>
                 <SelectTrigger className="h-8 text-xs w-[120px] bg-background">

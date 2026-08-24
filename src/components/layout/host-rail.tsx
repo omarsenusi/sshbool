@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { HostRow } from "@/features/connections/components/host-row"
 import { HostTile } from "@/features/connections/components/host-tile"
+import { connectHost } from "@/features/connections/connect-host"
 import {
   flattenHosts,
   hostAccent,
@@ -21,7 +22,9 @@ import {
   saveHostRailPrefs,
   useHostRailPrefs,
 } from "@/hooks/use-host-rail-prefs"
+import { useSetting } from "@/hooks/use-setting"
 import { ipc } from "@/lib/ipc/commands"
+import { SETTINGS } from "@/lib/settings-defaults"
 import { cn } from "@/lib/utils"
 import { useConnectionStore } from "@/stores/connection.store"
 import {
@@ -48,6 +51,7 @@ export function HostRail() {
   const setAddHostOpen = useLayoutStore((s) => s.setAddHostOpen)
   const rememberView = useLayoutStore((s) => s.rememberView)
   const railMode = useLayoutStore((s) => s.hostRailMode)
+  const autoConnectOnSelect = useSetting(SETTINGS.connections.autoConnectOnSelect)
   const railWidth = useLayoutStore((s) => s.hostRailWidth[s.hostRailMode])
   const setHostRailWidth = useLayoutStore((s) => s.setHostRailWidth)
   const clearError = useConnectionStore((s) => s.clearError)
@@ -222,6 +226,9 @@ export function HostRail() {
                   : "terminal"
                 setActivity(next)
                 rememberView(host.id, next)
+                if (autoConnectOnSelect.value && status === "idle") {
+                  void connectHost(host.id, { label: host.label })
+                }
               }}
             />
           )

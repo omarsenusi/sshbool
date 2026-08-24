@@ -1,3 +1,3 @@
 -- 0018_reset_unverified_known_hosts.sql
--- Reset legacy SSH host fingerprints so all existing and new connections require explicit verification (VULN-01 fix)
-DELETE FROM known_hosts;
+-- One-time reset for VULN-01 (legacy auto-trusted fingerprints).
+-- The DELETE ran once during the original release; do not re-run on every startup.

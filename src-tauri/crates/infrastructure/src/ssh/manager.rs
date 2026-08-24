@@ -7,10 +7,71 @@ use domain::DomainError;
 use russh::client::{self, AuthResult, Handle};
 use russh::keys::{decode_secret_key, HashAlg, PrivateKeyWithHashAlg, PublicKey, PublicKeyBase64};
 use russh::ChannelMsg;
+use russh::Pty;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use uuid::Uuid;
 
 use crate::vault::VaultService;
+
+async fn read_setting_u64(pool: &sqlx::SqlitePool, key: &str) -> Option<u64> {
+    let row: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ? LIMIT 1")
+        .bind(key)
+        .fetch_optional(pool)
+        .await
+        .ok()?;
+    let (raw,) = row?;
+    let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    value
+        .as_u64()
+        .or_else(|| value.as_i64().and_then(|n| u64::try_from(n).ok()))
+}
+
+/// OpenSSH-compatible PTY modes so RHEL/CentOS/AlmaLinux shells behave like a normal terminal.
+const DEFAULT_PTY_MODES: &[(Pty, u32)] = &[
+    (Pty::VINTR, 3),
+    (Pty::VQUIT, 28),
+    (Pty::VERASE, 127),
+    (Pty::VKILL, 21),
+    (Pty::VEOF, 4),
+    (Pty::VEOL, 255),
+    (Pty::VEOL2, 255),
+    (Pty::VSTART, 17),
+    (Pty::VSTOP, 19),
+    (Pty::VSUSP, 26),
+    (Pty::VREPRINT, 18),
+    (Pty::VWERASE, 23),
+    (Pty::VLNEXT, 22),
+    (Pty::ICRNL, 1),
+    (Pty::IXON, 1),
+    (Pty::IXANY, 1),
+    (Pty::IMAXBEL, 1),
+    (Pty::IUTF8, 1),
+    (Pty::ISIG, 1),
+    (Pty::ICANON, 1),
+    (Pty::ECHO, 1),
+    (Pty::ECHOE, 1),
+    (Pty::ECHOK, 1),
+    (Pty::IEXTEN, 1),
+    (Pty::OPOST, 1),
+    (Pty::ONLCR, 1),
+    (Pty::CS8, 1),
+    (Pty::TTY_OP_ISPEED, 38400),
+    (Pty::TTY_OP_OSPEED, 38400),
+];
+
+/// Best-effort remote env for UTF-8 + colorized tools (ls, grep, vim, etc.).
+/// PTY allocation already sets TERM; these help when sshd AcceptEnv allows them.
+async fn set_shell_env(channel: &mut russh::Channel<client::Msg>) {
+    // en_US.UTF-8 works on RHEL8/AlmaLinux 8; C.UTF-8 is missing on some minimal images.
+    for (key, val) in [
+        ("LANG", "en_US.UTF-8"),
+        ("LC_CTYPE", "en_US.UTF-8"),
+        ("COLORTERM", "truecolor"),
+        ("CLICOLOR", "1"),
+    ] {
+        let _ = channel.set_env(false, key, val).await;
+    }
+}
 
 struct ClientHandler {
     expected_fp: Option<String>,
@@ -172,7 +233,14 @@ impl ConnectionManager {
         .map_err(|e| DomainError::Crypto(e.to_string()))?;
 
         let learned_fp = Arc::new(Mutex::new(None));
-        let config = Arc::new(client::Config::default());
+        let mut config = client::Config::default();
+        if let Some(secs) = read_setting_u64(self.vault.pool(), "connections.keepaliveSecs").await
+        {
+            if secs > 0 {
+                config.keepalive_interval = Some(std::time::Duration::from_secs(secs));
+            }
+        }
+        let config = Arc::new(config);
         let handler = ClientHandler {
             expected_fp: known.as_ref().map(|k| k.0.clone()),
             learned_fp: learned_fp.clone(),
@@ -466,14 +534,18 @@ impl ConnectionManager {
             .map_err(|e| DomainError::Conflict(format!("channel: {e}")))?;
 
         channel
-            .request_pty(false, "xterm-256color", cols, rows, 0, 0, &[])
+            .request_pty(
+                false,
+                "xterm-256color",
+                cols,
+                rows,
+                0,
+                0,
+                DEFAULT_PTY_MODES,
+            )
             .await
             .map_err(|e| DomainError::Conflict(format!("pty: {e}")))?;
-        // UTF-8 locale so Arabic and other Unicode input/output work in the shell.
-        let _ = channel.set_env(false, "LANG", "C.UTF-8").await;
-        let _ = channel.set_env(false, "LC_ALL", "C.UTF-8").await;
-        let _ = channel.set_env(false, "LC_CTYPE", "C.UTF-8").await;
-        let _ = channel.set_env(false, "TERM", "xterm-256color").await;
+        set_shell_env(&mut channel).await;
         channel
             .request_shell(false)
             .await

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react"
 
+import { useKeybinding } from "@/hooks/use-keybindings"
 import { ipc } from "@/lib/ipc/commands"
 import { useLayoutStore } from "@/stores/layout.store"
 
@@ -10,12 +11,10 @@ export function CommandPalette() {
   const setActivity = useLayoutStore((s) => s.setActivity)
   const setSelectedHostId = useLayoutStore((s) => s.setSelectedHostId)
 
+  useKeybinding("palette.open", () => setOpen((v) => !v))
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault()
-        setOpen((v) => !v)
-      }
       if (e.key === "Escape") setOpen(false)
     }
     window.addEventListener("keydown", onKey)

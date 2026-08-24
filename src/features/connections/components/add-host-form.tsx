@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ImagePlus, X } from "lucide-react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -11,24 +11,32 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { HOST_COLOR_PRESETS } from "@/features/connections/host-appearance"
+import { useSetting } from "@/hooks/use-setting"
 import { ipc } from "@/lib/ipc/commands"
 import type { NewHostDto } from "@/lib/ipc/types"
+import { SETTINGS, type AuthMethodDefault } from "@/lib/settings-defaults"
 import { cn } from "@/lib/utils"
 import { useLayoutStore } from "@/stores/layout.store"
 
 const AUTO_KEY = "auto"
 
-const emptyForm = (): NewHostDto => ({
-  label: "",
-  hostname: "",
-  port: 22,
-  username: "root",
-  authMethod: "key",
-  sshKeyId: AUTO_KEY,
-  password: "",
-  color: HOST_COLOR_PRESETS[0]!,
-  icon: null,
-})
+function emptyForm(
+  port = 22,
+  username = "root",
+  authMethod: AuthMethodDefault = "key",
+): NewHostDto {
+  return {
+    label: "",
+    hostname: "",
+    port,
+    username,
+    authMethod,
+    sshKeyId: AUTO_KEY,
+    password: "",
+    color: HOST_COLOR_PRESETS[0]!,
+    icon: null,
+  }
+}
 
 async function fileToIconDataUrl(file: File): Promise<string> {
   const raw = await new Promise<string>((resolve, reject) => {
@@ -60,8 +68,24 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
   const qc = useQueryClient()
   const setSelectedHostId = useLayoutStore((s) => s.setSelectedHostId)
   const setAddHostOpen = useLayoutStore((s) => s.setAddHostOpen)
-  const [form, setForm] = useState<NewHostDto>(emptyForm)
+  const defaultPort = useSetting(SETTINGS.connections.defaultPort)
+  const defaultUsername = useSetting(SETTINGS.connections.defaultUsername)
+  const defaultAuthMethod = useSetting(SETTINGS.connections.defaultAuthMethod)
+  const [form, setForm] = useState<NewHostDto>(() => emptyForm())
   const iconInputRef = useRef<HTMLInputElement>(null)
+  const defaultsApplied = useRef(false)
+
+  useEffect(() => {
+    if (defaultsApplied.current || defaultPort.isLoading) return
+    defaultsApplied.current = true
+    setForm(
+      emptyForm(
+        Number(defaultPort.value) || 22,
+        String(defaultUsername.value) || "root",
+        defaultAuthMethod.value as AuthMethodDefault,
+      ),
+    )
+  }, [defaultPort.isLoading, defaultPort.value, defaultUsername.value, defaultAuthMethod.value])
 
   const keys = useQuery({
     queryKey: ["keys"],
@@ -88,7 +112,13 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
       const hostWs = ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {}
       hostWs[id] = activeWsId
       await ipc.settingsSet("hostWorkspaces", hostWs)
-      setForm(emptyForm())
+      setForm(
+        emptyForm(
+          Number(defaultPort.value) || 22,
+          String(defaultUsername.value) || "root",
+          defaultAuthMethod.value as AuthMethodDefault,
+        ),
+      )
       setAddHostOpen(false)
       setSelectedHostId(id)
       await qc.invalidateQueries({ queryKey: ["hosts"] })

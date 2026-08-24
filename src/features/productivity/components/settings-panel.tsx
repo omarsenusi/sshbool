@@ -4,7 +4,6 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { KnownHostKeysPanel } from "@/features/vault/components/known-hosts-panel"
 import { Switch } from "@/components/ui/switch"
 import {
   Select,
@@ -19,6 +18,13 @@ import { cn } from "@/lib/utils"
 import { HOST_RAIL_SIZING, useLayoutStore } from "@/stores/layout.store"
 
 import { LicenseSettings } from "@/features/license/components/license-settings"
+import { AboutSettings } from "@/features/productivity/components/settings/about-settings"
+import { UpdatesSettings } from "@/features/productivity/components/settings/updates-settings"
+import { ConnectionsSettings } from "@/features/productivity/components/settings/connections-settings"
+import { EditorSettingsPanel } from "@/features/productivity/components/settings/editor-settings-panel"
+import { FontSelector } from "@/features/productivity/components/settings/font-selector"
+import { KeyboardSettingsPanel } from "@/features/productivity/components/settings/keyboard-settings-panel"
+import { SftpSettingsPanel } from "@/features/productivity/components/settings/sftp-settings-panel"
 
 const SECTIONS = [
   "general",
@@ -29,9 +35,8 @@ const SECTIONS = [
   "connections",
   "security",
   "license",
-  "team",
-  "hostKeys",
-  "keyboard",
+  // "team",
+  // "keyboard",
   "updates",
   "about",
 ] as const
@@ -91,23 +96,16 @@ function SecuritySettings() {
 
 export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
   const [section, setSection] = useState<Section>(initial)
-  const [invite, setInvite] = useState("")
   const qc = useQueryClient()
 
-  const info = useQuery({ queryKey: ["app-info"], queryFn: () => ipc.appInfo() })
   const density = useQuery({
     queryKey: ["settings", "density"],
     queryFn: () => ipc.settingsGet("density"),
   })
-  const team = useQuery({ queryKey: ["team"], queryFn: () => ipc.teamStatus() })
 
   const setDensity = useMutation({
     mutationFn: (value: string) => ipc.settingsSet("density", value),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
-  })
-  const joinTeam = useMutation({
-    mutationFn: () => ipc.teamJoinStub(invite),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["team"] }),
   })
   const prune = useMutation({
     mutationFn: () => ipc.retentionPrune(30),
@@ -124,7 +122,7 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
               }`}
             onClick={() => setSection(s)}
           >
-            {s === "hostKeys" ? "Host Keys" : s}
+            {s}
           </button>
         ))}
       </aside>
@@ -163,47 +161,11 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
         {section === "license" && (
           <LicenseSettings />
         )}
-        {section === "team" && (
-          <div className="space-y-3">
-            <h2 className="font-semibold">Team</h2>
-            <pre className="bg-muted rounded-md p-2 font-mono text-xs">
-              {JSON.stringify(team.data ?? {}, null, 2)}
-            </pre>
-            <input
-              className="border-input bg-background w-full rounded-md border px-2 py-1 text-xs"
-              placeholder="Invite code"
-              value={invite}
-              onChange={(e) => setInvite(e.target.value)}
-            />
-            <Button size="sm" disabled={!invite} onClick={() => joinTeam.mutate()}>
-              Join (stub)
-            </Button>
-            {joinTeam.isError && (
-              <p className="text-destructive text-xs">{(joinTeam.error as Error).message}</p>
-            )}
-          </div>
-        )}
         {section === "about" && (
-          <div className="space-y-2">
-            <h2 className="font-semibold">About</h2>
-            <p>
-              {info.data?.name ?? "SSHBool"} {info.data?.version ?? "0.1.7"}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Tauri {info.data?.tauriVersion ?? "2"}
-            </p>
-          </div>
+          <AboutSettings />
         )}
         {section === "updates" && (
-          <div className="space-y-2">
-            <h2 className="font-semibold">Updates</h2>
-            <p className="text-muted-foreground text-xs">
-              Auto-update is wired via Tauri updater plugin (stable channel).
-            </p>
-            <Button size="sm" variant="outline" disabled>
-              Check for updates
-            </Button>
-          </div>
+          <UpdatesSettings />
         )}
         {section === "security" && (
           <SecuritySettings />
@@ -211,10 +173,11 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
         {section === "terminal" && (
           <TerminalSettings />
         )}
-        {section === "hostKeys" && (
-          <KnownHostKeysPanel />
-        )}
-        {!["general", "appearance", "terminal", "about", "updates", "security", "license", "team", "hostKeys"].includes(
+        {section === "connections" && <ConnectionsSettings />}
+        {section === "editor" && <EditorSettingsPanel />}
+        {section === "sftp" && <SftpSettingsPanel />}
+        {section === "keyboard" && <KeyboardSettingsPanel />}
+        {!["general", "appearance", "terminal", "about", "updates", "security", "license", "team", "connections", "editor", "sftp", "keyboard"].includes(
           section,
         ) && (
             <div>
@@ -286,103 +249,6 @@ function HostRailSettings() {
             {width}px
           </span>
         </label>
-      </div>
-    </div>
-  )
-}
-
-function FontSelector({
-  value,
-  onChange,
-  onSave,
-  isSaving,
-  label,
-  description,
-  popularFonts
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onSave: () => void;
-  isSaving: boolean;
-  label: string;
-  description: string;
-  popularFonts: string[]
-}) {
-  return (
-    <div className="space-y-3 max-w-md">
-      <div>
-        <h3 className="text-sm font-semibold">{label}</h3>
-        <p className="text-muted-foreground mt-1 text-xs mb-3">{description}</p>
-
-        <div className="flex flex-wrap gap-2 mb-3">
-          {popularFonts.map(f => (
-            <button
-              key={f}
-              onClick={() => {
-                onChange(f)
-                // We don't auto-save here to let them see it in the input first, but we could.
-              }}
-              className={cn(
-                "px-2.5 py-1 text-xs rounded-md border transition-colors",
-                value === f
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "hover:bg-muted bg-background border-border text-foreground"
-              )}
-            >
-              {f}
-            </button>
-          ))}
-          <button
-            onClick={() => onChange("")}
-            className={cn(
-              "px-2.5 py-1 text-xs rounded-md border transition-colors",
-              !value
-                ? "bg-primary text-primary-foreground border-primary"
-                : "hover:bg-muted bg-background border-border text-foreground"
-            )}
-          >
-            Default
-          </button>
-        </div>
-
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="border-input bg-background flex-1 rounded-md border px-2 py-1.5 text-sm"
-            placeholder="Custom Google Font (e.g. Almarai)"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
-          <Button size="sm" onClick={onSave} disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save Font"}
-          </Button>
-        </div>
-        {/* Live Preview */}
-        {value.trim() && (
-          <style>{`@import url('https://fonts.googleapis.com/css2?family=${value.trim().replace(/ /g, "+")}:wght@400;500;600&display=swap');`}</style>
-        )}
-        <div className="mt-4 rounded-md border bg-card text-card-foreground shadow-sm">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border/50" style={{ fontFamily: "system-ui, sans-serif" }}>
-            <span className="text-xs font-medium">Preview</span>
-            <span className="text-[10px] text-muted-foreground">{value.trim() || "System Default"}</span>
-          </div>
-
-          <div
-            className="px-3 py-3 space-y-2"
-            style={{ fontFamily: value.trim() ? `"${value.trim()}", system-ui, sans-serif` : undefined }}
-          >
-            {document.documentElement.lang === "ar" || document.documentElement.dir === "rtl" || navigator.language.startsWith("ar") ? (
-              <p className="text-sm text-foreground text-right" dir="rtl">
-                أبجد هوز حطي كلمن سعفص قرشت.
-              </p>
-            ) : (
-              <p className="text-sm text-foreground">
-                The quick brown fox jumps over the lazy dog.
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground break-all">0123456789 !@#$%^&*()</p>
-          </div>
-        </div>
       </div>
     </div>
   )

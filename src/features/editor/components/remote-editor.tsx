@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
+import { useEditorMonacoOptions } from "@/hooks/use-editor-monaco-options"
 import { ipc } from "@/lib/ipc/commands"
 import { useEditorStore } from "@/stores/editor.store"
 
@@ -33,6 +34,7 @@ export function RemoteEditor({
   renderToolbar,
 }: Props) {
   const { resolvedTheme } = useTheme()
+  const { monacoOptions, autoSave } = useEditorMonacoOptions()
   const setDirty = useEditorStore((s) => s.setDirty)
   const [value, setValue] = useState("")
   const [mtime, setMtime] = useState<number | null>(null)
@@ -72,6 +74,14 @@ export function RemoteEditor({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [dirty, save])
+
+  useEffect(() => {
+    if (!autoSave || !dirty || save.isPending) return
+    const timer = window.setTimeout(() => {
+      save.mutate()
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [autoSave, dirty, value, save])
 
   if (!path) {
     return (
@@ -145,12 +155,7 @@ export function RemoteEditor({
               setLocalDirty(true)
               if (tabId) setDirty(tabId, true)
             }}
-            options={{
-              fontFamily: "JetBrains Mono, monospace",
-              fontSize: 13,
-              minimap: { enabled: false },
-              automaticLayout: true,
-            }}
+            options={monacoOptions}
           />
         </Suspense>
       </div>

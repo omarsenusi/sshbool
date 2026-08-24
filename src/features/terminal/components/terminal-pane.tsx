@@ -72,6 +72,8 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
       fontSize,
       theme: TERMINAL_THEME,
       allowProposedApi: true,
+      drawBoldTextInBrightColors: true,
+      minimumContrastRatio: 1,
     })
     const fit = new FitAddon()
     fitRef.current = fit

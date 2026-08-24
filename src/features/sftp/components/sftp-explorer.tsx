@@ -22,12 +22,14 @@ import { useOsFileDrop } from "@/features/sftp/hooks/use-file-drop"
 import { usePathHistory } from "@/features/sftp/hooks/use-path-history"
 import { useSftpClipboard, type PaneSide } from "@/features/sftp/lib/clipboard"
 import { openEditorPopout } from "@/features/editor/open-editor-popout"
+import { useSetting } from "@/hooks/use-setting"
 import {
   normalizeRemotePath,
   parentRemotePath,
 } from "@/features/sftp/lib/remote-path"
 import { ipc } from "@/lib/ipc/commands"
 import type { SftpEntryDto, TransferJobDto } from "@/lib/ipc/types"
+import { SETTINGS } from "@/lib/settings-defaults"
 import { flattenHosts } from "@/features/connections/host-appearance"
 import { useConnectionStore } from "@/stores/connection.store"
 import { useLayoutStore } from "@/stores/layout.store"
@@ -61,6 +63,11 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
   const hostLabel =
     flattenHosts(hostsTree.data ?? []).find((h) => h.id === hostId)?.label ?? "Remote"
 
+  const confirmDeleteSetting = useSetting(SETTINGS.sftp.confirmDelete)
+  const showHiddenSetting = useSetting(SETTINGS.sftp.showHidden)
+  const openFileInSetting = useSetting(SETTINGS.sftp.openFileIn)
+  const remoteStartPathSetting = useSetting(SETTINGS.sftp.remoteStartPath)
+
   const [localSelected, setLocalSelected] = useState<string[]>([])
   const [remoteSelected, setRemoteSelected] = useState<string[]>([])
   const [showHiddenLocal, setShowHiddenLocal] = useState(false)
@@ -87,6 +94,23 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
 
   const localNav = usePathHistory("")
   const remoteNav = usePathHistory(".")
+  const remoteStartApplied = useRef(false)
+
+  useEffect(() => {
+    if (showHiddenSetting.isLoading) return
+    const show = !!showHiddenSetting.value
+    setShowHiddenLocal(show)
+    setShowHiddenRemote(show)
+  }, [showHiddenSetting.isLoading, showHiddenSetting.value])
+
+  useEffect(() => {
+    if (remoteStartApplied.current || remoteStartPathSetting.isLoading) return
+    const start = String(remoteStartPathSetting.value || ".").trim()
+    if (start && start !== ".") {
+      remoteNav.replace(start)
+    }
+    remoteStartApplied.current = true
+  }, [remoteStartPathSetting.isLoading, remoteStartPathSetting.value, remoteNav])
   const localPath = localNav.path
   const remotePath = remoteNav.path
   const setLocalPath = localNav.navigate
@@ -198,6 +222,55 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     await qc.invalidateQueries({ queryKey: ["sftp", hostId] })
     await qc.invalidateQueries({ queryKey: ["transfers"] })
   }, [qc, hostId])
+
+  const openRemoteFile = useCallback(
+    (filePath: string) => {
+      const normalized = normalizeRemotePath(filePath)
+      if (openFileInSetting.value === "editor") {
+        useLayoutStore.getState().openEditor(hostId, normalized)
+        return
+      }
+      void openEditorPopout({ hostId, path: normalized })
+    },
+    [hostId, openFileInSetting.value],
+  )
+
+  const performDelete = useCallback(
+    async (side: PaneSide, entries: SftpEntryDto[]) => {
+      const names = entries.map((e) => e.name).join(", ")
+      await runSftpActivity(
+        {
+          hostId,
+          kind: "delete",
+          label: names,
+          side,
+          bytesTotal: totalSize(entries) || undefined,
+        },
+        async () => {
+          for (const e of entries) {
+            if (side === "local") await ipc.localDelete(e.path, true)
+            else await ipc.sftpDelete(hostId, e.path, true)
+          }
+        },
+      )
+      setLocalSelected([])
+      setRemoteSelected([])
+      await invalidateAll()
+    },
+    [hostId, invalidateAll],
+  )
+
+  const requestDelete = useCallback(
+    (side: PaneSide, entries: SftpEntryDto[]) => {
+      if (entries.length === 0) return
+      if (confirmDeleteSetting.value) {
+        setDel({ side, entries })
+        return
+      }
+      void performDelete(side, entries)
+    },
+    [confirmDeleteSetting.value, performDelete],
+  )
 
   const uploadPaths = useMutation({
     mutationFn: async (paths: string[]) => {
@@ -330,9 +403,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       items.push({
         type: "item",
         label: "Open in editor",
-        onClick: () => {
-          useLayoutStore.getState().openEditor(hostId, normalizeRemotePath(focus.path))
-        },
+        onClick: () => openRemoteFile(focus.path),
       })
       items.push({
         type: "item",
@@ -412,7 +483,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       label: "Delete",
       danger: true,
       disabled: targets.length === 0,
-      onClick: () => setDel({ side, entries: targets }),
+      onClick: () => requestDelete(side, targets),
     })
 
     items.push({ type: "sep" })
@@ -503,7 +574,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       }
       if (e.key === "Delete" && entries.length) {
         e.preventDefault()
-        setDel({ side, entries })
+        requestDelete(side, entries)
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && entries.length) {
         setClipboard({ hostId, side, mode: "copy", entries })
@@ -664,10 +735,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
                 setRemotePath(normalizeRemotePath(e.path))
                 return
               }
-              void openEditorPopout({
-                hostId,
-                path: normalizeRemotePath(e.path),
-              })
+              openRemoteFile(e.path)
             }}
             onRefresh={() => void qc.invalidateQueries({ queryKey: ["sftp", hostId] })}
             onMkdir={() => setMkdirSide("remote")}
@@ -768,26 +836,8 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         onClose={() => setDel(null)}
         onConfirm={async () => {
           if (!del) return
-          const names = del.entries.map((e) => e.name).join(", ")
-          await runSftpActivity(
-            {
-              hostId,
-              kind: "delete",
-              label: names,
-              side: del.side,
-              bytesTotal: totalSize(del.entries) || undefined,
-            },
-            async () => {
-              for (const e of del.entries) {
-                if (del.side === "local") await ipc.localDelete(e.path, true)
-                else await ipc.sftpDelete(hostId, e.path, true)
-              }
-            },
-          )
+          await performDelete(del.side, del.entries)
           setDel(null)
-          setLocalSelected([])
-          setRemoteSelected([])
-          await invalidateAll()
         }}
       />
 
