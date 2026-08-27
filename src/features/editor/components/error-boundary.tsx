@@ -11,7 +11,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Editor popout crashed", error, info)
+    console.error("Editor crashed", error, info)
   }
 
   render() {

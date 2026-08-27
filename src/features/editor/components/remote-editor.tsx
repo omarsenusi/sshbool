@@ -4,10 +4,10 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
-import { ipc } from "@/lib/ipc/commands"
+import { IpcError, ipc } from "@/lib/ipc/commands"
 import { useEditorStore } from "@/stores/editor.store"
 
-const MonacoEditor = lazy(() => import("@monaco-editor/react"))
+const MonacoEditor = lazy(() => import("./monaco-editor-lazy"))
 
 export type EditorToolbarApi = {
   dirty: boolean
@@ -82,9 +82,19 @@ export function RemoteEditor({
   }
 
   if (file.isError) {
+    const message =
+      file.error instanceof IpcError
+        ? file.error.message
+        : file.error instanceof Error
+          ? file.error.message
+          : "Failed to load file."
     return (
-      <div className="text-destructive flex h-full items-center justify-center p-4 text-center text-sm">
-        Failed to load file.
+      <div className="text-destructive flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm">
+        <p>Failed to load file.</p>
+        <p className="text-muted-foreground max-w-md font-mono text-xs">{message}</p>
+        <Button size="xs" variant="outline" onClick={() => void file.refetch()}>
+          Retry
+        </Button>
       </div>
     )
   }
@@ -126,7 +136,12 @@ export function RemoteEditor({
           </Button>
         </div>
       )}
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
+        {file.isPending && (
+          <div className="text-muted-foreground bg-background/80 absolute inset-0 z-10 flex items-center justify-center text-xs">
+            Loading file…
+          </div>
+        )}
         <Suspense
           fallback={
             <div className="text-muted-foreground flex h-full items-center justify-center text-xs">
@@ -139,7 +154,7 @@ export function RemoteEditor({
             theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
             path={path}
             value={value}
-            loading="Loading…"
+            loading="Loading editor…"
             onChange={(v) => {
               setValue(v ?? "")
               setLocalDirty(true)
@@ -150,6 +165,7 @@ export function RemoteEditor({
               fontSize: 13,
               minimap: { enabled: false },
               automaticLayout: true,
+              readOnly: file.isPending,
             }}
           />
         </Suspense>

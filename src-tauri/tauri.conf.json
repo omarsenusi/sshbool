@@ -30,6 +30,10 @@
         "script-src": [
           "'self'"
         ],
+        "worker-src": [
+          "'self'",
+          "blob:"
+        ],
         "style-src": [
           "'self'",
           "'unsafe-inline'"
@@ -59,7 +63,7 @@
           "'none'"
         ]
       },
-      "freezePrototype": true
+      "freezePrototype": false
     }
   },
   "plugins": {
