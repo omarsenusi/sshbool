@@ -8,6 +8,7 @@ pub mod shellsafe;
 pub mod ssh;
 pub mod state;
 pub mod vault;
+pub mod vault_keychain;
 
 pub use audit::audit;
 pub use redact::redact;

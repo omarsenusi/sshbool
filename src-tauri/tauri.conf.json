@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "SSHBool",
-  "version": "0.1.7",
+  "version": "0.1.4",
   "identifier": "com.sshbool.app",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -28,7 +28,8 @@
           "'self'"
         ],
         "script-src": [
-          "'self'"
+          "'self'",
+          "https://cdn.jsdelivr.net"
         ],
         "style-src": [
           "'self'",
@@ -47,7 +48,15 @@
           "'self'",
           "ipc:",
           "asset:",
-          "https://ssh.devbool.com"
+          "https://ssh.devbool.com",
+          "https://github.com",
+          "https://*.githubusercontent.com",
+          "https://cdn.jsdelivr.net"
+        ],
+        "worker-src": [
+          "'self'",
+          "blob:",
+          "https://cdn.jsdelivr.net"
         ],
         "object-src": [
           "'none'"
@@ -59,12 +68,15 @@
           "'none'"
         ]
       },
-      "freezePrototype": true
+      "freezePrototype": false
     }
   },
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEREOTk0NUUyOUU5MjhBNUQKUldSZGlwS2U0a1daM2UxN2xxUkt1Q3p5Sm9uUTRvWnRIdmtSV29ESDUwNnJka05kOTZ0L3hrR1cK",
+      "windows": {
+        "installMode": "passive"
+      },
       "endpoints": [
         "https://ssh.devbool.com/api/v1/update/{{target}}-{{arch}}/{{current_version}}?channel=stable"
       ]
@@ -80,6 +92,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/wfreerdp"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

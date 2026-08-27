@@ -4,15 +4,25 @@ import { SearchAddon } from "@xterm/addon-search"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { Terminal } from "@xterm/xterm"
-import { useEffect, useRef, useMemo } from "react"
+import { useEffect, useRef, useMemo, useState } from "react"
 import "@xterm/xterm/css/xterm.css"
 
 import { listen } from "@tauri-apps/api/event"
 
+import { TerminalContextMenu } from "@/features/terminal/components/terminal-context-menu"
 import {
   isArabicLetter,
   prepareTextForXterm,
 } from "@/features/terminal/arabic-xterm"
+import {
+  attachTerminalClipboardHandlers,
+  type TerminalClipboardActions,
+} from "@/features/terminal/terminal-clipboard"
+import {
+  DEFAULT_TERMINAL_CLIPBOARD_SETTINGS,
+  resolveTerminalClipboardSettings,
+  type TerminalClipboardSettings,
+} from "@/features/terminal/terminal-clipboard-settings"
 import {
   TERMINAL_FONT_FAMILY,
   TERMINAL_THEME,
@@ -25,6 +35,12 @@ type Props = {
   fontSize?: number
   /** Only the foreground pane should fit/resize the PTY. */
   visible?: boolean
+}
+
+type ContextMenuState = {
+  x: number
+  y: number
+  hasSelection: boolean
 }
 
 function resizePty(paneId: string, fit: FitAddon, fallback = false) {
@@ -41,17 +57,60 @@ function resizePty(paneId: string, fit: FitAddon, fallback = false) {
   }
 }
 
+async function loadTerminalClipboardSettings(): Promise<TerminalClipboardSettings> {
+  const [
+    selectToCopy,
+    contextMenu,
+    copyShortcut,
+    pasteShortcut,
+    altCopyShortcut,
+    altPasteShortcut,
+    legacySelectToCopy,
+    legacyRightClickPaste,
+  ] = await Promise.all([
+    ipc.settingsGet("terminalSelectToCopy"),
+    ipc.settingsGet("terminalContextMenu"),
+    ipc.settingsGet("terminalCopyShortcut"),
+    ipc.settingsGet("terminalPasteShortcut"),
+    ipc.settingsGet("terminalAltCopyShortcut"),
+    ipc.settingsGet("terminalAltPasteShortcut"),
+    ipc.settingsGet("terminalRightClickCopy"),
+    ipc.settingsGet("terminalRightClickPaste"),
+  ])
+
+  return resolveTerminalClipboardSettings({
+    selectToCopy,
+    contextMenu,
+    copyShortcut,
+    pasteShortcut,
+    altCopyShortcut,
+    altPasteShortcut,
+    legacySelectToCopy,
+    legacyRightClickPaste,
+  })
+}
+
 export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const termRef = useRef<Terminal | null>(null)
+  const clipboardActionsRef = useRef<TerminalClipboardActions | null>(null)
   const visibleRef = useRef(visible)
   visibleRef.current = visible
+
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
 
   const terminalFontQuery = useQuery({
     queryKey: ["settings", "terminalFont"],
     queryFn: () => ipc.settingsGet("terminalFont") as Promise<string | null>,
   })
+  const clipboardSettingsQuery = useQuery({
+    queryKey: ["settings", "terminalClipboard"],
+    queryFn: loadTerminalClipboardSettings,
+  })
+
+  const clipboardSettingsRef = useRef<TerminalClipboardSettings>(DEFAULT_TERMINAL_CLIPBOARD_SETTINGS)
+  clipboardSettingsRef.current = clipboardSettingsQuery.data ?? DEFAULT_TERMINAL_CLIPBOARD_SETTINGS
 
   const customFont = terminalFontQuery.data?.trim()
   const font = useMemo(() => {
@@ -59,6 +118,12 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
       ? `"${customFont}", ${TERMINAL_FONT_FAMILY}`
       : TERMINAL_FONT_FAMILY
   }, [customFont])
+
+  useEffect(() => {
+    if (visible) return
+    const helper = containerRef.current?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
+    helper?.blur()
+  }, [visible])
 
   useEffect(() => {
     const el = containerRef.current
@@ -86,13 +151,25 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
     term.unicode.activeVersion = "11"
     term.open(el)
 
+    const { cleanup: detachClipboard, actions } = attachTerminalClipboardHandlers({
+      term,
+      container: el,
+      getSettings: () => clipboardSettingsRef.current,
+      getIsActive: () => visibleRef.current,
+      onOpenContextMenu: (point) => {
+        setContextMenu(point)
+      },
+      onPaste: (text) => {
+        void ipc.paneWrite(paneId, text)
+      },
+    })
+    clipboardActionsRef.current = actions
+
     let lastData = ""
 
     const onData = term.onData((data) => {
       let toSend = data
 
-      // WebKitGTK/IME accumulation guard: If input data is cumulative,
-      // strip the already-sent prefix so only the newly typed character is forwarded to the PTY.
       if (
         lastData &&
         data.length > lastData.length &&
@@ -103,7 +180,6 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
 
       lastData = data
 
-      // Clear helper textarea synchronously after reading input to prevent IME from accumulating text for subsequent keypresses
       const helperArea = el.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
       if (helperArea) {
         helperArea.value = ""
@@ -121,7 +197,6 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
       /win/i.test(navigator.userAgent || navigator.platform)
 
     void (async () => {
-      // Restore the authoritative PTY history from Rust (works across pop-out windows).
       try {
         const history = await ipc.paneScrollback(paneId)
         if (disposed) return
@@ -181,7 +256,6 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
     })
     ro.observe(el)
 
-    // Also sync when xterm itself reports a size change.
     const onResize = term.onResize(({ cols, rows }) => {
       if (disposed || !visibleRef.current) return
       if (cols >= 2 && rows >= 2) void ipc.paneResize(paneId, cols, rows)
@@ -190,6 +264,8 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
     return () => {
       disposed = true
       if (resizeTimer != null) window.clearTimeout(resizeTimer)
+      detachClipboard()
+      clipboardActionsRef.current = null
       onData.dispose()
       onResize.dispose()
       unlisten?.()
@@ -217,22 +293,16 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
     return () => window.clearTimeout(t)
   }, [visible, paneId])
 
-  
   useEffect(() => {
     if (!termRef.current) return
-      
+
     if (termRef.current.options.fontFamily !== font) {
       termRef.current.options.fontFamily = font
-      
-      // Re-fit after changing font as character dimensions might change.
-      // We must wait for the font to fully load via the CSS Font Loading API
-      // otherwise xterm.js will measure the fallback font width, causing wide letter spacing.
+
       void document.fonts.load(`${fontSize}px ${font}`).then(() => {
-        // Double check it's not disposed
         if (termRef.current && fitRef.current) {
-          // Clear texture atlas forces a full re-render of the glyphs
           const termPrivate = termRef.current as unknown as { clearTextureAtlas?: () => void }
-          if (typeof termPrivate.clearTextureAtlas === 'function') {
+          if (typeof termPrivate.clearTextureAtlas === "function") {
             termPrivate.clearTextureAtlas()
           }
           fitRef.current.fit()
@@ -240,16 +310,33 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
       })
     }
   }, [font, fontSize])
-  
+
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-      dir="ltr"
-      style={{
-        fontFamily: font,
-        fontSize: `${fontSize}px`,
-      }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        dir="ltr"
+        style={{
+          fontFamily: font,
+          fontSize: `${fontSize}px`,
+        }}
+      />
+      {contextMenu && (
+        <TerminalContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          settings={clipboardSettingsRef.current}
+          hasSelection={contextMenu.hasSelection}
+          onCopy={() => void clipboardActionsRef.current?.copySelection()}
+          onPaste={() => void clipboardActionsRef.current?.pasteFromClipboard()}
+          onSelectAll={() => clipboardActionsRef.current?.selectAll()}
+          onClose={() => {
+            setContextMenu(null)
+            clipboardActionsRef.current?.focus()
+          }}
+        />
+      )}
+    </>
   )
 }

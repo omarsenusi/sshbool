@@ -99,6 +99,7 @@ export const ipc = {
   vaultStatus: () => call<VaultStatusDto>("vault_status"),
   vaultInit: (password: string) => call<void>("vault_init", { password }),
   vaultUnlock: (password: string) => call<void>("vault_unlock", { password }),
+  vaultAutoUnlock: () => call<boolean>("vault_auto_unlock"),
   vaultLock: () => call<void>("vault_lock"),
   vaultBackup: (password: string) => call<{ blob: string }>("vault_backup", { password }),
   vaultRestore: (blob: string, password: string) =>
@@ -146,6 +147,7 @@ export const ipc = {
     port: number,
     username?: string,
     password?: string,
+    domain?: string,
     shareClipboard?: boolean,
     smartSizing?: boolean,
     adminMode?: boolean,
@@ -154,13 +156,24 @@ export const ipc = {
     height?: number,
     colorDepth?: number,
     performance?: string,
+    useSshCredentials?: boolean,
   ) =>
-    call<void>("rdp_launch_native", {
+    call<{
+      localHost: string
+      localPort: number
+      remoteHost: string
+      remotePort: number
+      forwardId: string
+      rdpClient?: string
+      autoLogin?: boolean
+      freerdpFallback?: boolean
+    }>("rdp_launch_native", {
       hostId: hostId ?? null,
       host,
       port,
       username: username ?? null,
       password: password ?? null,
+      domain: domain ?? null,
       shareClipboard: shareClipboard ?? true,
       smartSizing: smartSizing ?? true,
       adminMode: adminMode ?? false,
@@ -169,6 +182,7 @@ export const ipc = {
       height: height ?? null,
       colorDepth: colorDepth ?? null,
       performance: performance ?? null,
+      useSshCredentials: useSshCredentials ?? true,
     }),
 
   workspaceWindowOpen: (wsId: string, title: string) =>
@@ -283,6 +297,8 @@ export const ipc = {
   keybindingsSet: (command: string, keys: string) =>
     call<void>("keybindings_set", { command, keys }),
   appInfo: () => call<AppInfoDto>("app_info"),
+  updateDownloadAndInstall: (url: string, fileName: string) =>
+    call<void>("update_download_and_install", { url, fileName }),
 
   // Phase 2
   proxiesList: () => call<Record<string, unknown>[]>("proxies_list"),

@@ -30,7 +30,10 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
   const outerContainerRef = useRef<HTMLDivElement>(null)
 
   const [tab, setTab] = useState<"rdp" | "vnc">("rdp")
-  const [targetHost, setTargetHost] = useState<string>("127.0.0.1")
+  /** Local end of the SSH tunnel (mstsc connects here). */
+  const [localEndpoint] = useState<string>("127.0.0.1")
+  /** RDP service address as seen from the SSH host (usually localhost). */
+  const [remoteTarget, setRemoteTarget] = useState<string>("127.0.0.1")
   const rdpPort = "3389"
   const vncPort = "5900"
   const [useSshCredentials, setUseSshCredentials] = useState<boolean>(true)
@@ -54,6 +57,8 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
     "disconnected" | "tunneling" | "connected" | "error"
   >("disconnected")
   const [logsByHost, setLogsByHost] = useState<Record<string, string[]>>({})
+  const launchingRef = useRef(false)
+  const [launching, setLaunching] = useState(false)
 
   const hostQuery = useQuery({
     queryKey: ["host", hostId],
@@ -67,7 +72,6 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
     if (host) {
       setUsername(host.username ?? "")
       setPassword(host.password ?? "")
-      setTargetHost(host.hostname || "127.0.0.1")
     }
   }, [host])
 
@@ -93,19 +97,16 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
 
   // Manual Launch System Native RDP Client (Windows mstsc / macOS Microsoft Remote Desktop / Linux xfreerdp)
   async function launchNativeRdp() {
-    if (!host || !hostId) return
+    if (!host || !hostId || launchingRef.current) return
+    launchingRef.current = true
+    setLaunching(true)
     setStatus("tunneling")
 
-    addLog(`Attempting authentication to ${host.hostname}...`)
-    addLog(`Authentication completed successfully via SSH.`)
+    addLog(`Opening SSH session to ${host.hostname}:${host.port}...`)
 
     const targetPort = Number(rdpPort) || 3389
     const targetUser = useSshCredentials ? (host.username ?? username) : username
     const targetPass = useSshCredentials ? (host.password ?? password) : password
-
-    addLog(`Added Remote Desktop forwarding rule on 127.0.0.1:${targetPort} -> ${targetHost}:${targetPort}.`)
-    addLog(`Injecting credentials and bypass certificate prompts...`)
-    addLog(`Launching native OS Remote Desktop Connection client...`)
 
     let finalWidth: number | undefined
     let finalHeight: number | undefined
@@ -123,12 +124,13 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
     }
 
     try {
-      await ipc.rdpLaunchNative(
+      const tunnel = await ipc.rdpLaunchNative(
         hostId,
-        targetHost,
+        remoteTarget,
         targetPort,
         targetUser,
         targetPass,
+        domain,
         shareClipboard,
         smartSizing,
         adminMode,
@@ -136,16 +138,41 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
         finalWidth,
         finalHeight,
         Number(colorDepth),
-        performancePreset
+        performancePreset,
+        useSshCredentials,
       )
+      addLog(
+        `SSH tunnel active: ${tunnel.localHost}:${tunnel.localPort} → ${tunnel.remoteHost}:${tunnel.remotePort}`,
+      )
+      if (tunnel.rdpClient === "freerdp") {
+        addLog("FreeRDP connected — waiting for xRDP login screen (may take ~10s)...")
+        addLog("Password is typed only inside FreeRDP windows (never on command line).")
+      } else if (tunnel.rdpClient === "mstsc") {
+        addLog("Opened mstsc — enter your desktop password when prompted.")
+      } else if (tunnel.autoLogin) {
+        addLog("Remote Desktop session started with saved credentials.")
+      } else if (useSshCredentials && !host.has_password) {
+        addLog("Warning: no SSH password saved for this host — add one in host settings.")
+      }
+      addLog(`Launching native Remote Desktop client to ${tunnel.localHost}:${tunnel.localPort}...`)
       setStatus("connected")
-      addLog(`Remote Desktop Connection opened.`)
-      toast.success("Native RDP Client Launched", `Connecting to ${targetHost}:${targetPort}`)
+      if (tunnel.rdpClient === "freerdp") {
+        addLog("FreeRDP window should appear — check the taskbar if it is behind other windows.")
+      } else {
+        addLog(`Remote Desktop Connection opened.`)
+      }
+      toast.success(
+        "Native RDP Client Launched",
+        `${tunnel.localHost}:${tunnel.localPort} → ${tunnel.remoteHost}:${tunnel.remotePort}`,
+      )
     } catch (e) {
       setStatus("error")
       const err = (e as Error)?.message ?? "Failed to launch native RDP"
       addLog(`Error launching RDP: ${err}`)
       toast.error("RDP Launch Failed", err)
+    } finally {
+      launchingRef.current = false
+      setLaunching(false)
     }
   }
 
@@ -222,14 +249,40 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
               <span>{tab === "rdp" ? "Remote Desktop (RDP)" : "VNC Connection Parameters"}</span>
             </div>
 
-            {/* Computer & Port (DISABLED FOR USER INPUT) */}
+            {/* Computer & Port */}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
-                <Label className="text-[11px] text-muted-foreground font-medium">Computer / Target IP</Label>
+                <Label className="text-[11px] text-muted-foreground font-medium">
+                  Local tunnel endpoint
+                </Label>
                 <Input
-                  disabled
-                  className="h-8 text-xs font-mono mt-1 opacity-70 bg-muted/50 cursor-not-allowed"
-                  value={targetHost}
+                  readOnly
+                  className="h-8 text-xs font-mono mt-1 bg-muted/50"
+                  value={localEndpoint}
+                />
+              </div>
+
+              <div>
+                <Label className="text-[11px] text-muted-foreground font-medium">Local port</Label>
+                <Input
+                  readOnly
+                  className="h-8 text-xs font-mono mt-1 bg-muted/50"
+                  value="auto"
+                  title="Assigned automatically when the tunnel starts"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Label className="text-[11px] text-muted-foreground font-medium">
+                  Remote RDP target (via SSH)
+                </Label>
+                <Input
+                  className="h-8 text-xs font-mono mt-1"
+                  placeholder="127.0.0.1"
+                  value={remoteTarget}
+                  onChange={(e) => setRemoteTarget(e.target.value)}
                 />
               </div>
 
@@ -251,7 +304,7 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
                   Authentication
                 </Label>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">Use SSH credentials</span>
+                  <span className="text-[11px] text-muted-foreground">Use SSH username/password for RDP login</span>
                   <Switch
                     checked={useSshCredentials}
                     onCheckedChange={setUseSshCredentials}
@@ -303,6 +356,13 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {useSshCredentials && (
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Password is typed only inside the FreeRDP xRDP greeter window (never on the command
+                  line or in a file). Turn this off if the desktop account is different from SSH.
+                </p>
               )}
             </div>
 
@@ -425,10 +485,11 @@ export function RemoteDesktopView({ hostId }: { hostId: string | null }) {
               <Button
                 size="sm"
                 className="w-full h-9 text-xs gap-2 font-semibold shadow-sm"
+                disabled={launching}
                 onClick={launchNativeRdp}
               >
                 <ExternalLink className="size-4" />
-                Launch Native System RDP Client
+                {launching ? "Launching…" : "Launch Native System RDP Client"}
               </Button>
             </div>
           </div>

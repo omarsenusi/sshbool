@@ -250,6 +250,10 @@ export type AppInfoDto = {
   name: string
   version: string
   tauriVersion: string
+  updatePlatform: string
+  installDir: string
+  exePath: string
+  isPackaged: boolean
 }
 
 export type DetectedDbDto = {

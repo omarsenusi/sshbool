@@ -152,6 +152,7 @@ pub struct ConnectionManager {
     /// Raw PTY output retained so pop-out / bring-back can restore the same screen.
     scrollback: RwLock<HashMap<String, Vec<u8>>>,
     forward_tasks: RwLock<HashMap<String, tokio::task::JoinHandle<()>>>,
+    forward_ports: RwLock<HashMap<String, u16>>,
 }
 
 const MAX_SCROLLBACK_BYTES: usize = 512_000;
@@ -167,7 +168,33 @@ impl ConnectionManager {
             pane_tx: RwLock::new(HashMap::new()),
             scrollback: RwLock::new(HashMap::new()),
             forward_tasks: RwLock::new(HashMap::new()),
+            forward_ports: RwLock::new(HashMap::new()),
         })
+    }
+
+    pub async fn forward_is_active(&self, forward_id: &str) -> bool {
+        self.forward_tasks.read().await.contains_key(forward_id)
+    }
+
+    pub async fn forward_local_port(&self, forward_id: &str) -> Option<u16> {
+        self.forward_ports.read().await.get(forward_id).copied()
+    }
+
+    /// Best-effort check that a TCP port accepts connections on the remote host.
+    pub async fn probe_remote_tcp(
+        &self,
+        host_id: &str,
+        addr: &str,
+        port: u16,
+    ) -> Result<bool, DomainError> {
+        let cmd = format!(
+            "bash -lc 'if timeout 3 bash -c \"echo >/dev/tcp/{addr}/{port}\" 2>/dev/null; then echo SSHBOOL_OPEN; \
+             elif ss -tln 2>/dev/null | grep -q \":{port} \"; then echo SSHBOOL_OPEN; \
+             elif netstat -tln 2>/dev/null | grep -q \":{port} \"; then echo SSHBOOL_OPEN; \
+             else echo SSHBOOL_CLOSED; fi' 2>/dev/null || echo SSHBOOL_CLOSED"
+        );
+        let out = self.exec_command(host_id, &cmd).await?;
+        Ok(out.contains("SSHBOOL_OPEN"))
     }
 
     /// Open (or reuse) an authenticated session for a host.
@@ -470,11 +497,16 @@ impl ConnectionManager {
                 });
             }
             let _ = mgr.forward_tasks.write().await.remove(&fid);
+            let _ = mgr.forward_ports.write().await.remove(&fid);
         });
         self.forward_tasks
             .write()
             .await
             .insert(forward_id.to_string(), handle);
+        self.forward_ports
+            .write()
+            .await
+            .insert(forward_id.to_string(), bind_port);
         Ok(())
     }
 
@@ -483,6 +515,7 @@ impl ConnectionManager {
         if let Some(h) = self.forward_tasks.write().await.remove(forward_id) {
             h.abort();
         }
+        self.forward_ports.write().await.remove(forward_id);
         Ok(())
     }
 

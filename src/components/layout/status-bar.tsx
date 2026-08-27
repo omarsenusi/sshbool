@@ -1,13 +1,21 @@
+import { useQuery } from '@tanstack/react-query';
+
+import { useMcpState } from '@/features/mcp/hooks/use-mcp-state';
+import { ipc } from '@/lib/ipc/commands';
+import { cn } from '@/lib/utils';
 import { useLayoutStore } from '@/stores/layout.store';
 import { useVaultStore } from '@/stores/vault.store';
-import { useMcpState } from '@/features/mcp/hooks/use-mcp-state';
 import { Plug } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export function StatusBar() {
   const status = useVaultStore((s) => s.status);
   const { serverState, clients } = useMcpState();
   const openMcpPanel = useLayoutStore((s) => s.setActivity);
+  const appInfo = useQuery({
+    queryKey: ['app-info'],
+    queryFn: () => ipc.appInfo(),
+    staleTime: Infinity,
+  });
 
   const degraded = serverState.degradedVaultLocked;
 
@@ -54,7 +62,10 @@ export function StatusBar() {
           </span>
         </button>
       </div>
-      <div>SSHBool 0.1.7</div>
+      <div>
+        {appInfo.data?.name ?? 'SSHBool'}{' '}
+        {appInfo.data?.version ?? '…'}
+      </div>
     </footer>
   );
 }

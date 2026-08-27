@@ -1,12 +1,18 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { AlertTriangle, CheckCircle2, Download, Loader2, RefreshCw } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Download, ExternalLink, Loader2, RefreshCw } from "lucide-react"
 import { useState } from "react"
 
 import { MarkdownContent } from "@/components/markdown-content"
 import { Button } from "@/components/ui/button"
-import { checkForUpdate, fetchCmsPage, getUpdatePlatform } from "@/lib/api"
+import { Switch } from "@/components/ui/switch"
+import { UpdateProgressPanel } from "@/features/productivity/components/update-progress-panel"
+import { useAutoUpdateInstall } from "@/hooks/use-auto-update-install"
+import { useSetting } from "@/hooks/use-setting"
+import { useUpdateInstall, useUpdateTaskbarProgress } from "@/hooks/use-update-install"
+import { checkForUpdate, fetchCmsPage, resolveUpdatePlatform } from "@/lib/api"
 import { ipc } from "@/lib/ipc/commands"
-import { checkNativeUpdate, isUpdaterSupported } from "@/lib/updater"
+import { getInstallCompleteMessage } from "@/lib/update-engine"
+import { SETTINGS } from "@/lib/settings-defaults"
 import { toast } from "@/stores/toast.store"
 import { cn } from "@/lib/utils"
 
@@ -21,11 +27,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export function UpdatesSettings() {
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
-  const [nativeUpdate, setNativeUpdate] = useState<Awaited<
-    ReturnType<typeof checkNativeUpdate>
-  > | null>(null)
+  const autoUpdate = useSetting(SETTINGS.updates.autoUpdate)
 
   const info = useQuery({ queryKey: ["app-info"], queryFn: () => ipc.appInfo() })
+  const updateInstall = useUpdateInstall(info.data)
+  useUpdateTaskbarProgress(updateInstall.progress, updateInstall.isActive)
+
   const updatesPage = useQuery({
     queryKey: ["cms-page", "updates"],
     queryFn: () => fetchCmsPage("updates"),
@@ -36,43 +43,55 @@ export function UpdatesSettings() {
   const checkUpdates = useMutation({
     mutationFn: async () => {
       const version = info.data?.version ?? "0.1.7"
-      const platform = getUpdatePlatform()
+      const platform = resolveUpdatePlatform(info.data)
       const apiResult = await checkForUpdate(platform, version, "stable")
-
-      let nativeResult: Awaited<ReturnType<typeof checkNativeUpdate>> | null = null
-      if (isUpdaterSupported()) {
-        try {
-          nativeResult = await checkNativeUpdate()
-          setNativeUpdate(nativeResult)
-        } catch (error) {
-          console.warn("Native updater check failed:", error)
-        }
-      }
-
       setLastCheckedAt(new Date())
-      return { apiResult, nativeResult }
+      return apiResult
     },
   })
 
-  const installUpdate = useMutation({
+  const result = checkUpdates.data
+  const hasApiUpdate = result?.has_update === true
+  const showUpdateBanner = hasApiUpdate || updateInstall.interruptedSession != null
+
+  const installUpdateMutation = useMutation({
     mutationFn: async () => {
-      if (!nativeUpdate?.install) {
-        throw new Error("No installable update found")
+      if (!result) {
+        throw new Error("No update information available")
       }
-      await nativeUpdate.install()
+      return updateInstall.install(result)
     },
-    onSuccess: () => {
-      toast.success("Update installed. Restart SSHBool to finish.")
+    onSuccess: (mode) => {
+      if (mode === "github") {
+        toast.info("Opened GitHub releases for manual download.")
+        return
+      }
+      toast.success(getInstallCompleteMessage(mode, info.data))
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to install update")
     },
   })
 
-  const result = checkUpdates.data?.apiResult
-  const hasApiUpdate = result?.has_update === true
-  const hasNativeUpdate = nativeUpdate?.available === true
-  const showUpdateBanner = hasApiUpdate || hasNativeUpdate
+  useAutoUpdateInstall({
+    enabled: Boolean(result?.has_update) && lastCheckedAt != null,
+    update: result,
+    autoUpdateEnabled: autoUpdate.value,
+    isForced: result?.is_force === true,
+    canInstall: result ? updateInstall.canInstall(result) : false,
+    installing: updateInstall.installing || installUpdateMutation.isPending,
+    install: async (target) => updateInstall.install(target),
+    onComplete: (mode) => {
+      if (mode === "github") {
+        toast.info("Opened GitHub releases for manual download.")
+        return
+      }
+      toast.success(getInstallCompleteMessage(mode, info.data))
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to install update")
+    },
+  })
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -86,11 +105,6 @@ export function UpdatesSettings() {
           {" · "}
           Channel: <span className="text-foreground font-medium">stable</span>
         </p>
-        {!isUpdaterSupported() && (
-          <p className="text-muted-foreground mt-1 text-[11px]">
-            OTA install works in production builds only. Dev mode can still check release info.
-          </p>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -114,10 +128,56 @@ export function UpdatesSettings() {
         )}
       </div>
 
+      <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+        <div className="space-y-0.5">
+          <label className="text-sm font-medium" htmlFor="auto-update">
+            Auto update
+          </label>
+          <p className="text-muted-foreground text-xs">
+            When an update is found, install automatically on startup. If your platform
+            installer is unavailable, GitHub releases opens instead.
+          </p>
+        </div>
+        <Switch
+          id="auto-update"
+          checked={!!autoUpdate.value}
+          onCheckedChange={(value) => autoUpdate.setValue(value)}
+        />
+      </div>
+
       {checkUpdates.isError && (
         <div className="border-destructive/30 bg-destructive/5 flex items-start gap-2 rounded-lg border p-3">
           <AlertTriangle className="text-destructive mt-0.5 size-4 shrink-0" />
           <p className="text-destructive text-xs">Could not reach the update server.</p>
+        </div>
+      )}
+
+      {updateInstall.interruptedSession && !updateInstall.installing && (
+        <div className="border-amber-500/30 bg-amber-500/5 space-y-2 rounded-lg border p-4">
+          <p className="text-sm font-semibold">Update interrupted</p>
+          <p className="text-muted-foreground text-xs">
+            An update to {updateInstall.interruptedSession.version} did not finish.
+          </p>
+          <div className="flex gap-2">
+            {result && (
+              <Button
+                size="sm"
+                disabled={installUpdateMutation.isPending}
+                onClick={() => installUpdateMutation.mutate()}
+              >
+                Retry update
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void updateInstall.dismissInterrupted()
+              }}
+            >
+              Dismiss
+            </Button>
+          </div>
         </div>
       )}
 
@@ -140,37 +200,55 @@ export function UpdatesSettings() {
               <p className="text-sm font-semibold">Update available</p>
               <p className="text-muted-foreground text-xs">
                 {result.current_version} →{" "}
-                <span className="text-foreground font-medium">
-                  {nativeUpdate?.version ?? result.latest_version}
-                </span>
+                <span className="text-foreground font-medium">{result.latest_version}</span>
                 {result.is_critical && (
                   <span className="text-destructive ml-2 font-medium">Critical</span>
                 )}
+                {result.is_force && (
+                  <span className="text-destructive ml-2 font-medium">Mandatory</span>
+                )}
               </p>
+              {!updateInstall.installing && updateInstall.platformSummary(result) && (
+                <p className="text-muted-foreground mt-1 text-[11px]">
+                  {updateInstall.platformSummary(result)}
+                </p>
+              )}
             </div>
-            {hasNativeUpdate && nativeUpdate?.install && (
+            {updateInstall.canInstall(result) && (
               <Button
                 size="sm"
-                disabled={installUpdate.isPending}
-                onClick={() => installUpdate.mutate()}
+                disabled={updateInstall.installing || installUpdateMutation.isPending}
+                onClick={() => installUpdateMutation.mutate()}
               >
-                {installUpdate.isPending ? (
+                {updateInstall.installing || installUpdateMutation.isPending ? (
                   <Loader2 className="mr-2 size-3.5 animate-spin" />
+                ) : updateInstall.isGithubFallback(result) ? (
+                  <ExternalLink className="mr-2 size-3.5" />
                 ) : (
                   <Download className="mr-2 size-3.5" />
                 )}
-                Install update
+                {updateInstall.buttonLabel(result)}
               </Button>
             )}
           </div>
 
-          {(nativeUpdate?.body || result.notes) && (
+          {(updateInstall.installing || updateInstall.progress.phase === "done") && (
+            <UpdateProgressPanel
+              progress={updateInstall.progress}
+              currentVersion={result.current_version}
+              latestVersion={result.latest_version ?? result.current_version}
+              platform={result.platform}
+              installDir={info.data?.installDir}
+            />
+          )}
+
+          {!updateInstall.installing && result.notes && (
             <p className="text-muted-foreground whitespace-pre-line text-xs leading-relaxed">
-              {nativeUpdate?.body ?? result.notes}
+              {result.notes}
             </p>
           )}
 
-          {result.changelog.length > 0 && (
+          {!updateInstall.installing && result.changelog.length > 0 && (
             <ul className="space-y-1.5">
               {result.changelog.map((entry) => (
                 <li key={entry.description} className="flex gap-2 text-xs">
@@ -191,21 +269,6 @@ export function UpdatesSettings() {
                 </li>
               ))}
             </ul>
-          )}
-
-          {!hasNativeUpdate && result.download_url && (
-            <p className="text-muted-foreground text-[11px]">
-              Download manually from the{" "}
-              <a
-                href={result.download_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline-offset-2 hover:underline"
-              >
-                release page
-              </a>
-              .
-            </p>
           )}
         </div>
       )}

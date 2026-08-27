@@ -6,6 +6,8 @@ mod container;
 mod error;
 mod events;
 mod mcp_executor;
+#[cfg(target_os = "windows")]
+mod rdp_windows;
 
 use std::sync::Arc;
 
@@ -249,6 +251,7 @@ pub fn run() {
             commands::vault::vault_init,
             commands::vault::vault_unlock,
             commands::vault::vault_lock,
+            commands::vault::vault_auto_unlock,
             commands::vault::vault_backup,
             commands::vault::vault_restore,
             commands::vault::keys_list,
@@ -327,9 +330,12 @@ pub fn run() {
             commands::productivity::search_global,
             commands::productivity::settings_get,
             commands::productivity::settings_set,
+            commands::clipboard::clipboard_write_text,
+            commands::clipboard::clipboard_read_text,
             commands::productivity::keybindings_list,
             commands::productivity::keybindings_set,
             commands::productivity::app_info,
+            commands::productivity::update_download_and_install,
             commands::phase2::proxies_list,
             commands::phase2::proxies_upsert,
             commands::phase2::port_forwards_upsert,

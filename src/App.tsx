@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react"
+import { useEffect, useMemo, lazy, Suspense, type ReactNode } from "react"
 
 import { CommandPalette } from "@/components/command-palette/command-palette"
 import { GlobalKeybindings } from "@/components/global-keybindings"
@@ -13,10 +13,10 @@ import { DatabasesPanel } from "@/features/databases/components/databases-panel"
 import { DevtoolsPanel } from "@/features/devtools/components/devtools-panel"
 import { DockerPanel } from "@/features/docker/components/docker-panel"
 import { RemoteDesktopView } from "@/features/desktop/components/remote-desktop-view"
-import { EditorWorkspace } from "@/features/editor/components/editor-workspace"
 import { K8sPanel } from "@/features/kubernetes/components/k8s-panel"
 import { PluginsPanel } from "@/features/plugins/components/plugins-panel"
 import { SettingsPanel } from "@/features/productivity/components/settings-panel"
+import { StartupUpdatePrompt } from "@/features/productivity/components/startup-update-prompt"
 import { McpPanel } from "@/features/mcp/components/mcp-panel"
 import { McpApprovalDialog } from "@/features/mcp/components/mcp-approval-dialog"
 import { useMcpPaneBridge } from "@/features/mcp/hooks/use-mcp-pane-bridge"
@@ -40,6 +40,12 @@ import { toast } from "@/stores/toast.store"
 import { useState } from "react"
 import { ShieldCheck, ExternalLink, KeyRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
+
+const EditorWorkspace = lazy(() =>
+  import("@/features/editor/components/editor-workspace").then((m) => ({
+    default: m.EditorWorkspace,
+  })),
+)
 
 export function App() {
   const status = useVaultStore((s) => s.status)
@@ -126,17 +132,21 @@ export function App() {
       .vaultStatus()
       .then(async (st) => {
         const isSubWindow = window.location.search.includes("wsId=")
-        const lockOnStartup = await ipc.settingsGet("lockOnStartup")
-        if (st.initialized && st.locked && lockOnStartup === true && !isSubWindow) {
-          try {
-            await ipc.vaultLock()
-          } catch {
-            /* ignore */
+        if (st.initialized && st.locked && !isSubWindow) {
+          const lockOnStartup = await ipc.settingsGet("lockOnStartup")
+          if (lockOnStartup !== true) {
+            try {
+              const unlocked = await ipc.vaultAutoUnlock()
+              if (unlocked) {
+                setStatus(await ipc.vaultStatus())
+                return
+              }
+            } catch {
+              /* fall through to unlock screen */
+            }
           }
-          setStatus({ ...st, locked: true })
-        } else {
-          setStatus(st)
         }
+        setStatus(st)
       })
       .catch(() => {
         setStatus({ initialized: false, locked: true, biometric: false })
@@ -403,7 +413,15 @@ export function App() {
         {activity === "editor" &&
           (selectedHostId ? (
             <NeedConnection connected={connected}>
-              <EditorWorkspace hostId={selectedHostId} />
+              <Suspense
+                fallback={
+                  <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+                    Loading editor…
+                  </div>
+                }
+              >
+                <EditorWorkspace hostId={selectedHostId} />
+              </Suspense>
             </NeedConnection>
           ) : (
             <Empty>Pick a server from the rail.</Empty>
@@ -472,6 +490,7 @@ export function App() {
       <GlobalKeybindings />
       <FingerprintVerificationModal />
       <McpApprovalDialog />
+      <StartupUpdatePrompt unlocked={unlocked} />
     </>
   )
 }

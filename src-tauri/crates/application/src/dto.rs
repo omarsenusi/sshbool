@@ -343,4 +343,12 @@ pub struct AppInfoDto {
     pub version: String,
     /// Tauri version.
     pub tauri_version: String,
+    /// Updater platform key (e.g. windows-x86_64).
+    pub update_platform: String,
+    /// Install directory (parent of exe or .app bundle).
+    pub install_dir: String,
+    /// Current executable path.
+    pub exe_path: String,
+    /// Production/packaged build (false in debug/dev).
+    pub is_packaged: bool,
 }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useEditorMonacoOptions } from "@/hooks/use-editor-monaco-options"
 import { ipc } from "@/lib/ipc/commands"
 import { useEditorStore } from "@/stores/editor.store"
+import { runSftpActivity } from "@/stores/sftp-activity.store"
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"))
 
@@ -56,7 +57,19 @@ export function RemoteEditor({
   }, [file.data, tabId, setDirty])
 
   const save = useMutation({
-    mutationFn: () => ipc.sftpWrite(hostId, path, value, mtime),
+    mutationFn: () => {
+      const bytesTotal = new TextEncoder().encode(value).byteLength
+      return runSftpActivity(
+        {
+          hostId,
+          kind: "save",
+          label: path,
+          side: "remote",
+          bytesTotal,
+        },
+        () => ipc.sftpWrite(hostId, path, value, mtime),
+      )
+    },
     onSuccess: (res) => {
       setMtime(res.mtime)
       setLocalDirty(false)
@@ -94,7 +107,7 @@ export function RemoteEditor({
   if (file.isError) {
     return (
       <div className="text-destructive flex h-full items-center justify-center p-4 text-center text-sm">
-        Failed to load file.
+        {file.error instanceof Error ? file.error.message : "Failed to load file."}
       </div>
     )
   }
@@ -137,27 +150,37 @@ export function RemoteEditor({
         </div>
       )}
       <div className="min-h-0 flex-1">
-        <Suspense
-          fallback={
-            <div className="text-muted-foreground flex h-full items-center justify-center text-xs">
-              Loading editor…
-            </div>
-          }
-        >
-          <MonacoEditor
-            height="100%"
-            theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
-            path={path}
-            value={value}
-            loading="Loading…"
-            onChange={(v) => {
-              setValue(v ?? "")
-              setLocalDirty(true)
-              if (tabId) setDirty(tabId, true)
-            }}
-            options={monacoOptions}
-          />
-        </Suspense>
+        {file.isLoading && !file.data ? (
+          <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+            Loading file…
+          </div>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+                Loading editor…
+              </div>
+            }
+          >
+            <MonacoEditor
+              height="100%"
+              theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+              path={path}
+              value={value}
+              loading={
+                <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+                  Loading editor…
+                </div>
+              }
+              onChange={(v) => {
+                setValue(v ?? "")
+                setLocalDirty(true)
+                if (tabId) setDirty(tabId, true)
+              }}
+              options={monacoOptions}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   )

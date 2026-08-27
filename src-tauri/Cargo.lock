@@ -127,7 +127,7 @@ checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "application"
-version = "0.1.7"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "domain",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "domain"
-version = "0.1.7"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "serde",
@@ -2897,7 +2897,7 @@ dependencies = [
 
 [[package]]
 name = "infrastructure"
-version = "0.1.7"
+version = "0.1.4"
 dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
@@ -2911,6 +2911,7 @@ dependencies = [
  "domain",
  "futures",
  "hex",
+ "keyring",
  "md5 0.7.0",
  "rand 0.8.7",
  "regex",
@@ -3156,6 +3157,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyring"
+version = "3.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c"
+dependencies = [
+ "log",
+ "zeroize",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3303,7 +3314,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "mcp"
-version = "0.1.7"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "application",
@@ -4751,6 +4762,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "futures-core",
+ "futures-util",
  "http",
  "http-body",
  "http-body-util",
@@ -4770,12 +4782,14 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-rustls",
+ "tokio-util",
  "tower",
  "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams 0.4.2",
  "web-sys",
  "webpki-roots",
 ]
@@ -4815,7 +4829,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams",
+ "wasm-streams 0.5.0",
  "web-sys",
 ]
 
@@ -6104,7 +6118,7 @@ dependencies = [
 
 [[package]]
 name = "sshbool"
-version = "0.1.7"
+version = "0.1.4"
 dependencies = [
  "application",
  "async-trait",
@@ -6113,6 +6127,7 @@ dependencies = [
  "dirs",
  "domain",
  "ed25519-dalek 2.2.0",
+ "futures-util",
  "gethostname",
  "hex",
  "infrastructure",
@@ -6140,6 +6155,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -7499,6 +7515,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1b4cb0cc549fcf58d7dfc081778139b3d283a081644e833e84682ad71cea24"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "wasm-streams"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

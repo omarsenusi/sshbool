@@ -1,18 +1,34 @@
+export {
+  calcUpdatePercent,
+  canInstallUpdate,
+  canUseOta,
+  getGithubFallbackUrl,
+  getInstallButtonLabel,
+  getPlatformInstallSummary,
+  hasPlatformPackage,
+  installUpdate,
+  isUpdaterSupported,
+  openGithubFallback,
+  resolveInstallMode,
+  runDirectInstall,
+  runOtaInstall,
+  usesGithubFallback,
+  type InstallUpdateOptions,
+  type InstallUpdateResult,
+  type PersistedUpdateSession,
+  type UpdateInstallMode,
+  type UpdatePhase,
+  type UpdaterProgress,
+} from "@/lib/update-engine"
+
 import { check } from "@tauri-apps/plugin-updater"
 
-export type UpdaterProgress = {
-  phase: "idle" | "checking" | "downloading" | "installing" | "done" | "error"
-  downloadedBytes?: number
-  totalBytes?: number
-  message?: string
-}
-
+/** @deprecated Prefer useUpdateInstall + update-engine.installUpdate */
 export async function checkNativeUpdate(): Promise<{
   available: boolean
   version?: string
   body?: string
   date?: string
-  install?: () => Promise<void>
 }> {
   const update = await check()
   if (!update) {
@@ -24,12 +40,5 @@ export async function checkNativeUpdate(): Promise<{
     version: update.version,
     body: update.body ?? undefined,
     date: update.date ?? undefined,
-    install: async () => {
-      await update.downloadAndInstall()
-    },
   }
-}
-
-export function isUpdaterSupported(): boolean {
-  return import.meta.env.PROD
 }

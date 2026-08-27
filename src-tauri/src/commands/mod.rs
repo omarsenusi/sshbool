@@ -1,5 +1,6 @@
 //! Tauri command modules.
 
+pub mod clipboard;
 pub mod hosts;
 pub mod license;
 pub mod mcp;

@@ -22,6 +22,9 @@ export const SETTINGS = {
     showHidden: "sftp.showHidden",
     openFileIn: "sftp.openFileIn",
   },
+  updates: {
+    autoUpdate: "updates.autoUpdate",
+  },
 } as const
 
 export type AuthMethodDefault = "key" | "password" | "agent"
@@ -44,6 +47,7 @@ export interface SettingsValues {
   "sftp.confirmDelete": boolean
   "sftp.showHidden": boolean
   "sftp.openFileIn": SftpOpenFileIn
+  "updates.autoUpdate": boolean
 }
 
 export type SettingsKey = keyof SettingsValues
@@ -64,6 +68,7 @@ export const SETTINGS_DEFAULTS: SettingsValues = {
   "sftp.confirmDelete": true,
   "sftp.showHidden": false,
   "sftp.openFileIn": "popout",
+  "updates.autoUpdate": false,
 }
 
 export function settingDefault<K extends SettingsKey>(key: K): SettingsValues[K] {

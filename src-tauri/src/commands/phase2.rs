@@ -16,6 +16,47 @@ fn db(e: sqlx::Error) -> AppError {
     }
 }
 
+async fn pick_local_port() -> Result<u16, AppError> {
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .map_err(|e| AppError::Internal {
+            message: format!("failed to pick local port for RDP tunnel: {e}"),
+        })?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| AppError::Internal {
+            message: format!("failed to read local port for RDP tunnel: {e}"),
+        })?
+        .port();
+    Ok(port)
+}
+
+async fn resolve_host_vault_password(
+    state: &State<'_, Arc<AppState>>,
+    host_id: &str,
+) -> Option<String> {
+    let cred_id = sqlx::query_as::<_, (String,)>("SELECT value FROM settings WHERE key = ?")
+        .bind(format!("host:{host_id}:cred"))
+        .fetch_optional(state.vault.pool())
+        .await
+        .ok()?;
+    let (cid,) = cred_id?;
+    let secret = sqlx::query_as::<_, (Vec<u8>, Vec<u8>)>(
+        "SELECT ciphertext, nonce FROM credentials WHERE id = ?",
+    )
+    .bind(&cid)
+    .fetch_optional(state.vault.pool())
+    .await
+    .ok()?;
+    let (ct, nonce) = secret?;
+    state
+        .vault
+        .open_secret(&ct, &nonce, &format!("cred:{cid}"))
+        .await
+        .ok()
+        .map(|plain| String::from_utf8_lossy(&plain).into_owned())
+}
+
 // ── Proxies & port forwards ──────────────────────────────────────────
 
 #[tauri::command]
@@ -693,12 +734,14 @@ pub async fn folders_compare(
 
 #[tauri::command]
 pub async fn rdp_launch_native(
+    app: tauri::AppHandle,
     state: State<'_, Arc<AppState>>,
     host_id: Option<String>,
     host: String,
     port: u16,
     username: Option<String>,
     password: Option<String>,
+    domain: Option<String>,
     share_clipboard: Option<bool>,
     smart_sizing: Option<bool>,
     admin_mode: Option<bool>,
@@ -707,68 +750,114 @@ pub async fn rdp_launch_native(
     height: Option<u32>,
     color_depth: Option<u32>,
     performance: Option<String>,
-) -> Result<(), AppError> {
+    use_ssh_credentials: Option<bool>,
+) -> Result<Value, AppError> {
     let u = username.unwrap_or_default();
-    let addr = format!("{host}:{port}");
+    let d = domain.unwrap_or_default();
+    let use_ssh = use_ssh_credentials.unwrap_or(true);
+    let hid = host_id.ok_or(AppError::Validation {
+        field: "hostId".into(),
+        message: "hostId is required to establish the SSH RDP tunnel".into(),
+    })?;
 
     let mut p = password.as_deref().unwrap_or("").to_string();
-    if p == "••••••••" || p.is_empty() {
-        if let Some(ref hid) = host_id {
-            tracing::info!("RDP Launch: Resolving encrypted password for host_id = {}", hid);
-            let cred_id: Option<(String,)> =
-                sqlx::query_as("SELECT value FROM settings WHERE key = ?")
-                    .bind(format!("host:{hid}:cred"))
-                    .fetch_optional(state.vault.pool())
-                    .await
-                    .ok()
-                    .flatten();
-            if let Some((cid,)) = cred_id {
-                tracing::info!("RDP Launch: Found credential association = {}", cid);
-                let secret: Option<(Vec<u8>, Vec<u8>)> =
-                    sqlx::query_as("SELECT ciphertext, nonce FROM credentials WHERE id = ?")
-                        .bind(&cid)
-                        .fetch_optional(state.vault.pool())
-                        .await
-                        .ok()
-                        .flatten();
-                if let Some((ct, nonce)) = secret {
-                    match state
-                        .vault
-                        .open_secret(&ct, &nonce, &format!("cred:{cid}"))
-                        .await
-                    {
-                        Ok(plain) => {
-                            p = String::from_utf8_lossy(&plain).into_owned();
-                            tracing::info!("RDP Launch: Successfully decrypted password from vault (len={})", p.len());
-                        }
-                        Err(e) => {
-                            tracing::error!("RDP Launch: Failed to decrypt credential {}: {:?}", cid, e);
-                        }
-                    }
-                } else {
-                    tracing::warn!("RDP Launch: Credential record {} not found in database", cid);
-                }
-            } else {
-                tracing::warn!("RDP Launch: No credential association found in settings for host {}", hid);
-            }
+    if p == "••••••••" || (use_ssh && p.is_empty()) {
+        tracing::info!("RDP Launch: Resolving vault password for host_id = {}", hid);
+        if let Some(vault_pass) = resolve_host_vault_password(&state, &hid).await {
+            p = vault_pass;
+            tracing::info!(
+                "RDP Launch: Successfully decrypted password from vault (len={})",
+                p.len()
+            );
         } else {
-            tracing::warn!("RDP Launch: No host_id provided for RDP password resolution");
+            tracing::warn!("RDP Launch: No vault password found for host {}", hid);
         }
     }
-    #[cfg(target_os = "windows")]
+
+    if use_ssh && p.is_empty() {
+        return Err(AppError::Validation {
+            field: "password".into(),
+            message: "No SSH password saved for this host. Add a password in host settings or turn off “Use SSH credentials” and enter RDP credentials manually.".into(),
+        });
+    }
+
+    let remote_dest = if host.is_empty() || host == "localhost" {
+        "127.0.0.1".to_string()
+    } else {
+        host.clone()
+    };
+
+    match state
+        .connections
+        .probe_remote_tcp(&hid, &remote_dest, port)
+        .await
     {
-        use std::io::Write;
-        use std::process::Command;
+        Ok(true) => tracing::info!(
+            "RDP Launch: remote {remote_dest}:{port} is reachable on SSH host {hid}"
+        ),
+        Ok(false) => {
+            return Err(AppError::Internal {
+                message: format!(
+                    "No RDP service is listening on {remote_dest}:{port} on the SSH host. \
+                     On Linux install/start xRDP (sudo apt install xrdp && sudo systemctl enable --now xrdp). \
+                     On Windows enable Remote Desktop."
+                ),
+            });
+        }
+        Err(e) => tracing::warn!("RDP Launch: remote port probe failed: {e}"),
+    }
 
-        let clipboard_val = if share_clipboard.unwrap_or(true) {
-            1
+    let tunnel_forward_id = format!("rdp-tunnel-{hid}");
+    let local_port = if state.connections.forward_is_active(&tunnel_forward_id).await {
+        if let Some(existing) = state
+            .connections
+            .forward_local_port(&tunnel_forward_id)
+            .await
+        {
+            tracing::info!(
+                "RDP Launch: reusing active tunnel on 127.0.0.1:{existing} -> {remote_dest}:{port}"
+            );
+            existing
         } else {
-            0
-        };
-        let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
-        let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
-        let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
+            let _ = state.connections.port_forward_stop(&tunnel_forward_id).await;
+            let picked = pick_local_port().await?;
+            state
+                .connections
+                .port_forward_start(
+                    &tunnel_forward_id,
+                    &hid,
+                    "127.0.0.1",
+                    picked,
+                    &remote_dest,
+                    port,
+                )
+                .await?;
+            picked
+        }
+    } else {
+        let _ = state.connections.port_forward_stop(&tunnel_forward_id).await;
+        let picked = pick_local_port().await?;
+        state
+            .connections
+            .port_forward_start(
+                &tunnel_forward_id,
+                &hid,
+                "127.0.0.1",
+                picked,
+                &remote_dest,
+                port,
+            )
+            .await?;
+        picked
+    };
 
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+    let connect_host = "127.0.0.1";
+    #[cfg(not(target_os = "windows"))]
+    let rdp_client = "native";
+    #[cfg(target_os = "windows")]
+    let (rdp_client, freerdp_fallback) = {
         let w = width.unwrap_or(1920);
         let h = height.unwrap_or(1080);
         let bpp = color_depth.unwrap_or(32);
@@ -777,78 +866,67 @@ pub async fn rdp_launch_native(
             "modem" => 1,
             "broadband" => 2,
             "lan" => 5,
-            _ => 6, // auto
+            _ => 6,
+        };
+        let freerdp_candidates = crate::rdp_windows::freerdp_sidecar_candidates(&app);
+        let mstsc_opts = crate::rdp_windows::MstscLaunchOpts {
+            connect_host,
+            local_port,
+            username: &u,
+            domain: &d,
+            share_clipboard: share_clipboard.unwrap_or(true),
+            smart_sizing: smart_sizing.unwrap_or(true),
+            admin_mode: admin_mode.unwrap_or(false),
+            full_screen: full_screen.unwrap_or(false),
+            width: w,
+            height: h,
+            color_depth: bpp,
+            connection_type: connection_val,
         };
 
-        // 1. Store credentials into Windows Credential Manager via cmdkey so mstsc auto-logins!
-        if !u.is_empty() && !p.is_empty() {
-            let _ = Command::new("cmdkey")
-                .args([
-                    &format!("/generic:TERMSRV/{host}"),
-                    &format!("/user:{u}"),
-                    &format!("/pass:{p}"),
-                ])
-                .status();
-
-            let _ = Command::new("cmdkey")
-                .args([
-                    &format!("/generic:TERMSRV/{addr}"),
-                    &format!("/user:{u}"),
-                    &format!("/pass:{p}"),
-                ])
-                .status();
-        }
-
-        // 2. Generate temporary .rdp file applying all exact profile override toggles!
-        let rdp_content = format!(
-            "full address:s:{addr}\r\n\
-             username:s:{u}\r\n\
-             prompt for credentials:i:0\r\n\
-             authentication level:i:2\r\n\
-             redirectclipboard:i:{clipboard_val}\r\n\
-             smart sizing:i:{sizing_val}\r\n\
-             administrative session:i:{admin_val}\r\n\
-             screen mode id:i:{screen_mode_val}\r\n\
-             desktopwidth:i:{w}\r\n\
-             desktopheight:i:{h}\r\n\
-             session bpp:i:{bpp}\r\n\
-             connection type:i:{connection_val}\r\n"
-        );
-
-        let temp_file_name = format!(".sshbool_rdp_{}.rdp", Uuid::now_v7());
-        let temp_path = std::env::temp_dir().join(&temp_file_name);
-        if let Ok(mut file) = std::fs::File::create(&temp_path) {
-            let _ = file.write_all(rdp_content.as_bytes());
-
-            let mut cmd = Command::new("mstsc.exe");
-            cmd.arg(temp_path.to_str().unwrap_or(""));
-            if admin_mode.unwrap_or(false) {
-                cmd.arg("/admin");
+        if !p.is_empty() {
+            if !crate::rdp_windows::freerdp_stdin_available(&freerdp_candidates) {
+                tracing::info!("RDP: FreeRDP 3.x not found, downloading");
+                match tokio::task::spawn_blocking(crate::rdp_windows::provision_freerdp_bundle).await
+                {
+                    Ok(Ok(path)) => {
+                        tracing::info!("RDP: provisioned FreeRDP at {}", path.display());
+                    }
+                    Ok(Err(e)) => tracing::warn!("RDP: FreeRDP download failed: {e}"),
+                    Err(e) => tracing::warn!("RDP: FreeRDP download task failed: {e}"),
+                }
             }
-            if full_screen.unwrap_or(false) {
-                cmd.arg("/f");
-            }
-            let _ = cmd.spawn();
+
+            let freerdp_opts = crate::rdp_windows::RdpLaunchOpts {
+                connect_host,
+                local_port,
+                username: &u,
+                password: &p,
+                domain: &d,
+                freerdp_candidates: &freerdp_candidates,
+                share_clipboard: share_clipboard.unwrap_or(true),
+                smart_sizing: smart_sizing.unwrap_or(true),
+                admin_mode: admin_mode.unwrap_or(false),
+                full_screen: full_screen.unwrap_or(false),
+                width: w,
+                height: h,
+                color_depth: bpp,
+            };
+
+            crate::rdp_windows::launch_with_protocol_password(&freerdp_opts).map_err(|message| {
+                AppError::Internal { message }
+            })?;
+            ("freerdp", false)
         } else {
-            let safe_host = host
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == ':');
-            if safe_host {
-                let mut cmd = Command::new("mstsc.exe");
-                cmd.arg(format!("/v:{addr}"));
-                if admin_mode.unwrap_or(false) {
-                    cmd.arg("/admin");
-                }
-                if full_screen.unwrap_or(false) {
-                    cmd.arg("/f");
-                }
-                let _ = cmd.spawn();
-            }
+            crate::rdp_windows::launch_mstsc_manual(&mstsc_opts)
+                .map_err(|message| AppError::Internal { message })?;
+            ("mstsc", false)
         }
-    }
+    };
 
     #[cfg(target_os = "macos")]
     {
+        let connect_addr = format!("{connect_host}:{local_port}");
         use std::io::Write;
         use std::process::Command;
 
@@ -866,10 +944,10 @@ pub async fn rdp_launch_native(
         let bpp = color_depth.unwrap_or(32);
 
         let rdp_content = format!(
-            "full address:s:{addr}\r\n\
+            "full address:s:{connect_addr}\r\n\
              username:s:{u}\r\n\
              prompt for credentials:i:0\r\n\
-             authentication level:i:2\r\n\
+             authentication level:i:0\r\n\
              redirectclipboard:i:{clipboard_val}\r\n\
              smart sizing:i:{sizing_val}\r\n\
              administrative session:i:{admin_val}\r\n\
@@ -886,7 +964,7 @@ pub async fn rdp_launch_native(
             let _ = Command::new("open").arg(&temp_path).spawn();
         } else {
             let url = format!(
-                "rdp://full%20address=s:{addr}&username=s:{u}&redirectclipboard=i:{clipboard_val}&smartsizing=i:{sizing_val}&desktopwidth=i:{w}&desktopheight=i:{h}&bpp=i:{bpp}"
+                "rdp://full%20address=s:{connect_addr}&username=s:{u}&redirectclipboard=i:{clipboard_val}&smartsizing=i:{sizing_val}&desktopwidth=i:{w}&desktopheight=i:{h}&bpp=i:{bpp}"
             );
             let _ = Command::new("open").arg(&url).spawn();
         }
@@ -894,6 +972,7 @@ pub async fn rdp_launch_native(
 
     #[cfg(target_os = "linux")]
     {
+        let connect_addr = format!("{connect_host}:{local_port}");
         use std::io::Write;
         use std::process::Command;
 
@@ -916,7 +995,7 @@ pub async fn rdp_launch_native(
         let has_pass = !p.is_empty();
 
         let mut args = vec![
-            format!("/v:{addr}"),
+            format!("/v:{connect_addr}"),
             format!("/u:{u}"),
             "/cert:tofu".to_string(),
         ];
@@ -1017,7 +1096,19 @@ pub async fn rdp_launch_native(
         }
     }
 
-    Ok(())
+    #[cfg(not(target_os = "windows"))]
+    let freerdp_fallback = false;
+
+    Ok(json!({
+        "localHost": connect_host,
+        "localPort": local_port,
+        "remoteHost": remote_dest,
+        "remotePort": port,
+        "forwardId": tunnel_forward_id,
+        "rdpClient": rdp_client,
+        "autoLogin": use_ssh && !p.is_empty(),
+        "freerdpFallback": freerdp_fallback,
+    }))
 }
 
 #[tauri::command]
