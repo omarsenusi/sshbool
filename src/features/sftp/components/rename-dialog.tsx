@@ -7,12 +7,14 @@ export function RenameDialog({
   open,
   initial,
   title = "Rename",
+  confirmLabel = "Save",
   onClose,
   onSubmit,
 }: {
   open: boolean
   initial: string
   title?: string
+  confirmLabel?: string
   onClose: () => void
   onSubmit: (name: string) => void | Promise<void>
 }) {
@@ -60,7 +62,7 @@ export function RenameDialog({
           </Button>
           <Button size="sm" disabled={!name.trim() || busy} onClick={() => void submit()}>
             {busy && <Loader2 className="mr-1 size-3.5 animate-spin" />}
-            Save
+            {confirmLabel}
           </Button>
         </div>
       </div>
