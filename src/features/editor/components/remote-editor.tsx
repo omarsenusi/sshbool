@@ -5,11 +5,11 @@ import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
 import { useEditorMonacoOptions } from "@/hooks/use-editor-monaco-options"
-import { ipc } from "@/lib/ipc/commands"
+import { IpcError, ipc } from "@/lib/ipc/commands"
 import { useEditorStore } from "@/stores/editor.store"
 import { runSftpActivity } from "@/stores/sftp-activity.store"
 
-const MonacoEditor = lazy(() => import("@monaco-editor/react"))
+const MonacoEditor = lazy(() => import("./monaco-editor-lazy"))
 
 export type EditorToolbarApi = {
   dirty: boolean
@@ -105,9 +105,19 @@ export function RemoteEditor({
   }
 
   if (file.isError) {
+    const message =
+      file.error instanceof IpcError
+        ? file.error.message
+        : file.error instanceof Error
+          ? file.error.message
+          : "Failed to load file."
     return (
-      <div className="text-destructive flex h-full items-center justify-center p-4 text-center text-sm">
-        {file.error instanceof Error ? file.error.message : "Failed to load file."}
+      <div className="text-destructive flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm">
+        <p>Failed to load file.</p>
+        <p className="text-muted-foreground max-w-md font-mono text-xs">{message}</p>
+        <Button size="xs" variant="outline" onClick={() => void file.refetch()}>
+          Retry
+        </Button>
       </div>
     )
   }

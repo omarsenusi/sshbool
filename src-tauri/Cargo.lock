@@ -127,7 +127,7 @@ checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "application"
-version = "0.1.4"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "domain",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "domain"
-version = "0.1.4"
+version = "0.1.8"
 dependencies = [
  "async-trait",
  "serde",
@@ -2897,7 +2897,7 @@ dependencies = [
 
 [[package]]
 name = "infrastructure"
-version = "0.1.4"
+version = "0.1.8"
 dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
@@ -3314,7 +3314,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "mcp"
-version = "0.1.4"
+version = "0.1.8"
 dependencies = [
  "anyhow",
  "application",
@@ -6147,7 +6147,7 @@ dependencies = [
 
 [[package]]
 name = "sshbool"
-version = "0.1.4"
+version = "0.1.8"
 dependencies = [
  "aes 0.8.4",
  "application",
