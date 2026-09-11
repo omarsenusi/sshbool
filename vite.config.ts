@@ -37,6 +37,16 @@ export default defineConfig({
           : "es2022",
     minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("monaco-editor")) {
+            return "monaco"
+          }
+        },
+      },
+    },
   },
   test: {
     environment: "jsdom",
