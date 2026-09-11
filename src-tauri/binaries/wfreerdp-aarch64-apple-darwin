@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "FreeRDP sidecar is only supported on Windows target"
+exit 1
