@@ -131,7 +131,7 @@ export function HomeOverview() {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="h-full min-h-0 flex-1 overflow-y-auto">
       <div className="flex w-full flex-col gap-5 p-4 pb-8 lg:p-5">
         {/* Header — full width, left aligned */}
         <header className="flex flex-wrap items-end justify-between gap-3">

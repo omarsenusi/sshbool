@@ -579,6 +579,10 @@ async fn upload_dir(
     Ok(job_id)
 }
 
+async fn cleanup_download_dest(dest: &str) {
+    let _ = tokio::fs::remove_file(dest).await;
+}
+
 async fn download_one(
     app: &AppHandle,
     state: &Arc<AppState>,
@@ -591,18 +595,6 @@ async fn download_one(
     let dest = resolve_local_dest(remote_path, local_path).await?;
     let job_id = begin_job(state, host_id, "download", remote_path, &dest, total).await?;
     let cancel = register_cancel(&job_id).await;
-    let _ = bump_progress(
-        app,
-        state,
-        &job_id,
-        host_id,
-        "download",
-        remote_path,
-        &dest,
-        0,
-        total,
-    )
-    .await;
 
     if is_canceled(&cancel) {
         unregister_cancel(&job_id).await;
@@ -621,13 +613,58 @@ async fn download_one(
         return Ok(job_id);
     }
 
-    let read_result = state
+    if let Some(parent) = Path::new(&dest).parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| AppError::Io {
+                message: e.to_string(),
+            })?;
+    }
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(i64, i64)>();
+    {
+        let app = app.clone();
+        let state = Arc::clone(state);
+        let job_id = job_id.clone();
+        let host_id = host_id.to_string();
+        let remote_path = remote_path.to_string();
+        let dest = dest.clone();
+        tokio::spawn(async move {
+            let mut last = -1i64;
+            while let Some((done, tot)) = rx.recv().await {
+                if done == tot || done - last >= (tot / 50).max(1) || last < 0 {
+                    last = done;
+                    let _ = bump_progress(
+                        &app,
+                        &state,
+                        &job_id,
+                        &host_id,
+                        "download",
+                        &remote_path,
+                        &dest,
+                        done,
+                        tot,
+                    )
+                    .await;
+                }
+            }
+        });
+    }
+
+    let cancel_flag = Arc::clone(&cancel);
+    let download_result = state
         .connections
-        .sftp_read_bytes(host_id, remote_path, None)
+        .sftp_download_to(host_id, remote_path, &dest, |done, tot| {
+            let _ = tx.send((done as i64, tot as i64));
+            !is_canceled(&cancel_flag)
+        })
         .await;
 
+    drop(tx);
+    unregister_cancel(&job_id).await;
+
     if is_canceled(&cancel) {
-        unregister_cancel(&job_id).await;
+        cleanup_download_dest(&dest).await;
         let _ = mark_canceled(
             app,
             state,
@@ -643,82 +680,9 @@ async fn download_one(
         return Ok(job_id);
     }
 
-    match read_result {
-        Ok((bytes, _)) => {
-            let total = bytes.len() as i64;
-            if is_canceled(&cancel) {
-                unregister_cancel(&job_id).await;
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
-            let _ = bump_progress(
-                app,
-                state,
-                &job_id,
-                host_id,
-                "download",
-                remote_path,
-                &dest,
-                total / 2,
-                total,
-            )
-            .await;
-            if let Some(parent) = Path::new(&dest).parent() {
-                tokio::fs::create_dir_all(parent)
-                    .await
-                    .map_err(|e| AppError::Io {
-                        message: e.to_string(),
-                    })?;
-            }
-            if is_canceled(&cancel) {
-                unregister_cancel(&job_id).await;
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
-            tokio::fs::write(&dest, &bytes)
-                .await
-                .map_err(|e| AppError::Io {
-                    message: e.to_string(),
-                })?;
-            unregister_cancel(&job_id).await;
-            if is_canceled(&cancel) {
-                let _ = tokio::fs::remove_file(&dest).await;
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
+    match download_result {
+        Ok(transferred) => {
+            let transferred = transferred as i64;
             finish_job(
                 app,
                 state,
@@ -728,30 +692,31 @@ async fn download_one(
                 remote_path,
                 &dest,
                 total,
-                total,
+                transferred,
                 "done",
                 None,
             )
             .await?;
             Ok(job_id)
         }
+        Err(e) if matches!(e, DomainError::Canceled) || is_canceled(&cancel) => {
+            cleanup_download_dest(&dest).await;
+            let _ = mark_canceled(
+                app,
+                state,
+                &job_id,
+                host_id,
+                "download",
+                remote_path,
+                &dest,
+                0,
+                total,
+            )
+            .await;
+            Ok(job_id)
+        }
         Err(e) => {
-            unregister_cancel(&job_id).await;
-            if is_canceled(&cancel) {
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
+            cleanup_download_dest(&dest).await;
             let msg = e.to_string();
             let _ = finish_job(
                 app,

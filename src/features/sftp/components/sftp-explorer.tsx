@@ -35,6 +35,7 @@ import { flattenHosts } from "@/features/connections/host-appearance"
 import { useConnectionStore } from "@/stores/connection.store"
 import { useLayoutStore } from "@/stores/layout.store"
 import { runSftpActivity } from "@/stores/sftp-activity.store"
+import { toast } from "@/stores/toast.store"
 
 type MenuState = { x: number; y: number; side: PaneSide; entry: SftpEntryDto | null }
 
@@ -304,11 +305,12 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
   })
 
   const downloadPaths = useMutation({
-    mutationFn: async (paths: string[]) => {
+    mutationFn: async ({ paths, dest }: { paths: string[]; dest?: string }) => {
       await qc.invalidateQueries({ queryKey: ["transfers"] })
       const ids: string[] = []
+      const target = dest || localPath
       for (const p of paths) {
-        ids.push(await ipc.transferDownload(hostId, p, localPath))
+        ids.push(await ipc.transferDownload(hostId, p, target))
       }
       return ids
     },
@@ -474,7 +476,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       items.push({
         type: "item",
         label: "Download",
-        onClick: () => downloadPaths.mutate(targets.map((e) => e.path)),
+        onClick: () => downloadPaths.mutate({ paths: targets.map((e) => e.path) }),
       })
     }
 
@@ -784,13 +786,17 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             variant="outline"
             disabled={uploadPaths.isPending}
             onClick={async () => {
-              const picked = await openDialog({
-                multiple: true,
-                title: "Upload files",
-              })
-              if (!picked) return
-              const paths = Array.isArray(picked) ? picked : [picked]
-              uploadPaths.mutate(paths)
+              try {
+                const picked = await openDialog({
+                  multiple: true,
+                  title: "Upload files",
+                })
+                if (!picked) return
+                const paths = Array.isArray(picked) ? picked : [picked]
+                uploadPaths.mutate(paths)
+              } catch (err) {
+                toast.error("Failed to open file picker", String(err))
+              }
             }}
           >
             <Upload className="size-3.5" />
@@ -801,15 +807,16 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             variant="outline"
             disabled={!remoteSelected.length || downloadPaths.isPending}
             onClick={async () => {
-              const dir = await openDialog({
-                directory: true,
-                title: "Download to folder",
-              })
-              if (!dir || Array.isArray(dir)) return
-              for (const p of remoteSelected) {
-                await ipc.transferDownload(hostId, p, dir)
+              try {
+                const dir = await openDialog({
+                  directory: true,
+                  title: "Download to folder",
+                })
+                if (!dir || Array.isArray(dir)) return
+                downloadPaths.mutate({ paths: remoteSelected, dest: dir })
+              } catch (err) {
+                toast.error("Failed to open folder picker", String(err))
               }
-              await invalidateAll()
             }}
           >
             <Download className="size-3.5" />

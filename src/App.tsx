@@ -507,7 +507,8 @@ function KeepAlive({ active, children }: { active: boolean; children: ReactNode 
         "h-full w-full",
         // Use visibility (not display:none) so xterm keeps layout size;
         // only the active panel should call pane_resize.
-        !active && "pointer-events-none absolute inset-0 z-0 opacity-0",
+        !active &&
+          "invisible pointer-events-none absolute inset-0 z-0 opacity-0 [&_*]:pointer-events-none",
         active && "relative z-10",
       )}
       aria-hidden={!active}

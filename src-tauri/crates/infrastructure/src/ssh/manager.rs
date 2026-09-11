@@ -1,6 +1,7 @@
 //! SSH session / PTY / SFTP manager (russh 0.62).
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 use domain::DomainError;
@@ -8,6 +9,7 @@ use russh::client::{self, AuthResult, Handle};
 use russh::keys::{decode_secret_key, HashAlg, PrivateKeyWithHashAlg, PublicKey, PublicKeyBase64};
 use russh::ChannelMsg;
 use russh::Pty;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{mpsc, Mutex, RwLock};
 use uuid::Uuid;
 
@@ -944,7 +946,12 @@ impl ConnectionManager {
         let meta = sftp
             .metadata(path)
             .await
-            .map_err(|e| DomainError::Conflict(e.to_string()))?;
+            .map_err(|e| map_sftp_err("stat", e))?;
+        if meta.file_type().is_dir() {
+            return Err(DomainError::Conflict(
+                "cannot read a directory as a file".into(),
+            ));
+        }
         let mtime = meta.mtime.unwrap_or(0) as i64;
         let size = meta.size.unwrap_or(0);
         if let Some(max) = max_bytes {
@@ -954,15 +961,38 @@ impl ConnectionManager {
                 )));
             }
         }
-        let mut file = sftp
-            .open(path)
-            .await
-            .map_err(|e| DomainError::Conflict(e.to_string()))?;
-        let mut buf = Vec::with_capacity(size as usize);
-        tokio::io::AsyncReadExt::read_to_end(&mut file, &mut buf)
-            .await
-            .map_err(|e| DomainError::Conflict(e.to_string()))?;
+        let mut file = sftp.open(path).await.map_err(|e| map_sftp_err("open", e))?;
+        let mut buf = Vec::new();
+        if size > 0 {
+            buf.reserve(size.min(max_bytes.unwrap_or(size)) as usize);
+        }
+        sftp_read_file_chunked(&mut file, max_bytes, |chunk| {
+            buf.extend_from_slice(chunk);
+            Ok(true)
+        })
+        .await?;
+        let _ = file.shutdown().await;
         Ok((buf, mtime))
+    }
+
+    /// Stream a remote file (or directory tree) onto the local filesystem.
+    /// `on_progress(done, total)` — return `false` to cancel.
+    pub async fn sftp_download_to<F>(
+        &self,
+        host_id: &str,
+        remote_path: &str,
+        local_path: &str,
+        mut on_progress: F,
+    ) -> Result<u64, DomainError>
+    where
+        F: FnMut(u64, u64) -> bool + Send,
+    {
+        let sftp = self.open_sftp(host_id).await?;
+        let remote = sftp
+            .canonicalize(remote_path)
+            .await
+            .unwrap_or_else(|_| remote_path.to_string());
+        sftp_download_path(&sftp, &remote, Path::new(local_path), &mut on_progress).await
     }
 
     /// Atomic UTF-8 write: temp + rename (editor).
@@ -1172,32 +1202,32 @@ impl ConnectionManager {
             }
             Ok(())
         } else {
-            let mut file = sftp
-                .open(from)
-                .await
-                .map_err(|e| DomainError::Conflict(e.to_string()))?;
+            let mut file = sftp.open(from).await.map_err(|e| map_sftp_err("open", e))?;
             let mut buf = Vec::new();
-            tokio::io::AsyncReadExt::read_to_end(&mut file, &mut buf)
-                .await
-                .map_err(|e| DomainError::Conflict(e.to_string()))?;
+            sftp_read_file_chunked(&mut file, None, |chunk| {
+                buf.extend_from_slice(chunk);
+                Ok(true)
+            })
+            .await?;
+            let _ = file.shutdown().await;
             let tmp = format!("{to}.sshbool.tmp");
             {
                 let mut out = sftp
                     .create(&tmp)
                     .await
-                    .map_err(|e| DomainError::Conflict(e.to_string()))?;
-                use tokio::io::AsyncWriteExt;
-                out.write_all(&buf)
-                    .await
-                    .map_err(|e| DomainError::Conflict(e.to_string()))?;
-                out.shutdown()
-                    .await
-                    .map_err(|e| DomainError::Conflict(e.to_string()))?;
+                    .map_err(|e| map_sftp_err("create", e))?;
+                const CHUNK: usize = 64 * 1024;
+                for chunk in buf.chunks(CHUNK) {
+                    out.write_all(chunk)
+                        .await
+                        .map_err(|e| map_sftp_err("write", e))?;
+                }
+                out.shutdown().await.map_err(|e| map_sftp_err("close", e))?;
             }
             let _ = sftp.remove_file(to).await;
             sftp.rename(&tmp, to)
                 .await
-                .map_err(|e| DomainError::Conflict(e.to_string()))
+                .map_err(|e| map_sftp_err("rename", e))
         }
     }
 
@@ -1326,4 +1356,133 @@ fn join_remote(base: &str, name: &str) -> String {
     } else {
         format!("{base}/{name}")
     }
+}
+
+/// OpenSSH and many embedded SFTP servers reject SSH_FXP_READ larger than 32KiB
+/// with a generic SSH_FX_FAILURE ("Failure: Failure"). Always read in small chunks
+/// — never `read_to_end` into a Vec pre-sized to the whole file, because tokio
+/// will then request the entire spare capacity in one packet.
+const SFTP_READ_CHUNK: usize = 32 * 1024;
+
+fn map_sftp_err(op: &str, e: impl std::fmt::Display) -> DomainError {
+    let raw = e.to_string();
+    if raw.contains("Failure") {
+        DomainError::Conflict(format!(
+            "{op} rejected by the SFTP server ({raw}). The path may be a directory, unreadable, or the read exceeded the server's size limit."
+        ))
+    } else {
+        DomainError::Conflict(format!("{op}: {raw}"))
+    }
+}
+
+async fn sftp_read_file_chunked<R, F>(
+    file: &mut R,
+    max_bytes: Option<u64>,
+    mut on_chunk: F,
+) -> Result<u64, DomainError>
+where
+    R: tokio::io::AsyncRead + Unpin,
+    F: FnMut(&[u8]) -> Result<bool, DomainError>,
+{
+    let mut buf = vec![0u8; SFTP_READ_CHUNK];
+    let mut total = 0u64;
+    loop {
+        let n = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| map_sftp_err("read", e))?;
+        if n == 0 {
+            break;
+        }
+        total += n as u64;
+        if let Some(max) = max_bytes {
+            if total > max {
+                return Err(DomainError::Conflict(format!(
+                    "file too large (>{max} bytes)"
+                )));
+            }
+        }
+        if !on_chunk(&buf[..n])? {
+            return Err(DomainError::Canceled);
+        }
+    }
+    Ok(total)
+}
+
+async fn sftp_download_path<F>(
+    sftp: &russh_sftp::client::SftpSession,
+    remote: &str,
+    local: &Path,
+    on_progress: &mut F,
+) -> Result<u64, DomainError>
+where
+    F: FnMut(u64, u64) -> bool + Send,
+{
+    let meta = sftp
+        .metadata(remote)
+        .await
+        .map_err(|e| map_sftp_err("stat", e))?;
+    if meta.file_type().is_dir() {
+        tokio::fs::create_dir_all(local)
+            .await
+            .map_err(|e| DomainError::Conflict(format!("mkdir {}: {e}", local.display())))?;
+        let entries = sftp
+            .read_dir(remote)
+            .await
+            .map_err(|e| map_sftp_err("readdir", e))?;
+        let mut written = 0u64;
+        for entry in entries {
+            let name = entry.file_name();
+            if name == "." || name == ".." {
+                continue;
+            }
+            let src = join_remote(remote, &name);
+            let dst = local.join(&name);
+            written += Box::pin(sftp_download_path(sftp, &src, &dst, on_progress)).await?;
+        }
+        return Ok(written);
+    }
+
+    if let Some(parent) = local.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| DomainError::Conflict(format!("mkdir {}: {e}", parent.display())))?;
+    }
+
+    let total = meta.size.unwrap_or(0);
+    if !on_progress(0, total) {
+        return Err(DomainError::Canceled);
+    }
+
+    let mut file = sftp
+        .open(remote)
+        .await
+        .map_err(|e| map_sftp_err("open", e))?;
+    let mut out = tokio::fs::File::create(local)
+        .await
+        .map_err(|e| DomainError::Conflict(format!("create {}: {e}", local.display())))?;
+    let mut buf = vec![0u8; SFTP_READ_CHUNK];
+    let mut written = 0u64;
+    loop {
+        let n = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| map_sftp_err("read", e))?;
+        if n == 0 {
+            break;
+        }
+        out.write_all(&buf[..n])
+            .await
+            .map_err(|e| DomainError::Conflict(format!("write {}: {e}", local.display())))?;
+        written += n as u64;
+        if !on_progress(written, total.max(written)) {
+            let _ = tokio::fs::remove_file(local).await;
+            return Err(DomainError::Canceled);
+        }
+    }
+    out.flush()
+        .await
+        .map_err(|e| DomainError::Conflict(format!("flush {}: {e}", local.display())))?;
+    let _ = file.shutdown().await;
+    Ok(written)
 }
