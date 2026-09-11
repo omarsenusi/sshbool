@@ -1,9 +1,7 @@
 import { getCurrentWindow, ProgressBarStatus } from "@tauri-apps/api/window"
 import { useEffect, useMemo, useRef } from "react"
 
-import {
-  useActiveTransfers,
-} from "@/hooks/use-transfers-sync"
+import { useActiveTransfers } from "@/hooks/use-transfers-sync"
 import type { TransferJobDto } from "@/lib/ipc/types"
 
 function aggregateProgress(active: TransferJobDto[]): {
@@ -28,7 +26,10 @@ function aggregateProgress(active: TransferJobDto[]): {
   }
 
   return {
-    progress: Math.min(100, Math.max(0, Math.round((doneBytes / totalBytes) * 100))),
+    progress: Math.min(
+      100,
+      Math.max(0, Math.round((doneBytes / totalBytes) * 100))
+    ),
     indeterminate: false,
   }
 }
@@ -38,7 +39,7 @@ export function useTaskbarTransferProgress(enabled = true) {
   const active = useActiveTransfers()
   const state = useMemo(
     () => (enabled ? aggregateProgress(active) : null),
-    [active, enabled],
+    [active, enabled]
   )
   const lastKey = useRef<string>("")
 

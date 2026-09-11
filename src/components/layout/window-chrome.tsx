@@ -1,15 +1,6 @@
 import { Image } from "@tauri-apps/api/image"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import {
-  Minus,
-  Monitor,
-  Moon,
-  Pin,
-  PinOff,
-  Square,
-  Sun,
-  X,
-} from "lucide-react"
+import { Minus, Monitor, Moon, Pin, PinOff, Square, Sun, X } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState, type ReactNode } from "react"
 
@@ -88,7 +79,9 @@ export function WindowChrome({
       try {
         await win.setAlwaysOnTop(next)
         setPinned(next)
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -129,7 +122,11 @@ export function WindowChrome({
   function handleStartDrag(e: React.MouseEvent) {
     const target = e.target as HTMLElement
     // Ignore drag when clicking interactive elements like buttons, dropdowns, inputs
-    if (target.closest("button") || target.closest("input") || target.closest("select")) {
+    if (
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("select")
+    ) {
       return
     }
     void win.startDragging().catch(() => {})
@@ -138,8 +135,8 @@ export function WindowChrome({
   return (
     <header
       className={cn(
-        "bg-sidebar border-border flex h-[var(--titlebar-h)] shrink-0 items-center border-b select-none cursor-default",
-        className,
+        "flex h-[var(--titlebar-h)] shrink-0 cursor-default items-center border-b border-border bg-sidebar select-none",
+        className
       )}
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       data-tauri-drag-region
@@ -155,7 +152,7 @@ export function WindowChrome({
         </div>
         <div className="flex min-w-0 items-center gap-2" data-tauri-drag-region>
           <span
-            className="text-foreground text-[13px] font-semibold tracking-tight"
+            className="text-[13px] font-semibold tracking-tight text-foreground"
             data-tauri-drag-region
           >
             {title}
@@ -174,7 +171,7 @@ export function WindowChrome({
       </div>
 
       <div
-        className="flex shrink-0 items-center pr-1 z-30"
+        className="z-30 flex shrink-0 items-center pr-1"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         {showPin && (
@@ -188,11 +185,18 @@ export function WindowChrome({
                 ? "Unpin this window (only this window)"
                 : "Pin this window on top (only this window)"
             }
-            className={cn("text-muted-foreground", pinned && "text-primary bg-primary/10")}
+            className={cn(
+              "text-muted-foreground",
+              pinned && "bg-primary/10 text-primary"
+            )}
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             onClick={(e) => void togglePin(e)}
           >
-            {pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+            {pinned ? (
+              <PinOff className="size-3.5" />
+            ) : (
+              <Pin className="size-3.5" />
+            )}
           </Button>
         )}
         {showTheme && (
@@ -208,7 +212,7 @@ export function WindowChrome({
             <ThemeIcon className="size-3.5" />
           </Button>
         )}
-        <div className="bg-border mx-1 h-3.5 w-px" aria-hidden />
+        <div className="mx-1 h-3.5 w-px bg-border" aria-hidden />
         <Button
           variant="ghost"
           size="icon-xs"

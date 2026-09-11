@@ -7,12 +7,14 @@ export function RenameDialog({
   open,
   initial,
   title = "Rename",
+  confirmLabel = "Save",
   onClose,
   onSubmit,
 }: {
   open: boolean
   initial: string
   title?: string
+  confirmLabel?: string
   onClose: () => void
   onSubmit: (name: string) => void | Promise<void>
 }) {
@@ -41,12 +43,12 @@ export function RenameDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="border-border bg-background w-full max-w-sm rounded-xl border p-4 shadow-lg">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-background p-4 shadow-lg">
         <h3 className="text-sm font-semibold">{title}</h3>
         <input
           autoFocus
           disabled={busy}
-          className="border-input bg-background mt-3 w-full rounded-md border px-3 py-2 text-sm outline-none disabled:opacity-60"
+          className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none disabled:opacity-60"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
@@ -58,9 +60,13 @@ export function RenameDialog({
           <Button size="sm" variant="ghost" disabled={busy} onClick={onClose}>
             Cancel
           </Button>
-          <Button size="sm" disabled={!name.trim() || busy} onClick={() => void submit()}>
+          <Button
+            size="sm"
+            disabled={!name.trim() || busy}
+            onClick={() => void submit()}
+          >
             {busy && <Loader2 className="mr-1 size-3.5 animate-spin" />}
-            Save
+            {confirmLabel}
           </Button>
         </div>
       </div>
@@ -102,9 +108,9 @@ export function ConfirmDeleteDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="border-border bg-background w-full max-w-sm rounded-xl border p-4 shadow-lg">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-background p-4 shadow-lg">
         <h3 className="text-sm font-semibold">Delete {label}?</h3>
-        <p className="text-muted-foreground mt-2 text-xs">
+        <p className="mt-2 text-xs text-muted-foreground">
           This cannot be undone.
           {isDir ? " Folders will be deleted recursively." : ""}
         </p>
@@ -163,13 +169,15 @@ export function ChmodDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="border-border bg-background w-full max-w-sm rounded-xl border p-4 shadow-lg">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-background p-4 shadow-lg">
         <h3 className="text-sm font-semibold">Change permissions</h3>
-        <p className="text-muted-foreground mt-1 text-xs">Octal mode, e.g. 755 or 644</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Octal mode, e.g. 755 or 644
+        </p>
         <input
           autoFocus
           disabled={busy}
-          className="border-input bg-background mt-3 w-full rounded-md border px-3 py-2 font-mono text-sm outline-none disabled:opacity-60"
+          className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm outline-none disabled:opacity-60"
           value={octal}
           onChange={(e) => setOctal(e.target.value)}
         />

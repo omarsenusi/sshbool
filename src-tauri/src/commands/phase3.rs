@@ -1,6 +1,6 @@
 //! Phase 3 commands: databases, k8s, devtools, sync, audit, plugins.
 
-use infrastructure::AppState;
+use infrastructure::{audit, validate_k8s_name, AppState};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tauri::State;
@@ -13,28 +13,6 @@ fn db(e: sqlx::Error) -> AppError {
         engine: "sqlite".into(),
         message: e.to_string(),
     }
-}
-
-async fn audit(
-    state: &AppState,
-    action: &str,
-    target: Option<&str>,
-    result: &str,
-    meta: Option<Value>,
-) {
-    let id = Uuid::now_v7().to_string();
-    let now = chrono::Utc::now().timestamp_millis();
-    let _ = sqlx::query(
-        "INSERT INTO audit_log (id, at, actor, action, target, metadata_json, result) VALUES (?, ?, 'local', ?, ?, ?, ?)",
-    )
-    .bind(&id)
-    .bind(now)
-    .bind(action)
-    .bind(target)
-    .bind(meta.map(|m| m.to_string()))
-    .bind(result)
-    .execute(state.vault.pool())
-    .await;
 }
 
 // ── Database clients (remote CLI over SSH) ───────────────────────────
@@ -201,12 +179,7 @@ fn build_db_cmd(conn: &DbConn, sql: &str, structured: bool) -> Result<String, Ap
             ))
         }
         "redis" => {
-            let cmd_name = sql
-                .trim()
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .to_uppercase();
+            let cmd_name = sql.split_whitespace().next().unwrap_or("").to_uppercase();
             let blocked = [
                 "CONFIG",
                 "SLAVEOF",
@@ -762,20 +735,6 @@ pub async fn k8s_contexts_list(
         .filter(|l| !l.trim().is_empty() && !l.contains("error"))
         .map(|name| json!({ "name": name.trim() }))
         .collect())
-}
-
-fn validate_k8s_name<'a>(name: &'a str, field_name: &'static str) -> Result<&'a str, AppError> {
-    let valid = !name.is_empty()
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.' || c == '_');
-    if !valid {
-        return Err(AppError::Validation {
-            field: field_name.into(),
-            message: format!("invalid {field_name} format"),
-        });
-    }
-    Ok(name)
 }
 
 #[tauri::command]

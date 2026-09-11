@@ -6,10 +6,10 @@ description = "SSHBool — Infrastructure Workspace"
 
 [workspace]
 resolver = "2"
-members = [".", "crates/application", "crates/domain", "crates/infrastructure"]
+members = [".", "crates/application", "crates/domain", "crates/infrastructure", "crates/mcp"]
 
 [workspace.package]
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -19,6 +19,7 @@ application = { path = "crates/application" }
 async-trait = "0.1"
 domain = { path = "crates/domain" }
 infrastructure = { path = "crates/infrastructure" }
+mcp = { path = "crates/mcp" }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -36,7 +37,12 @@ name = "sshbool_lib"
 
 [dependencies]
 application = { workspace = true }
+async-trait = { workspace = true }
+aes = "0.8"
 base64 = "0.22"
+block-padding = "0.3"
+cbc = "0.1"
+cipher = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
 domain = { workspace = true }
@@ -44,9 +50,11 @@ ed25519-dalek = { version = "2", features = ["std"] }
 gethostname = "1"
 hex = "0.4"
 infrastructure = { workspace = true }
+mcp = { workspace = true }
 rand = "0.8"
 regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+futures-util = "0.3"
 russh = { version = "0.62", default-features = false, features = ["flate2", "ring", "rsa"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -63,9 +71,12 @@ tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }
 tauri-plugin-updater = "2"
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-tungstenite = { version = "0.26", default-features = false, features = ["handshake"] }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+urlencoding = "2"
 uuid = { workspace = true }
+zeroize = { workspace = true }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

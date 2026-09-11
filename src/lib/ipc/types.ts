@@ -47,6 +47,7 @@ export type HostDto = {
   proxyId?: string | null
   password?: string | null
   sshKeyId?: string | null
+  production?: boolean
 }
 
 export type GroupDto = {
@@ -249,6 +250,10 @@ export type AppInfoDto = {
   name: string
   version: string
   tauriVersion: string
+  updatePlatform: string
+  installDir: string
+  exePath: string
+  isPackaged: boolean
 }
 
 export type DetectedDbDto = {

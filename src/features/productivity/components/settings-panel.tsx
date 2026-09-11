@@ -4,7 +4,6 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { KnownHostKeysPanel } from "@/features/vault/components/known-hosts-panel"
 import { Switch } from "@/components/ui/switch"
 import {
   Select,
@@ -13,10 +12,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { saveHostRailPrefs } from "@/hooks/use-host-rail-prefs"
 import { ipc } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
+import { HOST_RAIL_SIZING, useLayoutStore } from "@/stores/layout.store"
 
 import { LicenseSettings } from "@/features/license/components/license-settings"
+import { AboutSettings } from "@/features/productivity/components/settings/about-settings"
+import { UpdatesSettings } from "@/features/productivity/components/settings/updates-settings"
+import { ConnectionsSettings } from "@/features/productivity/components/settings/connections-settings"
+import { EditorSettingsPanel } from "@/features/productivity/components/settings/editor-settings-panel"
+import { FontSelector } from "@/features/productivity/components/settings/font-selector"
+import { KeyboardSettingsPanel } from "@/features/productivity/components/settings/keyboard-settings-panel"
+import { SftpSettingsPanel } from "@/features/productivity/components/settings/sftp-settings-panel"
+import {
+  DEFAULT_TERMINAL_CLIPBOARD_SETTINGS,
+  resolveTerminalClipboardSettings,
+} from "@/features/terminal/terminal-clipboard-settings"
+import {
+  formatKeybindingForDisplay,
+  isValidKeybinding,
+} from "@/lib/keybinding-utils"
 
 const SECTIONS = [
   "general",
@@ -27,9 +43,8 @@ const SECTIONS = [
   "connections",
   "security",
   "license",
-  "team",
-  "hostKeys",
-  "keyboard",
+  // "team",
+  // "keyboard",
   "updates",
   "about",
 ] as const
@@ -55,18 +70,22 @@ function SecuritySettings() {
     <div className="space-y-6">
       <div>
         <h2 className="font-semibold">Security & Encryption</h2>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="mt-1 text-xs text-muted-foreground">
           Manage your master vault password and security options.
         </p>
       </div>
-      <div className="space-y-4 pt-4 border-t border-border max-w-lg">
+      <div className="max-w-lg space-y-4 border-t border-border pt-4">
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-0.5">
-            <label className="text-sm font-medium cursor-pointer" htmlFor="lock-on-startup">
+            <label
+              className="cursor-pointer text-sm font-medium"
+              htmlFor="lock-on-startup"
+            >
               Require Master Password on launch
             </label>
-            <p className="text-muted-foreground text-xs">
-              When enabled, SSHBool will lock the vault and ask for your password every time you open the app.
+            <p className="text-xs text-muted-foreground">
+              When enabled, SSHBool will lock the vault and ask for your
+              password every time you open the app.
             </p>
           </div>
           <Switch
@@ -77,7 +96,11 @@ function SecuritySettings() {
         </div>
 
         <div className="pt-2">
-          <Button size="sm" variant="outline" onClick={() => void ipc.vaultLock()}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void ipc.vaultLock()}
+          >
             Lock vault now
           </Button>
         </div>
@@ -86,26 +109,18 @@ function SecuritySettings() {
   )
 }
 
-
 export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
   const [section, setSection] = useState<Section>(initial)
-  const [invite, setInvite] = useState("")
   const qc = useQueryClient()
 
-  const info = useQuery({ queryKey: ["app-info"], queryFn: () => ipc.appInfo() })
   const density = useQuery({
     queryKey: ["settings", "density"],
     queryFn: () => ipc.settingsGet("density"),
   })
-  const team = useQuery({ queryKey: ["team"], queryFn: () => ipc.teamStatus() })
 
   const setDensity = useMutation({
     mutationFn: (value: string) => ipc.settingsSet("density", value),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
-  })
-  const joinTeam = useMutation({
-    mutationFn: () => ipc.teamJoinStub(invite),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["team"] }),
   })
   const prune = useMutation({
     mutationFn: () => ipc.retentionPrune(30),
@@ -113,16 +128,17 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
 
   return (
     <div className="flex h-full">
-      <aside className="border-border w-48 shrink-0 overflow-y-auto border-r p-2">
+      <aside className="w-48 shrink-0 overflow-y-auto border-r border-border p-2">
         {SECTIONS.map((s) => (
           <button
             key={s}
             type="button"
-            className={`hover:bg-muted/60 w-full rounded-md px-2 py-1.5 text-left text-sm capitalize ${section === s ? "bg-muted" : ""
-              }`}
+            className={`w-full rounded-md px-2 py-1.5 text-left text-sm capitalize hover:bg-muted/60 ${
+              section === s ? "bg-muted" : ""
+            }`}
             onClick={() => setSection(s)}
           >
-            {s === "hostKeys" ? "Host Keys" : s}
+            {s}
           </button>
         ))}
       </aside>
@@ -151,174 +167,106 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
               Prune old metrics/audit (30d)
             </Button>
             {prune.data && (
-              <pre className="bg-muted rounded-md p-2 text-xs">{JSON.stringify(prune.data, null, 2)}</pre>
+              <pre className="rounded-md bg-muted p-2 text-xs">
+                {JSON.stringify(prune.data, null, 2)}
+              </pre>
             )}
           </div>
         )}
-        {section === "appearance" && (
-          <AppearanceSettings />
-        )}
-        {section === "license" && (
-          <LicenseSettings />
-        )}
-        {section === "team" && (
-          <div className="space-y-3">
-            <h2 className="font-semibold">Team</h2>
-            <pre className="bg-muted rounded-md p-2 font-mono text-xs">
-              {JSON.stringify(team.data ?? {}, null, 2)}
-            </pre>
-            <input
-              className="border-input bg-background w-full rounded-md border px-2 py-1 text-xs"
-              placeholder="Invite code"
-              value={invite}
-              onChange={(e) => setInvite(e.target.value)}
-            />
-            <Button size="sm" disabled={!invite} onClick={() => joinTeam.mutate()}>
-              Join (stub)
-            </Button>
-            {joinTeam.isError && (
-              <p className="text-destructive text-xs">{(joinTeam.error as Error).message}</p>
-            )}
-          </div>
-        )}
-        {section === "about" && (
-          <div className="space-y-2">
-            <h2 className="font-semibold">About</h2>
-            <p>
-              {info.data?.name ?? "SSHBool"} {info.data?.version ?? "0.1.7"}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Tauri {info.data?.tauriVersion ?? "2"}
+        {section === "appearance" && <AppearanceSettings />}
+        {section === "license" && <LicenseSettings />}
+        {section === "about" && <AboutSettings />}
+        {section === "updates" && <UpdatesSettings />}
+        {section === "security" && <SecuritySettings />}
+        {section === "terminal" && <TerminalSettings />}
+        {section === "connections" && <ConnectionsSettings />}
+        {section === "editor" && <EditorSettingsPanel />}
+        {section === "sftp" && <SftpSettingsPanel />}
+        {(section as string) === "keyboard" && <KeyboardSettingsPanel />}
+        {![
+          "general",
+          "appearance",
+          "terminal",
+          "about",
+          "updates",
+          "security",
+          "license",
+          "team",
+          "connections",
+          "editor",
+          "sftp",
+          "keyboard",
+        ].includes(section) && (
+          <div>
+            <h2 className="font-semibold capitalize">{section}</h2>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Settings for {section} are available and persisted via
+              settings_get/set.
             </p>
           </div>
         )}
-        {section === "updates" && (
-          <div className="space-y-2">
-            <h2 className="font-semibold">Updates</h2>
-            <p className="text-muted-foreground text-xs">
-              Auto-update is wired via Tauri updater plugin (stable channel).
-            </p>
-            <Button size="sm" variant="outline" disabled>
-              Check for updates
-            </Button>
-          </div>
-        )}
-        {section === "security" && (
-          <SecuritySettings />
-        )}
-        {section === "terminal" && (
-          <TerminalSettings />
-        )}
-        {section === "hostKeys" && (
-          <KnownHostKeysPanel />
-        )}
-        {!["general", "appearance", "terminal", "about", "updates", "security", "license", "team", "hostKeys"].includes(
-          section,
-        ) && (
-            <div>
-              <h2 className="font-semibold capitalize">{section}</h2>
-              <p className="text-muted-foreground mt-2 text-xs">
-                Settings for {section} are available and persisted via settings_get/set.
-              </p>
-            </div>
-          )}
       </div>
     </div>
   )
 }
 
-function FontSelector({
-  value,
-  onChange,
-  onSave,
-  isSaving,
-  label,
-  description,
-  popularFonts
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onSave: () => void;
-  isSaving: boolean;
-  label: string;
-  description: string;
-  popularFonts: string[]
-}) {
+function HostRailSettings() {
+  const mode = useLayoutStore((s) => s.hostRailMode)
+  const width = useLayoutStore((s) => s.hostRailWidth[s.hostRailMode])
+  const setHostRailMode = useLayoutStore((s) => s.setHostRailMode)
+  const setHostRailWidth = useLayoutStore((s) => s.setHostRailWidth)
+  const bounds = HOST_RAIL_SIZING[mode]
+
   return (
-    <div className="space-y-3 max-w-md">
+    <div className="max-w-md space-y-3">
       <div>
-        <h3 className="text-sm font-semibold">{label}</h3>
-        <p className="text-muted-foreground mt-1 text-xs mb-3">{description}</p>
+        <h3 className="text-sm font-semibold">Host Rail</h3>
+        <p className="mt-1 mb-3 text-xs text-muted-foreground">
+          Show hosts as compact icons, or as horizontal tabs labelled with the
+          server name. Drag the rail's right edge to resize it — each style
+          remembers its own width.
+        </p>
+      </div>
 
-        <div className="flex flex-wrap gap-2 mb-3">
-          {popularFonts.map(f => (
-            <button
-              key={f}
-              onClick={() => {
-                onChange(f)
-                // We don't auto-save here to let them see it in the input first, but we could.
-              }}
-              className={cn(
-                "px-2.5 py-1 text-xs rounded-md border transition-colors",
-                value === f
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "hover:bg-muted bg-background border-border text-foreground"
-              )}
-            >
-              {f}
-            </button>
-          ))}
-          <button
-            onClick={() => onChange("")}
-            className={cn(
-              "px-2.5 py-1 text-xs rounded-md border transition-colors",
-              !value
-                ? "bg-primary text-primary-foreground border-primary"
-                : "hover:bg-muted bg-background border-border text-foreground"
-            )}
+      <div className="space-y-3">
+        <label className="flex items-center gap-3 text-xs font-medium">
+          <span className="w-12 shrink-0">Style</span>
+          <Select
+            value={mode}
+            onValueChange={(v) => {
+              if (v !== "icon" && v !== "label") return
+              setHostRailMode(v)
+              saveHostRailPrefs()
+            }}
           >
-            Default
-          </button>
-        </div>
+            <SelectTrigger className="h-8 w-40 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="icon">Icons</SelectItem>
+              <SelectItem value="label">Server names</SelectItem>
+            </SelectContent>
+          </Select>
+        </label>
 
-        <div className="flex gap-2">
+        <label className="flex items-center gap-3 text-xs font-medium">
+          <span className="w-12 shrink-0">Width</span>
           <input
-            type="text"
-            className="border-input bg-background flex-1 rounded-md border px-2 py-1.5 text-sm"
-            placeholder="Custom Google Font (e.g. Almarai)"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
+            type="range"
+            className="flex-1 accent-primary"
+            min={bounds.min}
+            max={bounds.max}
+            step={2}
+            value={width}
+            aria-label="Host rail width"
+            onChange={(e) => setHostRailWidth(mode, Number(e.target.value))}
+            onPointerUp={() => saveHostRailPrefs()}
+            onKeyUp={() => saveHostRailPrefs()}
           />
-          <Button size="sm" onClick={onSave} disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save Font"}
-          </Button>
-        </div>
-        {/* Live Preview */}
-        {value.trim() && (
-          <style>{`@import url('https://fonts.googleapis.com/css2?family=${value.trim().replace(/ /g, "+")}:wght@400;500;600&display=swap');`}</style>
-        )}
-        <div className="mt-4 rounded-md border bg-card text-card-foreground shadow-sm">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border/50" style={{ fontFamily: "system-ui, sans-serif" }}>
-            <span className="text-xs font-medium">Preview</span>
-            <span className="text-[10px] text-muted-foreground">{value.trim() || "System Default"}</span>
-          </div>
-
-          <div
-            className="px-3 py-3 space-y-2"
-            style={{ fontFamily: value.trim() ? `"${value.trim()}", system-ui, sans-serif` : undefined }}
-          >
-            {document.documentElement.lang === "ar" || document.documentElement.dir === "rtl" || navigator.language.startsWith("ar") ? (
-              <p className="text-sm text-foreground text-right" dir="rtl">
-                أبجد هوز حطي كلمن سعفص قرشت.
-              </p>
-            ) : (
-              <p className="text-sm text-foreground">
-                The quick brown fox jumps over the lazy dog.
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground break-all">0123456789 !@#$%^&*()</p>
-          </div>
-        </div>
+          <span className="w-10 shrink-0 text-right font-mono text-xs text-muted-foreground">
+            {width}px
+          </span>
+        </label>
       </div>
     </div>
   )
@@ -348,7 +296,12 @@ function AppearanceSettings() {
     },
   })
   const options = [
-    { id: "system" as const, label: "System", hint: "Follow OS light/dark", icon: Monitor },
+    {
+      id: "system" as const,
+      label: "System",
+      hint: "Follow OS light/dark",
+      icon: Monitor,
+    },
     { id: "light" as const, label: "Light", hint: "Always light", icon: Sun },
     { id: "dark" as const, label: "Dark", hint: "Always dark", icon: Moon },
   ]
@@ -368,9 +321,10 @@ function AppearanceSettings() {
       <div className="space-y-4">
         <div>
           <h2 className="font-semibold">Appearance</h2>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Theme follows your system by default. Change it here or via the title-bar icon.
-            Press <kbd className="bg-muted rounded px-1">d</kbd> to flip light/dark quickly.
+          <p className="mt-1 text-xs text-muted-foreground">
+            Theme follows your system by default. Change it here or via the
+            title-bar icon. Press <kbd className="rounded bg-muted px-1">d</kbd>{" "}
+            to flip light/dark quickly.
           </p>
         </div>
         <div className="grid max-w-lg gap-2 sm:grid-cols-3">
@@ -380,25 +334,32 @@ function AppearanceSettings() {
               type="button"
               onClick={() => choose(id)}
               className={cn(
-                "hover:bg-muted/60 flex flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left transition-colors",
-                current === id ? "border-primary bg-muted/80" : "border-border",
+                "flex flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/60",
+                current === id ? "border-primary bg-muted/80" : "border-border"
               )}
             >
-              <Icon className="text-muted-foreground size-4" />
+              <Icon className="size-4 text-muted-foreground" />
               <span className="text-sm font-medium">{label}</span>
-              <span className="text-muted-foreground text-[11px]">{hint}</span>
+              <span className="text-[11px] text-muted-foreground">{hint}</span>
             </button>
           ))}
         </div>
         {mounted && (
-          <p className="text-muted-foreground text-xs">
-            Active: <span className="text-foreground font-medium">{current}</span>
-            {current === "system" && resolvedTheme ? ` → ${resolvedTheme}` : null}
+          <p className="text-xs text-muted-foreground">
+            Active:{" "}
+            <span className="font-medium text-foreground">{current}</span>
+            {current === "system" && resolvedTheme
+              ? ` → ${resolvedTheme}`
+              : null}
           </p>
         )}
       </div>
 
-      <div className="space-y-4 pt-4 border-t border-border">
+      <div className="space-y-4 border-t border-border pt-4">
+        <HostRailSettings />
+      </div>
+
+      <div className="space-y-4 border-t border-border pt-4">
         <FontSelector
           label="App Font (Google Fonts)"
           description="Select a popular UI font or type any Google Font name to apply it to the whole app."
@@ -419,28 +380,206 @@ function TerminalSettings() {
     queryKey: ["settings", "terminalFont"],
     queryFn: () => ipc.settingsGet("terminalFont") as Promise<string | null>,
   })
+  const clipboardQuery = useQuery({
+    queryKey: ["settings", "terminalClipboard"],
+    queryFn: async () => {
+      const [
+        selectToCopy,
+        contextMenu,
+        copyShortcut,
+        pasteShortcut,
+        altCopyShortcut,
+        altPasteShortcut,
+        legacySelectToCopy,
+        legacyRightClickPaste,
+      ] = await Promise.all([
+        ipc.settingsGet("terminalSelectToCopy"),
+        ipc.settingsGet("terminalContextMenu"),
+        ipc.settingsGet("terminalCopyShortcut"),
+        ipc.settingsGet("terminalPasteShortcut"),
+        ipc.settingsGet("terminalAltCopyShortcut"),
+        ipc.settingsGet("terminalAltPasteShortcut"),
+        ipc.settingsGet("terminalRightClickCopy"),
+        ipc.settingsGet("terminalRightClickPaste"),
+      ])
+      return resolveTerminalClipboardSettings({
+        selectToCopy,
+        contextMenu,
+        copyShortcut,
+        pasteShortcut,
+        altCopyShortcut,
+        altPasteShortcut,
+        legacySelectToCopy,
+        legacyRightClickPaste,
+      })
+    },
+  })
+
   const [terminalFont, setTerminalFont] = useState("")
+  const [copyShortcut, setCopyShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.copyShortcut
+  )
+  const [pasteShortcut, setPasteShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.pasteShortcut
+  )
+  const [altCopyShortcut, setAltCopyShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altCopyShortcut
+  )
+  const [altPasteShortcut, setAltPasteShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altPasteShortcut
+  )
+  const [shortcutError, setShortcutError] = useState<string | null>(null)
+
   useEffect(() => {
-    if (terminalFontQuery.data !== undefined) setTerminalFont(terminalFontQuery.data ?? "")
+    if (terminalFontQuery.data !== undefined)
+      setTerminalFont(terminalFontQuery.data ?? "")
   }, [terminalFontQuery.data])
+
+  useEffect(() => {
+    if (!clipboardQuery.data) return
+    setCopyShortcut(clipboardQuery.data.copyShortcut)
+    setPasteShortcut(clipboardQuery.data.pasteShortcut)
+    setAltCopyShortcut(clipboardQuery.data.altCopyShortcut)
+    setAltPasteShortcut(clipboardQuery.data.altPasteShortcut)
+  }, [clipboardQuery.data])
+
   const saveFont = useMutation({
     mutationFn: async () => {
       await ipc.settingsSet("terminalFont", terminalFont || null)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
   })
-  const POPULAR_FONTS = ["JetBrains Mono", "Fira Code", "Source Code Pro", "Ubuntu Mono", "Inconsolata"]
+  const toggleContextMenu = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      await ipc.settingsSet("terminalContextMenu", enabled)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["settings", "terminalClipboard"] })
+    },
+  })
+  const saveShortcuts = useMutation({
+    mutationFn: async () => {
+      const next = [
+        copyShortcut,
+        pasteShortcut,
+        altCopyShortcut,
+        altPasteShortcut,
+      ]
+      if (next.some((value) => !isValidKeybinding(value.trim()))) {
+        throw new Error("Invalid shortcut. Example: Ctrl+Shift+C")
+      }
+      await ipc.settingsSet("terminalCopyShortcut", copyShortcut.trim())
+      await ipc.settingsSet("terminalPasteShortcut", pasteShortcut.trim())
+      await ipc.settingsSet("terminalAltCopyShortcut", altCopyShortcut.trim())
+      await ipc.settingsSet("terminalAltPasteShortcut", altPasteShortcut.trim())
+    },
+    onSuccess: () => {
+      setShortcutError(null)
+      void qc.invalidateQueries({ queryKey: ["settings", "terminalClipboard"] })
+    },
+    onError: (error) => {
+      setShortcutError(error instanceof Error ? error.message : String(error))
+    },
+  })
+
+  const POPULAR_FONTS = [
+    "JetBrains Mono",
+    "Fira Code",
+    "Source Code Pro",
+    "Ubuntu Mono",
+    "Inconsolata",
+  ]
+  const clipboard = clipboardQuery.data ?? DEFAULT_TERMINAL_CLIPBOARD_SETTINGS
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
         <div>
           <h2 className="font-semibold">Terminal</h2>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Configure terminal behavior and appearance.
+          <p className="mt-1 text-xs text-muted-foreground">
+            PuTTY-style mouse: left-click selects and keeps the highlight;
+            right-click copies the selection or pastes when nothing is selected.
           </p>
         </div>
       </div>
-      <div className="space-y-4 pt-4 border-t border-border">
+      <div className="max-w-lg space-y-4 border-t border-border pt-4">
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <label
+              className="cursor-pointer text-sm font-medium"
+              htmlFor="terminal-context-menu"
+            >
+              Right-click menu (instead of PuTTY mode)
+            </label>
+            <p className="text-xs text-muted-foreground">
+              When enabled, right-click opens a Copy / Paste menu instead of
+              copying or pasting immediately.
+            </p>
+          </div>
+          <Switch
+            id="terminal-context-menu"
+            checked={clipboard.contextMenu}
+            onCheckedChange={(checked) => toggleContextMenu.mutate(checked)}
+          />
+        </div>
+
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <h3 className="text-sm font-medium">Keyboard shortcuts</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Defaults follow common terminal tools.{" "}
+              {formatKeybindingForDisplay(clipboard.altCopyShortcut)} copies
+              only when text is selected; otherwise it sends interrupt (SIGINT).
+            </p>
+          </div>
+          <label className="block space-y-1.5 text-sm">
+            <span>Copy selection</span>
+            <input
+              value={copyShortcut}
+              onChange={(e) => setCopyShortcut(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Ctrl+Shift+C"
+            />
+          </label>
+          <label className="block space-y-1.5 text-sm">
+            <span>Paste</span>
+            <input
+              value={pasteShortcut}
+              onChange={(e) => setPasteShortcut(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Ctrl+Shift+V"
+            />
+          </label>
+          <label className="block space-y-1.5 text-sm">
+            <span>Alt copy (selection only, otherwise interrupt)</span>
+            <input
+              value={altCopyShortcut}
+              onChange={(e) => setAltCopyShortcut(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Ctrl+C"
+            />
+          </label>
+          <label className="block space-y-1.5 text-sm">
+            <span>Alt paste</span>
+            <input
+              value={altPasteShortcut}
+              onChange={(e) => setAltPasteShortcut(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Ctrl+V"
+            />
+          </label>
+          {shortcutError && (
+            <p className="text-xs text-destructive">{shortcutError}</p>
+          )}
+          <Button
+            size="sm"
+            onClick={() => saveShortcuts.mutate()}
+            disabled={saveShortcuts.isPending}
+          >
+            Save shortcuts
+          </Button>
+        </div>
+
         <FontSelector
           label="Terminal Font (Google Fonts)"
           description="Select a popular coding font or type any Google Font name for the terminal."

@@ -9,11 +9,13 @@ export function PrimarySidebar({ children }: { children?: ReactNode }) {
   return (
     <aside
       className={cn(
-        "bg-sidebar border-border shrink-0 overflow-hidden border-r transition-[width]",
-        open ? "w-[var(--sidebar-w)]" : "w-0",
+        "shrink-0 overflow-hidden border-r border-border bg-sidebar transition-[width]",
+        open ? "w-[var(--sidebar-w)]" : "w-0"
       )}
     >
-      <div className="flex h-full w-[var(--sidebar-w)] flex-col">{children}</div>
+      <div className="flex h-full w-[var(--sidebar-w)] flex-col">
+        {children}
+      </div>
     </aside>
   )
 }

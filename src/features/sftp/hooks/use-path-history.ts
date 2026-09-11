@@ -52,6 +52,6 @@ export function usePathHistory(initialPath = "") {
       canGoBack,
       canGoForward,
     }),
-    [path, navigate, replace, goBack, goForward, canGoBack, canGoForward],
+    [path, navigate, replace, goBack, goForward, canGoBack, canGoForward]
   )
 }

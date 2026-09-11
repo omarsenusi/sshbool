@@ -41,7 +41,11 @@ export function DbAddConnectionForm({ hostId, onAdded }: Props) {
       const connName = name.trim() || `${database.trim()}@${engine}`
       const credName = `db:${connName}`
 
-      const credentialId = await ipc.credentialsCreate(credName, "password", password)
+      const credentialId = await ipc.credentialsCreate(
+        credName,
+        "password",
+        password
+      )
       const id = await ipc.dbConnectionsUpsert({
         hostId,
         engine,
@@ -71,14 +75,15 @@ export function DbAddConnectionForm({ hostId, onAdded }: Props) {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="max-w-lg mx-auto space-y-6">
+      <div className="mx-auto max-w-lg space-y-6">
         <div className="space-y-1">
-          <h3 className="text-base font-semibold flex items-center gap-2">
+          <h3 className="flex items-center gap-2 text-base font-semibold">
             <Database className="size-4 text-primary" />
             Add Database Connection
           </h3>
           <p className="text-xs text-muted-foreground">
-            Connect to MySQL or PostgreSQL on this server. Credentials are stored encrypted in the vault.
+            Connect to MySQL or PostgreSQL on this server. Credentials are
+            stored encrypted in the vault.
           </p>
         </div>
 
@@ -93,13 +98,17 @@ export function DbAddConnectionForm({ hostId, onAdded }: Props) {
                 onClick={() => pickEngine(e)}
                 className={cn(
                   "rounded-lg border p-4 text-left transition-all",
-                  selected ? `${colors.bg} ring-2 ${colors.ring}` : "border-border hover:bg-muted/30",
+                  selected
+                    ? `${colors.bg} ring-2 ${colors.ring}`
+                    : "border-border hover:bg-muted/30"
                 )}
               >
-                <span className={cn("text-xs font-bold uppercase", colors.text)}>
+                <span
+                  className={cn("text-xs font-bold uppercase", colors.text)}
+                >
                   {e === "postgres" ? "PostgreSQL" : "MySQL"}
                 </span>
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="mt-1 text-[10px] text-muted-foreground">
                   Port {defaultPort(e)} · default user {defaultUsername(e)}
                 </p>
               </button>
@@ -108,7 +117,7 @@ export function DbAddConnectionForm({ hostId, onAdded }: Props) {
         </div>
 
         {engine && (
-          <div className="space-y-3 rounded-lg border border-border p-4 bg-muted/10">
+          <div className="space-y-3 rounded-lg border border-border bg-muted/10 p-4">
             <Field label="Connection name (optional)">
               <input
                 className={inputClass}
@@ -119,7 +128,11 @@ export function DbAddConnectionForm({ hostId, onAdded }: Props) {
             </Field>
             <div className="grid grid-cols-3 gap-3">
               <Field label="Host" className="col-span-2">
-                <input className={inputClass} value={host} onChange={(e) => setHost(e.target.value)} />
+                <input
+                  className={inputClass}
+                  value={host}
+                  onChange={(e) => setHost(e.target.value)}
+                />
               </Field>
               <Field label="Port">
                 <input
@@ -139,7 +152,11 @@ export function DbAddConnectionForm({ hostId, onAdded }: Props) {
               />
             </Field>
             <Field label="Username">
-              <input className={inputClass} value={username} onChange={(e) => setUsername(e.target.value)} />
+              <input
+                className={inputClass}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
             </Field>
             <Field label="Password">
               <input
@@ -151,16 +168,16 @@ export function DbAddConnectionForm({ hostId, onAdded }: Props) {
               />
             </Field>
 
-            {error && (
-              <p className="text-xs text-destructive">{error}</p>
-            )}
+            {error && <p className="text-xs text-destructive">{error}</p>}
 
             <Button
               className={cn("w-full gap-2", getEngineColor(engine).btn)}
               disabled={add.isPending}
               onClick={() => add.mutate()}
             >
-              {add.isPending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+              {add.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : null}
               Add
             </Button>
           </div>
@@ -181,7 +198,9 @@ function Field({
 }) {
   return (
     <label className={cn("block space-y-1", className)}>
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {label}
+      </span>
       {children}
     </label>
   )

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "SSHBool",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "identifier": "com.sshbool.app",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -24,62 +24,53 @@
     ],
     "security": {
       "csp": {
-        "default-src": [
-          "'self'"
-        ],
-        "script-src": [
-          "'self'"
-        ],
-        "style-src": [
-          "'self'",
-          "'unsafe-inline'"
-        ],
-        "img-src": [
-          "'self'",
-          "data:",
-          "asset:"
-        ],
-        "font-src": [
-          "'self'",
-          "data:"
-        ],
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "asset:"],
+        "font-src": ["'self'", "data:"],
         "connect-src": [
           "'self'",
           "ipc:",
           "asset:",
-          "https://ssh.devbool.com"
+          "ws://127.0.0.1:*",
+          "ws://localhost:*",
+          "https://ssh.devbool.com",
+          "https://github.com",
+          "https://*.githubusercontent.com"
         ],
-        "object-src": [
-          "'none'"
-        ],
-        "base-uri": [
-          "'self'"
-        ],
-        "frame-ancestors": [
-          "'none'"
-        ]
+        "worker-src": ["'self'", "blob:"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "frame-ancestors": ["'none'"]
       },
-      "freezePrototype": true
+      "freezePrototype": false
     }
   },
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEREOTk0NUUyOUU5MjhBNUQKUldSZGlwS2U0a1daM2UxN2xxUkt1Q3p5Sm9uUTRvWnRIdmtSV29ESDUwNnJka05kOTZ0L3hrR1cK",
+      "windows": {
+        "installMode": "passive"
+      },
       "endpoints": [
-        "https://github.com/omarsenusi/sshbool/releases/latest/download/latest.json"
+        "https://ssh.devbool.com/api/v1/update/{{target}}-{{arch}}/{{current_version}}?channel=stable"
       ]
     },
     "deep-link": {
       "desktop": {
-        "schemes": [
-          "sshbool"
-        ]
+        "schemes": ["sshbool"]
       }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/wfreerdp"],
+    "resources": {
+      "binaries/guacd/README.md": "binaries/guacd/README.md",
+      "../scripts/download-guacd.ps1": "scripts/download-guacd.ps1"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

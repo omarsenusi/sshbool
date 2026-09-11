@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check, ChevronDown, ExternalLink, FolderPlus, Plus, Sparkles, Trash2 } from "lucide-react"
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  FolderPlus,
+  Plus,
+  Sparkles,
+  Trash2,
+} from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,7 +67,8 @@ export function WorkspaceSwitcher() {
 
   const workspaces = workspacesQuery.data ?? DEFAULT_WORKSPACES
   const activeId = activeIdQuery.data ?? "default"
-  const activeWorkspace = workspaces.find((w) => w.id === activeId) ?? workspaces[0]!
+  const activeWorkspace =
+    workspaces.find((w) => w.id === activeId) ?? workspaces[0]!
 
   // Switch workspace
   const switchWorkspace = useMutation({
@@ -139,40 +148,40 @@ export function WorkspaceSwitcher() {
         title="Switch or create workspace"
       >
         <span
-          className="size-2 rounded-full shrink-0"
+          className="size-2 shrink-0 rounded-full"
           style={{ backgroundColor: activeWorkspace.color ?? "#0EA5E9" }}
         />
-        <span className="text-muted-foreground hidden truncate text-[11px] font-medium sm:inline max-w-[140px]">
+        <span className="hidden max-w-[140px] truncate text-[11px] font-medium text-muted-foreground sm:inline">
           {activeWorkspace.name}
         </span>
-        <ChevronDown className="size-3 text-muted-foreground shrink-0 opacity-70" />
+        <ChevronDown className="size-3 shrink-0 text-muted-foreground opacity-70" />
       </button>
       {/* Dropdown Menu */}
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 w-64 rounded-lg border border-border/80 bg-popover p-1 text-popover-foreground shadow-lg backdrop-blur-sm animate-in fade-in-50 zoom-in-95">
-          <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="absolute top-full left-0 z-50 mt-1.5 w-64 animate-in rounded-lg border border-border/80 bg-popover p-1 text-popover-foreground shadow-lg backdrop-blur-sm fade-in-50 zoom-in-95">
+          <div className="px-2 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
             Workspaces
           </div>
-          <div className="space-y-0.5 max-h-56 overflow-y-auto">
+          <div className="max-h-56 space-y-0.5 overflow-y-auto">
             {workspaces.map((ws) => {
               const isSelected = ws.id === activeId
               return (
                 <div
                   key={ws.id}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors group",
+                    "group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors",
                     isSelected
-                      ? "bg-accent text-accent-foreground font-medium"
-                      : "hover:bg-muted/60 text-foreground"
+                      ? "bg-accent font-medium text-accent-foreground"
+                      : "text-foreground hover:bg-muted/60"
                   )}
                 >
                   <button
                     type="button"
                     onClick={() => switchWorkspace.mutate(ws.id)}
-                    className="flex flex-1 items-center gap-2 min-w-0 text-left cursor-pointer"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
                   >
                     <span
-                      className="size-2 rounded-full shrink-0"
+                      className="size-2 shrink-0 rounded-full"
                       style={{ backgroundColor: ws.color ?? "#0EA5E9" }}
                     />
                     <span className="truncate">{ws.name}</span>
@@ -182,13 +191,15 @@ export function WorkspaceSwitcher() {
                     <button
                       type="button"
                       onClick={(e) => openWorkspaceInNewWindow(ws, e)}
-                      className="opacity-70 hover:opacity-100 text-muted-foreground hover:text-primary p-1 transition-all rounded hover:bg-muted"
+                      className="rounded p-1 text-muted-foreground opacity-70 transition-all hover:bg-muted hover:text-primary hover:opacity-100"
                       title={`Open ${ws.name} in a new window/tab`}
                     >
                       <ExternalLink className="size-3" />
                     </button>
 
-                    {isSelected && <Check className="size-3.5 text-primary shrink-0 ml-0.5" />}
+                    {isSelected && (
+                      <Check className="ml-0.5 size-3.5 shrink-0 text-primary" />
+                    )}
                     {ws.id !== "default" && (
                       <button
                         type="button"
@@ -196,7 +207,7 @@ export function WorkspaceSwitcher() {
                           e.stopPropagation()
                           deleteWorkspace.mutate(ws.id)
                         }}
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 transition-opacity"
+                        className="p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
                         title="Delete workspace"
                       >
                         <Trash2 className="size-3" />
@@ -215,7 +226,7 @@ export function WorkspaceSwitcher() {
               setOpen(false)
               setCreateOpen(true)
             }}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors font-medium"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
           >
             <Plus className="size-3.5" />
             <span>Create New Workspace</span>
@@ -224,19 +235,25 @@ export function WorkspaceSwitcher() {
       )}
       {/* Create Workspace Modal */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-sm rounded-xl border border-border/80 bg-card p-5 shadow-xl space-y-4">
+        <div className="fixed inset-0 z-50 flex animate-in items-center justify-center bg-black/50 p-4 backdrop-blur-xs fade-in">
+          <div className="w-full max-w-sm space-y-4 rounded-xl border border-border/80 bg-card p-5 shadow-xl">
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <FolderPlus className="size-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">New Workspace</h3>
-                <p className="text-[11px] text-muted-foreground">Create a separate workspace for your servers.</p>
+                <h3 className="text-sm font-semibold text-foreground">
+                  New Workspace
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Create a separate workspace for your servers.
+                </p>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ws-name" className="text-xs">Workspace Name</Label>
+              <Label htmlFor="ws-name" className="text-xs">
+                Workspace Name
+              </Label>
               <Input
                 id="ws-name"
                 autoFocus
@@ -263,7 +280,7 @@ export function WorkspaceSwitcher() {
               <Button
                 size="xs"
                 disabled={!newWorkspaceName.trim() || createWorkspace.isPending}
-                className="h-7 text-xs gap-1"
+                className="h-7 gap-1 text-xs"
                 onClick={() => createWorkspace.mutate(newWorkspaceName)}
               >
                 <Sparkles className="size-3" />

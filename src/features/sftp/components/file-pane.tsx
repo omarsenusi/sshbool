@@ -1,4 +1,12 @@
-import { ArrowUp, Eye, EyeOff, FolderPlus, Loader2, RefreshCw } from "lucide-react"
+import {
+  ArrowUp,
+  Eye,
+  EyeOff,
+  FilePlus,
+  FolderPlus,
+  Loader2,
+  RefreshCw,
+} from "lucide-react"
 import { useEffect, useMemo, useState, type MouseEvent } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -14,9 +22,13 @@ import { cn } from "@/lib/utils"
 export function parentPath(path: string, side: "local" | "remote"): string {
   if (side === "local") {
     const normalized = path.replace(/[/\\]+$/, "")
-    const idx = Math.max(normalized.lastIndexOf("/"), normalized.lastIndexOf("\\"))
+    const idx = Math.max(
+      normalized.lastIndexOf("/"),
+      normalized.lastIndexOf("\\")
+    )
     if (idx <= 0) {
-      if (/^[A-Za-z]:\\?$/.test(normalized) || /^[A-Za-z]:$/.test(normalized)) return normalized
+      if (/^[A-Za-z]:\\?$/.test(normalized) || /^[A-Za-z]:$/.test(normalized))
+        return normalized
       return normalized
     }
     const parent = normalized.slice(0, idx)
@@ -25,7 +37,11 @@ export function parentPath(path: string, side: "local" | "remote"): string {
   return parentRemotePath(path)
 }
 
-export function joinPath(base: string, name: string, side: "local" | "remote"): string {
+export function joinPath(
+  base: string,
+  name: string,
+  side: "local" | "remote"
+): string {
   if (side === "local") {
     const sep = base.includes("\\") ? "\\" : "/"
     if (base.endsWith("\\") || base.endsWith("/")) return `${base}${name}`
@@ -49,14 +65,16 @@ type FilePaneProps = {
   onOpen: (entry: SftpEntryDto) => void
   onRefresh: () => void
   onMkdir: () => void
+  onNewFile?: () => void
   onContextMenu: (e: MouseEvent, entry: SftpEntryDto | null) => void
   showHidden: boolean
   onToggleHidden: () => void
   dropHighlight?: boolean
-  onDropOnPane?: () => void
-  onDropOnEntry?: (entry: SftpEntryDto) => void
+  highlightDropPath?: string | null
   onDragStartEntries?: (entries: SftpEntryDto[]) => void
-  onDragOverPane?: (e: React.DragEvent) => void
+  onDragSessionMove?: (x: number, y: number) => void
+  onDragSessionEnd?: (x: number, y: number) => void
+  focused?: boolean
   className?: string
 }
 
@@ -73,20 +91,23 @@ export function FilePane({
   onOpen,
   onRefresh,
   onMkdir,
+  onNewFile,
   onContextMenu,
   showHidden,
   onToggleHidden,
   dropHighlight,
-  onDropOnPane,
-  onDropOnEntry,
+  highlightDropPath,
   onDragStartEntries,
-  onDragOverPane,
+  onDragSessionMove,
+  onDragSessionEnd,
+  focused,
   className,
 }: FilePaneProps) {
   const [draft, setDraft] = useState(path)
   const visible = useMemo(
-    () => (showHidden ? entries : entries.filter((e) => !e.name.startsWith("."))),
-    [entries, showHidden],
+    () =>
+      showHidden ? entries : entries.filter((e) => !e.name.startsWith(".")),
+    [entries, showHidden]
   )
 
   useEffect(() => {
@@ -94,9 +115,18 @@ export function FilePane({
   }, [path])
 
   return (
-    <section className={cn("border-border flex min-h-0 min-w-0 flex-1 flex-col border", className)}>
-      <div className="border-border flex items-center gap-1 border-b px-2 py-1.5">
-        <span className="text-muted-foreground shrink-0 text-[11px] font-semibold uppercase tracking-wide">
+    <section
+      data-sftp-pane={side}
+      data-sftp-dir={path}
+      className={cn(
+        "flex min-h-0 min-w-0 flex-1 flex-col border border-border",
+        focused && "ring-1 ring-primary/40",
+        dropHighlight && "bg-primary/5",
+        className
+      )}
+    >
+      <div className="flex items-center gap-1 border-b border-border px-2 py-1.5">
+        <span className="shrink-0 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           {title}
         </span>
         <div className="ml-auto flex items-center gap-0.5">
@@ -106,17 +136,41 @@ export function FilePane({
             title={showHidden ? "Hide dotfiles" : "Show dotfiles"}
             onClick={onToggleHidden}
           >
-            {showHidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            {showHidden ? (
+              <EyeOff className="size-3.5" />
+            ) : (
+              <Eye className="size-3.5" />
+            )}
           </Button>
-          <Button size="icon-xs" variant="ghost" title="New folder" onClick={onMkdir}>
+          {onNewFile && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              title="New file"
+              onClick={onNewFile}
+            >
+              <FilePlus className="size-3.5" />
+            </Button>
+          )}
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            title="New folder"
+            onClick={onMkdir}
+          >
             <FolderPlus className="size-3.5" />
           </Button>
-          <Button size="icon-xs" variant="ghost" title="Refresh" onClick={onRefresh}>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            title="Refresh"
+            onClick={onRefresh}
+          >
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
           </Button>
         </div>
       </div>
-      <div className="border-border flex items-center gap-1 border-b px-2 py-1">
+      <div className="flex items-center gap-1 border-b border-border px-2 py-1">
         <Button
           size="icon-xs"
           variant="ghost"
@@ -126,7 +180,7 @@ export function FilePane({
           <ArrowUp className="size-3.5" />
         </Button>
         <input
-          className="border-input bg-background min-w-0 flex-1 rounded border px-2 py-1 font-mono text-[11px] outline-none"
+          className="min-w-0 flex-1 rounded border border-input bg-background px-2 py-1 font-mono text-[11px] outline-none"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {
@@ -142,7 +196,9 @@ export function FilePane({
         />
       </div>
       {error && (
-        <p className="text-destructive border-border border-b px-2 py-1 text-[11px]">{error}</p>
+        <p className="border-b border-border px-2 py-1 text-[11px] text-destructive">
+          {error}
+        </p>
       )}
       <div className="relative flex min-h-0 flex-1 flex-col">
         <FileList
@@ -153,14 +209,14 @@ export function FilePane({
           onContextMenu={onContextMenu}
           dragSide={side}
           onDragStartEntries={onDragStartEntries}
+          onDragSessionMove={onDragSessionMove}
+          onDragSessionEnd={onDragSessionEnd}
           dropHighlight={dropHighlight}
-          onDropOnPane={onDropOnPane}
-          onDropOnEntry={onDropOnEntry}
-          onDragOverPane={onDragOverPane}
+          highlightDropPath={highlightDropPath}
         />
         {loading && visible.length === 0 && (
-          <div className="bg-background/50 pointer-events-none absolute inset-0 flex items-start justify-center pt-8">
-            <span className="text-muted-foreground bg-background/90 border-border inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] shadow-sm">
+          <div className="pointer-events-none absolute inset-0 flex items-start justify-center bg-background/50 pt-8">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm">
               <Loader2 className="size-3.5 animate-spin" />
               Loading…
             </span>

@@ -1,6 +1,6 @@
 //! Phase 2 commands: tunnels, monitoring, docker, AI, recording/sync extras.
 
-use infrastructure::AppState;
+use infrastructure::{redact, validate_container_id, validate_safe_remote_path, AppState};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tauri::State;
@@ -14,6 +14,47 @@ fn db(e: sqlx::Error) -> AppError {
         engine: "sqlite".into(),
         message: e.to_string(),
     }
+}
+
+async fn pick_local_port() -> Result<u16, AppError> {
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .map_err(|e| AppError::Internal {
+            message: format!("failed to pick local port for RDP tunnel: {e}"),
+        })?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| AppError::Internal {
+            message: format!("failed to read local port for RDP tunnel: {e}"),
+        })?
+        .port();
+    Ok(port)
+}
+
+async fn resolve_host_vault_password(
+    state: &State<'_, Arc<AppState>>,
+    host_id: &str,
+) -> Option<String> {
+    let cred_id = sqlx::query_as::<_, (String,)>("SELECT value FROM settings WHERE key = ?")
+        .bind(format!("host:{host_id}:cred"))
+        .fetch_optional(state.vault.pool())
+        .await
+        .ok()?;
+    let (cid,) = cred_id?;
+    let secret = sqlx::query_as::<_, (Vec<u8>, Vec<u8>)>(
+        "SELECT ciphertext, nonce FROM credentials WHERE id = ?",
+    )
+    .bind(&cid)
+    .fetch_optional(state.vault.pool())
+    .await
+    .ok()?;
+    let (ct, nonce) = secret?;
+    state
+        .vault
+        .open_secret(&ct, &nonce, &format!("cred:{cid}"))
+        .await
+        .ok()
+        .map(|plain| String::from_utf8_lossy(&plain).into_owned())
 }
 
 // ── Proxies & port forwards ──────────────────────────────────────────
@@ -181,39 +222,19 @@ pub async fn port_forwards_stop(
 }
 
 #[tauri::command]
+pub async fn port_check_available(bind_addr: String, bind_port: u16) -> Result<bool, AppError> {
+    match tokio::net::TcpListener::bind((bind_addr.as_str(), bind_port)).await {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}
+
+#[tauri::command]
 pub async fn auth_fido2_status() -> Result<Value, AppError> {
     Ok(json!({
         "available": false,
         "message": "FIDO2/YubiKey support is stubbed for Phase 2 — password and key auth work today."
     }))
-}
-
-fn validate_safe_remote_path(path: &str) -> Result<String, AppError> {
-    if path
-        .chars()
-        .any(|c| matches!(c, ';' | '&' | '|' | '`' | '$' | '(' | ')' | '\n' | '\r'))
-    {
-        return Err(AppError::Validation {
-            field: "path".into(),
-            message: "path contains disallowed shell characters".into(),
-        });
-    }
-    let escaped = path.replace('\'', "'\\''");
-    Ok(format!("'{escaped}'"))
-}
-
-fn validate_container_id(id: &str) -> Result<&str, AppError> {
-    let valid = !id.is_empty()
-        && id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.');
-    if !valid {
-        return Err(AppError::Validation {
-            field: "container_id".into(),
-            message: "invalid container ID or name format".into(),
-        });
-    }
-    Ok(id)
 }
 
 #[tauri::command]
@@ -384,21 +405,6 @@ pub async fn docker_compose_action(
 }
 
 // ── AI Assistant ─────────────────────────────────────────────────────
-
-fn redact(text: &str) -> String {
-    let mut out = text.to_string();
-    for pat in [
-        r"(?i)password\s*[:=]\s*\S+",
-        r"(?i)api[_-]?key\s*[:=]\s*\S+",
-        r"-----BEGIN[^-]+PRIVATE KEY-----[\s\S]*?-----END[^-]+PRIVATE KEY-----",
-        r"(?i)Bearer\s+[A-Za-z0-9\-._~+/]+=*",
-    ] {
-        if let Ok(re) = regex::Regex::new(pat) {
-            out = re.replace_all(&out, "[REDACTED]").into_owned();
-        }
-    }
-    out
-}
 
 #[tauri::command]
 pub async fn ai_providers_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Value>, AppError> {
@@ -736,12 +742,14 @@ pub async fn folders_compare(
 
 #[tauri::command]
 pub async fn rdp_launch_native(
+    _app: tauri::AppHandle,
     state: State<'_, Arc<AppState>>,
     host_id: Option<String>,
     host: String,
     port: u16,
     username: Option<String>,
     password: Option<String>,
+    domain: Option<String>,
     share_clipboard: Option<bool>,
     smart_sizing: Option<bool>,
     admin_mode: Option<bool>,
@@ -750,54 +758,124 @@ pub async fn rdp_launch_native(
     height: Option<u32>,
     color_depth: Option<u32>,
     performance: Option<String>,
-) -> Result<(), AppError> {
+    use_ssh_credentials: Option<bool>,
+) -> Result<Value, AppError> {
     let u = username.unwrap_or_default();
-    let addr = format!("{host}:{port}");
+    let d = domain.unwrap_or_default();
+    let use_ssh = use_ssh_credentials.unwrap_or(true);
+    let hid = host_id.ok_or(AppError::Validation {
+        field: "hostId".into(),
+        message: "hostId is required to establish the SSH RDP tunnel".into(),
+    })?;
 
     let mut p = password.as_deref().unwrap_or("").to_string();
-    if p == "••••••••" || p.is_empty() {
-        if let Some(ref hid) = host_id {
-            let cred_id: Option<(String,)> =
-                sqlx::query_as("SELECT value FROM settings WHERE key = ?")
-                    .bind(format!("host:{hid}:cred"))
-                    .fetch_optional(state.vault.pool())
-                    .await
-                    .ok()
-                    .flatten();
-            if let Some((cid,)) = cred_id {
-                let secret: Option<(Vec<u8>, Vec<u8>)> =
-                    sqlx::query_as("SELECT ciphertext, nonce FROM credentials WHERE id = ?")
-                        .bind(&cid)
-                        .fetch_optional(state.vault.pool())
-                        .await
-                        .ok()
-                        .flatten();
-                if let Some((ct, nonce)) = secret {
-                    if let Ok(plain) = state
-                        .vault
-                        .open_secret(&ct, &nonce, &format!("cred:{cid}"))
-                        .await
-                    {
-                        p = String::from_utf8_lossy(&plain).into_owned();
-                    }
-                }
-            }
+    if p == "••••••••" || (use_ssh && p.is_empty()) {
+        tracing::info!("RDP Launch: Resolving vault password for host_id = {}", hid);
+        if let Some(vault_pass) = resolve_host_vault_password(&state, &hid).await {
+            p = vault_pass;
+            tracing::info!(
+                "RDP Launch: Successfully decrypted password from vault (len={})",
+                p.len()
+            );
+        } else {
+            tracing::warn!("RDP Launch: No vault password found for host {}", hid);
         }
     }
-    #[cfg(target_os = "windows")]
+
+    if use_ssh && p.is_empty() {
+        return Err(AppError::Validation {
+            field: "password".into(),
+            message: "No SSH password saved for this host. Add a password in host settings or turn off “Use SSH credentials” and enter RDP credentials manually.".into(),
+        });
+    }
+
+    let remote_dest = if host.is_empty() || host == "localhost" {
+        "127.0.0.1".to_string()
+    } else {
+        host.clone()
+    };
+
+    match state
+        .connections
+        .probe_remote_tcp(&hid, &remote_dest, port)
+        .await
     {
-        use std::io::Write;
-        use std::process::Command;
+        Ok(true) => {
+            tracing::info!("RDP Launch: remote {remote_dest}:{port} is reachable on SSH host {hid}")
+        }
+        Ok(false) => {
+            return Err(AppError::Internal {
+                message: format!(
+                    "No RDP service is listening on {remote_dest}:{port} on the SSH host. \
+                     On Linux install/start xRDP (sudo apt install xrdp && sudo systemctl enable --now xrdp). \
+                     On Windows enable Remote Desktop."
+                ),
+            });
+        }
+        Err(e) => tracing::warn!("RDP Launch: remote port probe failed: {e}"),
+    }
 
-        let clipboard_val = if share_clipboard.unwrap_or(true) {
-            1
+    let tunnel_forward_id = format!("rdp-tunnel-{hid}");
+    let local_port = if state
+        .connections
+        .forward_is_active(&tunnel_forward_id)
+        .await
+    {
+        if let Some(existing) = state
+            .connections
+            .forward_local_port(&tunnel_forward_id)
+            .await
+        {
+            tracing::info!(
+                "RDP Launch: reusing active tunnel on 127.0.0.1:{existing} -> {remote_dest}:{port}"
+            );
+            existing
         } else {
-            0
-        };
-        let sizing_val = if smart_sizing.unwrap_or(true) { 1 } else { 0 };
-        let admin_val = if admin_mode.unwrap_or(false) { 1 } else { 0 };
-        let screen_mode_val = if full_screen.unwrap_or(false) { 2 } else { 1 };
+            let _ = state
+                .connections
+                .port_forward_stop(&tunnel_forward_id)
+                .await;
+            let picked = pick_local_port().await?;
+            state
+                .connections
+                .port_forward_start(
+                    &tunnel_forward_id,
+                    &hid,
+                    "127.0.0.1",
+                    picked,
+                    &remote_dest,
+                    port,
+                )
+                .await?;
+            picked
+        }
+    } else {
+        let _ = state
+            .connections
+            .port_forward_stop(&tunnel_forward_id)
+            .await;
+        let picked = pick_local_port().await?;
+        state
+            .connections
+            .port_forward_start(
+                &tunnel_forward_id,
+                &hid,
+                "127.0.0.1",
+                picked,
+                &remote_dest,
+                port,
+            )
+            .await?;
+        picked
+    };
 
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+
+    let connect_host = "127.0.0.1";
+    #[cfg(not(target_os = "windows"))]
+    let rdp_client = "native";
+    #[cfg(target_os = "windows")]
+    let (rdp_client, freerdp_fallback) = {
         let w = width.unwrap_or(1920);
         let h = height.unwrap_or(1080);
         let bpp = color_depth.unwrap_or(32);
@@ -806,78 +884,32 @@ pub async fn rdp_launch_native(
             "modem" => 1,
             "broadband" => 2,
             "lan" => 5,
-            _ => 6, // auto
+            _ => 6,
+        };
+        let mstsc_opts = crate::rdp_windows::MstscLaunchOpts {
+            connect_host,
+            local_port,
+            username: &u,
+            password: &p,
+            domain: &d,
+            share_clipboard: share_clipboard.unwrap_or(true),
+            smart_sizing: smart_sizing.unwrap_or(true),
+            admin_mode: admin_mode.unwrap_or(false),
+            full_screen: full_screen.unwrap_or(false),
+            width: w,
+            height: h,
+            color_depth: bpp,
+            connection_type: connection_val,
         };
 
-        // 1. Store credentials into Windows Credential Manager via cmdkey so mstsc auto-logins!
-        if !u.is_empty() && !p.is_empty() {
-            let _ = Command::new("cmdkey")
-                .args([
-                    &format!("/generic:TERMSRV/{host}"),
-                    &format!("/user:{u}"),
-                    &format!("/pass:{p}"),
-                ])
-                .status();
-
-            let _ = Command::new("cmdkey")
-                .args([
-                    &format!("/generic:TERMSRV/{addr}"),
-                    &format!("/user:{u}"),
-                    &format!("/pass:{p}"),
-                ])
-                .status();
-        }
-
-        // 2. Generate temporary .rdp file applying all exact profile override toggles!
-        let rdp_content = format!(
-            "full address:s:{addr}\r\n\
-             username:s:{u}\r\n\
-             prompt for credentials:i:0\r\n\
-             authentication level:i:2\r\n\
-             redirectclipboard:i:{clipboard_val}\r\n\
-             smart sizing:i:{sizing_val}\r\n\
-             administrative session:i:{admin_val}\r\n\
-             screen mode id:i:{screen_mode_val}\r\n\
-             desktopwidth:i:{w}\r\n\
-             desktopheight:i:{h}\r\n\
-             session bpp:i:{bpp}\r\n\
-             connection type:i:{connection_val}\r\n"
-        );
-
-        let temp_file_name = format!(".sshbool_rdp_{}.rdp", Uuid::now_v7());
-        let temp_path = std::env::temp_dir().join(&temp_file_name);
-        if let Ok(mut file) = std::fs::File::create(&temp_path) {
-            let _ = file.write_all(rdp_content.as_bytes());
-
-            let mut cmd = Command::new("mstsc.exe");
-            cmd.arg(temp_path.to_str().unwrap_or(""));
-            if admin_mode.unwrap_or(false) {
-                cmd.arg("/admin");
-            }
-            if full_screen.unwrap_or(false) {
-                cmd.arg("/f");
-            }
-            let _ = cmd.spawn();
-        } else {
-            let safe_host = host
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == ':');
-            if safe_host {
-                let mut cmd = Command::new("mstsc.exe");
-                cmd.arg(format!("/v:{addr}"));
-                if admin_mode.unwrap_or(false) {
-                    cmd.arg("/admin");
-                }
-                if full_screen.unwrap_or(false) {
-                    cmd.arg("/f");
-                }
-                let _ = cmd.spawn();
-            }
-        }
-    }
+        crate::rdp_windows::launch_mstsc(&mstsc_opts)
+            .map_err(|message| AppError::Internal { message })?;
+        ("mstsc", false)
+    };
 
     #[cfg(target_os = "macos")]
     {
+        let connect_addr = format!("{connect_host}:{local_port}");
         use std::io::Write;
         use std::process::Command;
 
@@ -895,10 +927,10 @@ pub async fn rdp_launch_native(
         let bpp = color_depth.unwrap_or(32);
 
         let rdp_content = format!(
-            "full address:s:{addr}\r\n\
+            "full address:s:{connect_addr}\r\n\
              username:s:{u}\r\n\
              prompt for credentials:i:0\r\n\
-             authentication level:i:2\r\n\
+             authentication level:i:0\r\n\
              redirectclipboard:i:{clipboard_val}\r\n\
              smart sizing:i:{sizing_val}\r\n\
              administrative session:i:{admin_val}\r\n\
@@ -915,7 +947,7 @@ pub async fn rdp_launch_native(
             let _ = Command::new("open").arg(&temp_path).spawn();
         } else {
             let url = format!(
-                "rdp://full%20address=s:{addr}&username=s:{u}&redirectclipboard=i:{clipboard_val}&smartsizing=i:{sizing_val}&desktopwidth=i:{w}&desktopheight=i:{h}&bpp=i:{bpp}"
+                "rdp://full%20address=s:{connect_addr}&username=s:{u}&redirectclipboard=i:{clipboard_val}&smartsizing=i:{sizing_val}&desktopwidth=i:{w}&desktopheight=i:{h}&bpp=i:{bpp}"
             );
             let _ = Command::new("open").arg(&url).spawn();
         }
@@ -923,6 +955,7 @@ pub async fn rdp_launch_native(
 
     #[cfg(target_os = "linux")]
     {
+        let connect_addr = format!("{connect_host}:{local_port}");
         use std::io::Write;
         use std::process::Command;
 
@@ -945,7 +978,7 @@ pub async fn rdp_launch_native(
         let has_pass = !p.is_empty();
 
         let mut args = vec![
-            format!("/v:{addr}"),
+            format!("/v:{connect_addr}"),
             format!("/u:{u}"),
             "/cert:tofu".to_string(),
         ];
@@ -1046,7 +1079,19 @@ pub async fn rdp_launch_native(
         }
     }
 
-    Ok(())
+    #[cfg(not(target_os = "windows"))]
+    let freerdp_fallback = false;
+
+    Ok(json!({
+        "localHost": connect_host,
+        "localPort": local_port,
+        "remoteHost": remote_dest,
+        "remotePort": port,
+        "forwardId": tunnel_forward_id,
+        "rdpClient": rdp_client,
+        "autoLogin": use_ssh && !p.is_empty(),
+        "freerdpFallback": freerdp_fallback,
+    }))
 }
 
 #[tauri::command]
@@ -1184,5 +1229,234 @@ pub async fn tray_close(app: tauri::AppHandle) -> Result<(), AppError> {
     if let Some(win) = app.get_webview_window("tray_popup") {
         let _ = win.close();
     }
+    Ok(())
+}
+
+async fn ensure_desktop_tunnel(
+    state: &State<'_, Arc<AppState>>,
+    host_id: &str,
+    dest_host: &str,
+    remote_port: u16,
+) -> Result<u16, AppError> {
+    let tunnel_id = format!("inapp-desktop-tunnel-{host_id}");
+
+    let local_tcp_port = if state.connections.forward_is_active(&tunnel_id).await {
+        if let Some(existing) = state.connections.forward_local_port(&tunnel_id).await {
+            existing
+        } else {
+            let _ = state.connections.port_forward_stop(&tunnel_id).await;
+            let picked = pick_local_port().await?;
+            state
+                .connections
+                .port_forward_start(
+                    &tunnel_id,
+                    host_id,
+                    "127.0.0.1",
+                    picked,
+                    dest_host,
+                    remote_port,
+                )
+                .await?;
+            picked
+        }
+    } else {
+        let _ = state.connections.port_forward_stop(&tunnel_id).await;
+        let picked = pick_local_port().await?;
+        state
+            .connections
+            .port_forward_start(
+                &tunnel_id,
+                host_id,
+                "127.0.0.1",
+                picked,
+                dest_host,
+                remote_port,
+            )
+            .await?;
+        picked
+    };
+
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    Ok(local_tcp_port)
+}
+
+/// Connect to in-app VNC desktop via local WebSocket-to-SSH bridge (noVNC).
+#[tauri::command]
+pub async fn desktop_inapp_connect(
+    state: State<'_, Arc<AppState>>,
+    host_id: String,
+    remote_target: String,
+    remote_port: u16,
+    protocol: Option<String>,
+) -> Result<Value, AppError> {
+    let dest_host = if remote_target.is_empty() || remote_target == "localhost" {
+        "127.0.0.1".to_string()
+    } else {
+        remote_target
+    };
+
+    let local_tcp_port = ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
+
+    let session_id = format!("{host_id}-{remote_port}");
+    let proto = protocol.unwrap_or_else(|| "vnc".into());
+
+    let ws_port = crate::desktop_bridge::DESKTOP_BRIDGES
+        .start_vnc(session_id.clone(), local_tcp_port)
+        .await
+        .map_err(|e| AppError::Internal { message: e })?;
+
+    let vault_pass = resolve_host_vault_password(&state, &host_id)
+        .await
+        .unwrap_or_default();
+
+    Ok(json!({
+        "sessionId": session_id,
+        "wsPort": ws_port,
+        "wsUrl": format!("ws://127.0.0.1:{ws_port}"),
+        "localTcpPort": local_tcp_port,
+        "remoteHost": dest_host,
+        "remotePort": remote_port,
+        "protocol": proto,
+        "vaultPassword": vault_pass,
+    }))
+}
+
+/// Connect to in-app RDP via Guacamole + guacd (credentials stay in Rust token).
+#[tauri::command]
+pub async fn desktop_guacamole_connect(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
+    host_id: String,
+    remote_target: String,
+    remote_port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    domain: Option<String>,
+    use_ssh_credentials: Option<bool>,
+    width: Option<u32>,
+    height: Option<u32>,
+    color_depth: Option<u32>,
+    performance: Option<String>,
+) -> Result<Value, AppError> {
+    let use_ssh = use_ssh_credentials.unwrap_or(true);
+    let dest_host = if remote_target.is_empty() || remote_target == "localhost" {
+        "127.0.0.1".to_string()
+    } else {
+        remote_target
+    };
+
+    let host_row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT username FROM hosts WHERE id = ?")
+            .bind(&host_id)
+            .fetch_optional(state.vault.pool())
+            .await
+            .ok()
+            .flatten();
+
+    let vault_user = host_row.and_then(|r| r.0).unwrap_or_default();
+
+    let mut u = username.unwrap_or_default();
+    if u.is_empty() && use_ssh {
+        u = vault_user.clone();
+    }
+
+    let vault_pass = resolve_host_vault_password(&state, &host_id).await;
+    let p = crate::rdp_credentials::resolve_rdp_password(
+        &password.unwrap_or_default(),
+        use_ssh,
+        vault_pass.as_deref(),
+    );
+
+    if use_ssh && p.is_empty() {
+        return Err(AppError::Validation {
+            field: "password".into(),
+            message: "No SSH password saved for this host. Add a password in host settings or enter RDP credentials manually.".into(),
+        });
+    }
+
+    if u.is_empty() {
+        return Err(AppError::Validation {
+            field: "username".into(),
+            message: "RDP username is required.".into(),
+        });
+    }
+
+    crate::guacd_manager::ensure_guacd_running(Some(&app))
+        .await
+        .map_err(|message| AppError::Internal { message })?;
+
+    let local_tcp_port = ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
+
+    let session_id = format!("{host_id}-{remote_port}");
+    let ws_port = crate::desktop_bridge::DESKTOP_BRIDGES
+        .start_guacamole(session_id.clone())
+        .await
+        .map_err(|e| AppError::Internal { message: e })?;
+
+    let w = width.unwrap_or(1280);
+    let h = height.unwrap_or(720);
+    let bpp = color_depth.unwrap_or(32);
+    let perf = performance.unwrap_or_else(|| "auto".into());
+
+    let token = crate::guacamole_token::build_rdp_token(
+        "127.0.0.1",
+        local_tcp_port,
+        &u,
+        &p,
+        domain.as_deref(),
+        w,
+        h,
+        bpp,
+        &perf,
+    )
+    .map_err(|message| AppError::Internal { message })?;
+
+    Ok(json!({
+        "sessionId": session_id,
+        "wsPort": ws_port,
+        "wsUrl": format!("ws://127.0.0.1:{ws_port}"),
+        "token": token,
+        "localTcpPort": local_tcp_port,
+        "remoteHost": dest_host,
+        "remotePort": remote_port,
+        "protocol": "rdp",
+        "username": u,
+    }))
+}
+
+/// Install/start guacd (Docker container or bundled binary).
+#[tauri::command]
+pub async fn desktop_guacd_setup(
+    app: tauri::AppHandle,
+    install_docker: Option<bool>,
+) -> Result<Value, AppError> {
+    let install = install_docker.unwrap_or(false);
+    let message = crate::guacd_manager::provision_guacd_bundle(Some(&app), install)
+        .map_err(|e| AppError::Internal { message: e })?;
+
+    if !install {
+        crate::guacd_manager::ensure_guacd_running(Some(&app))
+            .await
+            .map_err(|e| AppError::Internal { message: e })?;
+    }
+
+    Ok(json!({ "ok": true, "message": message }))
+}
+
+/// Disconnect in-app desktop bridge and stop tunnel.
+#[tauri::command]
+pub async fn desktop_inapp_disconnect(
+    state: State<'_, Arc<AppState>>,
+    host_id: String,
+    remote_port: Option<u16>,
+) -> Result<(), AppError> {
+    let port = remote_port.unwrap_or(5900);
+    let session_id = format!("{host_id}-{port}");
+    crate::desktop_bridge::DESKTOP_BRIDGES
+        .stop(&session_id)
+        .await;
+
+    let tunnel_id = format!("inapp-desktop-tunnel-{host_id}");
+    let _ = state.connections.port_forward_stop(&tunnel_id).await;
     Ok(())
 }

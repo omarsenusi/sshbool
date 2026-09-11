@@ -7,14 +7,18 @@ import { ipc } from "@/lib/ipc/commands"
 export function PluginsPanel() {
   const qc = useQueryClient()
   const [query, setQuery] = useState("")
-  const list = useQuery({ queryKey: ["plugins"], queryFn: () => ipc.pluginsList() })
+  const list = useQuery({
+    queryKey: ["plugins"],
+    queryFn: () => ipc.pluginsList(),
+  })
   const market = useQuery({
     queryKey: ["plugins", "market", query],
     queryFn: () => ipc.pluginsSearchMarketplace(query),
   })
 
   const install = useMutation({
-    mutationFn: (manifest: Record<string, unknown>) => ipc.pluginsInstall(manifest),
+    mutationFn: (manifest: Record<string, unknown>) =>
+      ipc.pluginsInstall(manifest),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["plugins"] }),
   })
   const toggle = useMutation({
@@ -29,17 +33,22 @@ export function PluginsPanel() {
       <section>
         <h3 className="mb-2 font-medium">Installed</h3>
         {(list.data ?? []).length === 0 && (
-          <p className="text-muted-foreground text-xs">No plugins installed.</p>
+          <p className="text-xs text-muted-foreground">No plugins installed.</p>
         )}
         {(list.data ?? []).map((p) => (
           <div key={String(p.id)} className="flex items-center gap-2 py-1">
             <span className="flex-1">
-              {String(p.name)} <span className="text-muted-foreground text-xs">v{String(p.version)}</span>
+              {String(p.name)}{" "}
+              <span className="text-xs text-muted-foreground">
+                v{String(p.version)}
+              </span>
             </span>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => toggle.mutate({ id: String(p.id), enabled: !p.enabled })}
+              onClick={() =>
+                toggle.mutate({ id: String(p.id), enabled: !p.enabled })
+              }
             >
               {p.enabled ? "Disable" : "Enable"}
             </Button>
@@ -50,7 +59,7 @@ export function PluginsPanel() {
         <h3 className="font-medium">Marketplace</h3>
         <div className="flex gap-2">
           <input
-            className="border-input bg-background flex-1 rounded-md border px-2 py-1 text-xs"
+            className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search…"
@@ -60,10 +69,15 @@ export function PluginsPanel() {
           </Button>
         </div>
         {(market.data ?? []).map((item) => (
-          <div key={String(item.slug)} className="flex items-center gap-2 border-b border-border/40 py-1">
+          <div
+            key={String(item.slug)}
+            className="flex items-center gap-2 border-b border-border/40 py-1"
+          >
             <div className="min-w-0 flex-1">
               <div>{String(item.name)}</div>
-              <div className="text-muted-foreground text-xs">{String(item.description ?? "")}</div>
+              <div className="text-xs text-muted-foreground">
+                {String(item.description ?? "")}
+              </div>
             </div>
             <Button
               size="sm"

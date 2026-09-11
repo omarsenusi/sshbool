@@ -8,7 +8,10 @@ export function AiPanel() {
   const [message, setMessage] = useState("")
   const [reply, setReply] = useState("")
   const [convId, setConvId] = useState<string | undefined>()
-  const providers = useQuery({ queryKey: ["ai-providers"], queryFn: () => ipc.aiProvidersList() })
+  const providers = useQuery({
+    queryKey: ["ai-providers"],
+    queryFn: () => ipc.aiProvidersList(),
+  })
 
   const send = useMutation({
     mutationFn: () => ipc.aiSend(message, undefined, convId),
@@ -47,37 +50,58 @@ export function AiPanel() {
     <div className="flex h-full flex-col gap-3 p-4 text-sm">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">AI assistant</h2>
-        <Button size="sm" variant="outline" onClick={() => upsertOllama.mutate()}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => upsertOllama.mutate()}
+        >
           Use Ollama
         </Button>
       </div>
-      <p className="text-muted-foreground text-xs">
-        Providers: {(providers.data ?? []).map((p) => String(p.name ?? p.kind)).join(", ") || "none — add Ollama"}
+      <p className="text-xs text-muted-foreground">
+        Providers:{" "}
+        {(providers.data ?? [])
+          .map((p) => String(p.name ?? p.kind))
+          .join(", ") || "none — add Ollama"}
       </p>
       <textarea
-        className="border-input bg-background min-h-24 w-full rounded-md border px-2 py-1 font-mono text-xs"
+        className="min-h-24 w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-xs"
         placeholder="Ask a question, or paste a command to explain…"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={!message || send.isPending} onClick={() => send.mutate()}>
+        <Button
+          size="sm"
+          disabled={!message || send.isPending}
+          onClick={() => send.mutate()}
+        >
           Send
         </Button>
-        <Button size="sm" variant="outline" disabled={!message} onClick={() => explain.mutate()}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!message}
+          onClick={() => explain.mutate()}
+        >
           Explain command
         </Button>
-        <Button size="sm" variant="outline" disabled={!message} onClick={() => generate.mutate()}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!message}
+          onClick={() => generate.mutate()}
+        >
           Generate command
         </Button>
       </div>
       {(send.isError || explain.isError || generate.isError) && (
-        <p className="text-destructive text-xs">
+        <p className="text-xs text-destructive">
           {((send.error ?? explain.error ?? generate.error) as Error).message}
         </p>
       )}
       {reply && (
-        <pre className="bg-muted flex-1 overflow-auto rounded-md p-3 font-mono text-xs whitespace-pre-wrap">
+        <pre className="flex-1 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap">
           {reply}
         </pre>
       )}

@@ -136,6 +136,63 @@ impl VaultService {
         Ok(())
     }
 
+    /// Whether the user requires a master password on every app launch.
+    pub async fn lock_on_startup(&self) -> Result<bool, DomainError> {
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT value FROM settings WHERE key = 'lockOnStartup'")
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| DomainError::Crypto(e.to_string()))?;
+        Ok(row
+            .and_then(|(v,)| serde_json::from_str::<serde_json::Value>(&v).ok())
+            .is_some_and(|v| v == serde_json::Value::Bool(true)))
+    }
+
+    /// Persist or clear the OS keychain copy of the master password.
+    pub async fn sync_keychain_password(&self, password: &str) -> Result<(), DomainError> {
+        if self.lock_on_startup().await? {
+            crate::vault_keychain::clear_master_password();
+            self.set_keychain_backed(false).await
+        } else {
+            crate::vault_keychain::set_master_password(password)?;
+            self.set_keychain_backed(true).await
+        }
+    }
+
+    /// Try unlocking from the OS keychain when launch lock is disabled.
+    pub async fn try_auto_unlock(&self) -> Result<bool, DomainError> {
+        if self.lock_on_startup().await? {
+            return Ok(false);
+        }
+        let status = self.status().await?;
+        if !status.initialized || !status.locked {
+            return Ok(!status.locked);
+        }
+        let password = match crate::vault_keychain::get_master_password() {
+            Ok(p) => p,
+            Err(_) => return Ok(false),
+        };
+        self.unlock(&password).await?;
+        Ok(true)
+    }
+
+    async fn set_keychain_backed(&self, backed: bool) -> Result<(), DomainError> {
+        let now = chrono::Utc::now().timestamp_millis();
+        sqlx::query("UPDATE vault SET keychain_backed = ?, updated_at = ?")
+            .bind(i64::from(backed))
+            .bind(now)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DomainError::Crypto(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Clear stored launch password when the user re-enables startup lock.
+    pub async fn clear_launch_password(&self) -> Result<(), DomainError> {
+        crate::vault_keychain::clear_master_password();
+        self.set_keychain_backed(false).await
+    }
+
     async fn require_dek(&self) -> Result<Zeroizing<[u8; 32]>, DomainError> {
         self.dek
             .read()

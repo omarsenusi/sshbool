@@ -7,8 +7,14 @@ import { ipc } from "@/lib/ipc/commands"
 export function SyncPanel() {
   const qc = useQueryClient()
   const [endpoint, setEndpoint] = useState("http://127.0.0.1:8787")
-  const status = useQuery({ queryKey: ["sync-status"], queryFn: () => ipc.syncStatus() })
-  const devices = useQuery({ queryKey: ["sync-devices"], queryFn: () => ipc.syncDevicesList() })
+  const status = useQuery({
+    queryKey: ["sync-status"],
+    queryFn: () => ipc.syncStatus(),
+  })
+  const devices = useQuery({
+    queryKey: ["sync-devices"],
+    queryFn: () => ipc.syncDevicesList(),
+  })
 
   const configure = useMutation({
     mutationFn: (enabled: boolean) => ipc.syncConfigure(enabled, endpoint),
@@ -24,17 +30,17 @@ export function SyncPanel() {
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-4 text-sm">
       <h2 className="text-lg font-semibold">Cloud sync</h2>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         E2E-encrypted sync. Requires Pro/Team. Local relay stub:{" "}
         <code>services/sync-relay</code>
       </p>
-      <pre className="bg-muted rounded-md p-2 font-mono text-xs">
+      <pre className="rounded-md bg-muted p-2 font-mono text-xs">
         {JSON.stringify(status.data ?? {}, null, 2)}
       </pre>
       <label className="flex flex-col gap-1 text-xs">
         Relay endpoint
         <input
-          className="border-input bg-background rounded-md border px-2 py-1 font-mono"
+          className="rounded-md border border-input bg-background px-2 py-1 font-mono"
           value={endpoint}
           onChange={(e) => setEndpoint(e.target.value)}
         />
@@ -43,7 +49,11 @@ export function SyncPanel() {
         <Button size="sm" onClick={() => enable.mutate()}>
           Enable
         </Button>
-        <Button size="sm" variant="outline" onClick={() => configure.mutate(false)}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => configure.mutate(false)}
+        >
           Disable
         </Button>
         <Button size="sm" variant="outline" onClick={() => push.mutate()}>
@@ -54,12 +64,12 @@ export function SyncPanel() {
         </Button>
       </div>
       {(push.data || pull.data) && (
-        <pre className="bg-muted rounded-md p-2 text-xs">
+        <pre className="rounded-md bg-muted p-2 text-xs">
           {JSON.stringify(push.data ?? pull.data, null, 2)}
         </pre>
       )}
       {(enable.isError || push.isError || pull.isError) && (
-        <p className="text-destructive text-xs">
+        <p className="text-xs text-destructive">
           {((enable.error ?? push.error ?? pull.error) as Error).message}
         </p>
       )}

@@ -12,7 +12,10 @@ type Props = {
   initialSql?: string
 }
 
-export function DbSqlWorkspace({ connectionId, initialSql = "SELECT 1;" }: Props) {
+export function DbSqlWorkspace({
+  connectionId,
+  initialSql = "SELECT 1;",
+}: Props) {
   const [sql, setSql] = useState(initialSql)
   const [result, setResult] = useState<DbQueryResultDto | null>(null)
 
@@ -24,51 +27,66 @@ export function DbSqlWorkspace({ connectionId, initialSql = "SELECT 1;" }: Props
   const hasGrid = result?.columns && result.columns.length > 0
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="px-4 py-2 border-b border-border bg-muted/10 flex items-center justify-between shrink-0">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/10 px-4 py-2">
+        <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
           SQL Editor
         </span>
-        <Button size="sm" disabled={run.isPending} onClick={() => run.mutate()} className="gap-1.5">
-          {run.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+        <Button
+          size="sm"
+          disabled={run.isPending}
+          onClick={() => run.mutate()}
+          className="gap-1.5"
+        >
+          {run.isPending ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Play className="size-3.5" />
+          )}
           Run Query
         </Button>
       </div>
 
-      <div className="shrink-0 p-3 border-b border-border">
+      <div className="shrink-0 border-b border-border p-3">
         <textarea
-          className="w-full h-28 border border-border bg-muted/10 rounded-md p-3 font-mono text-[11px] resize-none outline-none focus:ring-1 focus:ring-primary"
+          className="h-28 w-full resize-none rounded-md border border-border bg-muted/10 p-3 font-mono text-[11px] outline-none focus:ring-1 focus:ring-primary"
           value={sql}
           onChange={(e) => setSql(e.target.value)}
           placeholder="SELECT * FROM users LIMIT 10;"
         />
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
         {run.isError && (
-          <p className="text-xs text-destructive flex items-center gap-2">
+          <p className="flex items-center gap-2 text-xs text-destructive">
             <AlertCircle className="size-3.5 shrink-0" />
             {(run.error as Error).message}
           </p>
         )}
 
         {result && (
-          <div className="text-[10px] text-muted-foreground shrink-0">
+          <div className="shrink-0 text-[10px] text-muted-foreground">
             {result.durationMs}ms
             {result.rowCount != null ? ` · ${result.rowCount} rows` : ""}
           </div>
         )}
 
         {hasGrid ? (
-          <DbResultGrid className="flex-1 min-h-0" columns={result!.columns!} rows={result!.rows ?? []} />
+          <DbResultGrid
+            className="min-h-0 flex-1"
+            columns={result!.columns!}
+            rows={result!.rows ?? []}
+          />
         ) : result?.output ? (
-          <pre className="flex-1 overflow-auto rounded-md border border-border bg-neutral-950 text-neutral-200 p-3 font-mono text-[11px] whitespace-pre-wrap">
+          <pre className="flex-1 overflow-auto rounded-md border border-border bg-neutral-950 p-3 font-mono text-[11px] whitespace-pre-wrap text-neutral-200">
             {result.output}
           </pre>
         ) : (
           !run.isPending &&
           !run.isError && (
-            <div className="text-xs text-muted-foreground italic">Run a query to see results.</div>
+            <div className="text-xs text-muted-foreground italic">
+              Run a query to see results.
+            </div>
           )
         )}
       </div>

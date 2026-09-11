@@ -25,7 +25,10 @@ export function getTerminalScrollback(paneId: string): string {
 }
 
 /** Register a live xterm serializer (main window pane). */
-export function registerTerminalSerializer(paneId: string, serialize: () => string) {
+export function registerTerminalSerializer(
+  paneId: string,
+  serialize: () => string
+) {
   serializers.set(paneId, serialize)
 }
 
@@ -56,20 +59,26 @@ export function startScrollbackBridge() {
     const paneId = event.payload?.paneId
     if (!paneId) return
     const data = getTerminalScrollback(paneId)
-    void emit(TERM_SCROLLBACK_RESPONSE, { paneId, data } satisfies ScrollbackPayload)
+    void emit(TERM_SCROLLBACK_RESPONSE, {
+      paneId,
+      data,
+    } satisfies ScrollbackPayload)
   })
 }
 
 /** Push scrollback to any listening pop-out (call after window created). */
 export async function pushScrollbackToPopout(paneId: string) {
   const data = getTerminalScrollback(paneId)
-  await emit(TERM_SCROLLBACK_RESPONSE, { paneId, data } satisfies ScrollbackPayload)
+  await emit(TERM_SCROLLBACK_RESPONSE, {
+    paneId,
+    data,
+  } satisfies ScrollbackPayload)
 }
 
 /** Pop-out window: request + wait for scrollback from the main window. */
 export async function fetchScrollbackFromMain(
   paneId: string,
-  timeoutMs = 2500,
+  timeoutMs = 2500
 ): Promise<string> {
   return await new Promise((resolve) => {
     let done = false
@@ -86,7 +95,10 @@ export async function fetchScrollbackFromMain(
       unlisten?.()
     }
 
-    const timer = window.setTimeout(() => finish(memory.get(paneId) ?? ""), timeoutMs)
+    const timer = window.setTimeout(
+      () => finish(memory.get(paneId) ?? ""),
+      timeoutMs
+    )
 
     void listen<ScrollbackPayload>(TERM_SCROLLBACK_RESPONSE, (event) => {
       if (event.payload?.paneId !== paneId) return

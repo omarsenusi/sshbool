@@ -34,3 +34,4 @@ ssh-encoding = "0.2"
 regex = "1"
 dirs = "6"
 chrono = { version = "0.4", features = ["serde"] }
+keyring = "3"

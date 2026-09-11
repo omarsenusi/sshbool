@@ -101,6 +101,7 @@
 
   --titlebar-h: 36px;
   --activitybar-w: 48px;
+  /* Fallback only — the rail width is driven by the layout store at runtime. */
   --hostrail-w: 52px;
   --sidebar-w: 220px;
   --statusbar-h: 26px;
@@ -157,7 +158,6 @@
   animation: host-svg-wave-rise 1.5s ease-in-out infinite alternate;
 }
 
-
 @keyframes host-svg-wave-rise {
   0% {
     height: 15%;
@@ -208,7 +208,7 @@
     color-scheme: dark;
   }
   body {
-    @apply bg-background text-foreground overflow-hidden;
+    @apply overflow-hidden bg-background text-foreground;
   }
   #root {
     @apply h-screen w-screen;
@@ -229,11 +229,11 @@
     width: 280px;
     border-radius: 14px;
     background: linear-gradient(160deg, #0f1117 0%, #0a0d14 100%);
-    border: 1px solid rgba(255,255,255,0.07);
+    border: 1px solid rgba(255, 255, 255, 0.07);
     box-shadow:
-      0 32px 64px rgba(0,0,0,0.7),
-      0 0 0 1px rgba(0,0,0,0.5),
-      inset 0 1px 0 rgba(255,255,255,0.06);
+      0 32px 64px rgba(0, 0, 0, 0.7),
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
     backdrop-filter: blur(24px) saturate(160%);
     overflow: hidden;
     animation: tray-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -256,8 +256,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 14px 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
   }
 
   .tray-logo {
@@ -279,15 +279,15 @@
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    color: rgba(255,255,255,0.3);
+    color: rgba(255, 255, 255, 0.3);
     transition: all 0.15s;
     cursor: pointer;
     border: none;
     background: transparent;
   }
   .tray-close-btn:hover {
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.7);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
   }
 
   /* Section labels */
@@ -296,7 +296,7 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.3);
+    color: rgba(255, 255, 255, 0.3);
     padding: 10px 14px 4px;
     user-select: none;
   }
@@ -326,10 +326,10 @@
     color: inherit;
   }
   .tray-item:hover {
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
   }
   .tray-item:active {
-    background: rgba(255,255,255,0.04);
+    background: rgba(255, 255, 255, 0.04);
     transform: scale(0.99);
   }
 
@@ -345,8 +345,15 @@
   }
 
   @keyframes pulse-dot {
-    0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(16,185,129,0.6); }
-    50%       { opacity: 0.7; box-shadow: 0 0 12px rgba(16,185,129,0.9); }
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+    50% {
+      opacity: 0.7;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.9);
+    }
   }
 
   /* Text stack inside item */
@@ -392,16 +399,16 @@
     border-radius: 8px;
     border: none;
     background: transparent;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255, 255, 255, 0.5);
     cursor: pointer;
     transition: all 0.15s;
   }
   .tray-trigger:hover {
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.85);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
   }
   .tray-trigger-active {
-    background: rgba(14,116,144,0.2);
+    background: rgba(14, 116, 144, 0.2);
     color: #22d3ee;
   }
 
@@ -429,4 +436,3 @@
   -webkit-font-smoothing: antialiased !important;
   -moz-osx-font-smoothing: grayscale !important;
 }
-

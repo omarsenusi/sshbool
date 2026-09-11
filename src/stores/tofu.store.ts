@@ -35,6 +35,8 @@ export const useTofuStore = create<TofuState>((set) => ({
   pendingKeyPassphrase: null,
   pendingHostKeyChanged: null,
   setPendingFingerprint: (pendingFingerprint) => set({ pendingFingerprint }),
-  setPendingKeyPassphrase: (pendingKeyPassphrase) => set({ pendingKeyPassphrase }),
-  setPendingHostKeyChanged: (pendingHostKeyChanged) => set({ pendingHostKeyChanged }),
+  setPendingKeyPassphrase: (pendingKeyPassphrase) =>
+    set({ pendingKeyPassphrase }),
+  setPendingHostKeyChanged: (pendingHostKeyChanged) =>
+    set({ pendingHostKeyChanged }),
 }))

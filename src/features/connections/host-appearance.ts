@@ -29,7 +29,10 @@ export function hostLetter(label: string): string {
   return letter.toLocaleUpperCase()
 }
 
-export function hostAccent(host: { id: string; color?: string | null }): string {
+export function hostAccent(host: {
+  id: string
+  color?: string | null
+}): string {
   if (host.color && /^#[0-9a-fA-F]{3,8}$/.test(host.color)) return host.color
   let hash = 0
   for (let i = 0; i < host.id.length; i++) {

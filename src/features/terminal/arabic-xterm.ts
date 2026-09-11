@@ -10,9 +10,10 @@
 
 import { ArabicShaper } from "arabic-persian-reshaper"
 
-// ANSI CSI/OSC sequences contain ESC and BEL control bytes by design.
-// eslint-disable-next-line no-control-regex -- terminal escape parsing
-const ANSI_SPLIT = /(\x1b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_]))/g
+/* eslint-disable no-control-regex */
+const ANSI_SPLIT =
+  /(\x1b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_]))/g
+/* eslint-enable no-control-regex */
 
 /** Arabic letters only (not punctuation / digits in the Arabic block). */
 export function isArabicLetter(ch: string): boolean {

@@ -2,18 +2,18 @@
 
 ## Supported Versions
 
-Currently, the SSHBool project is in active development. Only the latest release on the main branch is officially supported for security updates. 
+Currently, the SSHBool project is in active development. Only the latest release on the main branch is officially supported for security updates.
 
-| Version              | Supported          |
-| -------------------- | ------------------ |
-| v0.1.7 and later     | :white_check_mark: |
-| Before v0.1.4        | :x:                |
+| Version          | Supported          |
+| ---------------- | ------------------ |
+| v0.1.7 and later | :white_check_mark: |
+| Before v0.1.4    | :x:                |
 
 ## Reporting a Vulnerability
 
 We take the security of SSHBool and our users' data very seriously. If you discover a vulnerability, we would like to know about it so we can take steps to address it as quickly as possible.
 
-Please do **not** report security vulnerabilities through public GitHub issues. 
+Please do **not** report security vulnerabilities through public GitHub issues.
 
 Instead, please report them by sending an email to our security team or the maintainer (replace with actual contact info, e.g., `security@sshbool.com`). We will acknowledge receipt of your vulnerability report and strive to send you regular updates about our progress.
 

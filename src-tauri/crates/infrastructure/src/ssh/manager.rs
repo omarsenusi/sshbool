@@ -1,16 +1,79 @@
 //! SSH session / PTY / SFTP manager (russh 0.62).
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 use domain::DomainError;
 use russh::client::{self, AuthResult, Handle};
 use russh::keys::{decode_secret_key, HashAlg, PrivateKeyWithHashAlg, PublicKey, PublicKeyBase64};
 use russh::ChannelMsg;
+use russh::Pty;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{mpsc, Mutex, RwLock};
 use uuid::Uuid;
 
 use crate::vault::VaultService;
+
+async fn read_setting_u64(pool: &sqlx::SqlitePool, key: &str) -> Option<u64> {
+    let row: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ? LIMIT 1")
+        .bind(key)
+        .fetch_optional(pool)
+        .await
+        .ok()?;
+    let (raw,) = row?;
+    let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    value
+        .as_u64()
+        .or_else(|| value.as_i64().and_then(|n| u64::try_from(n).ok()))
+}
+
+/// OpenSSH-compatible PTY modes so RHEL/CentOS/AlmaLinux shells behave like a normal terminal.
+const DEFAULT_PTY_MODES: &[(Pty, u32)] = &[
+    (Pty::VINTR, 3),
+    (Pty::VQUIT, 28),
+    (Pty::VERASE, 127),
+    (Pty::VKILL, 21),
+    (Pty::VEOF, 4),
+    (Pty::VEOL, 255),
+    (Pty::VEOL2, 255),
+    (Pty::VSTART, 17),
+    (Pty::VSTOP, 19),
+    (Pty::VSUSP, 26),
+    (Pty::VREPRINT, 18),
+    (Pty::VWERASE, 23),
+    (Pty::VLNEXT, 22),
+    (Pty::ICRNL, 1),
+    (Pty::IXON, 1),
+    (Pty::IXANY, 1),
+    (Pty::IMAXBEL, 1),
+    (Pty::IUTF8, 1),
+    (Pty::ISIG, 1),
+    (Pty::ICANON, 1),
+    (Pty::ECHO, 1),
+    (Pty::ECHOE, 1),
+    (Pty::ECHOK, 1),
+    (Pty::IEXTEN, 1),
+    (Pty::OPOST, 1),
+    (Pty::ONLCR, 1),
+    (Pty::CS8, 1),
+    (Pty::TTY_OP_ISPEED, 38400),
+    (Pty::TTY_OP_OSPEED, 38400),
+];
+
+/// Best-effort remote env for UTF-8 + colorized tools (ls, grep, vim, etc.).
+/// PTY allocation already sets TERM; these help when sshd AcceptEnv allows them.
+async fn set_shell_env(channel: &mut russh::Channel<client::Msg>) {
+    // en_US.UTF-8 works on RHEL8/AlmaLinux 8; C.UTF-8 is missing on some minimal images.
+    for (key, val) in [
+        ("LANG", "en_US.UTF-8"),
+        ("LC_CTYPE", "en_US.UTF-8"),
+        ("COLORTERM", "truecolor"),
+        ("CLICOLOR", "1"),
+    ] {
+        let _ = channel.set_env(false, key, val).await;
+    }
+}
 
 struct ClientHandler {
     expected_fp: Option<String>,
@@ -91,6 +154,7 @@ pub struct ConnectionManager {
     /// Raw PTY output retained so pop-out / bring-back can restore the same screen.
     scrollback: RwLock<HashMap<String, Vec<u8>>>,
     forward_tasks: RwLock<HashMap<String, tokio::task::JoinHandle<()>>>,
+    forward_ports: RwLock<HashMap<String, u16>>,
 }
 
 const MAX_SCROLLBACK_BYTES: usize = 512_000;
@@ -106,7 +170,33 @@ impl ConnectionManager {
             pane_tx: RwLock::new(HashMap::new()),
             scrollback: RwLock::new(HashMap::new()),
             forward_tasks: RwLock::new(HashMap::new()),
+            forward_ports: RwLock::new(HashMap::new()),
         })
+    }
+
+    pub async fn forward_is_active(&self, forward_id: &str) -> bool {
+        self.forward_tasks.read().await.contains_key(forward_id)
+    }
+
+    pub async fn forward_local_port(&self, forward_id: &str) -> Option<u16> {
+        self.forward_ports.read().await.get(forward_id).copied()
+    }
+
+    /// Best-effort check that a TCP port accepts connections on the remote host.
+    pub async fn probe_remote_tcp(
+        &self,
+        host_id: &str,
+        addr: &str,
+        port: u16,
+    ) -> Result<bool, DomainError> {
+        let cmd = format!(
+            "bash -lc 'if timeout 3 bash -c \"echo >/dev/tcp/{addr}/{port}\" 2>/dev/null; then echo SSHBOOL_OPEN; \
+             elif ss -tln 2>/dev/null | grep -q \":{port} \"; then echo SSHBOOL_OPEN; \
+             elif netstat -tln 2>/dev/null | grep -q \":{port} \"; then echo SSHBOOL_OPEN; \
+             else echo SSHBOOL_CLOSED; fi' 2>/dev/null || echo SSHBOOL_CLOSED"
+        );
+        let out = self.exec_command(host_id, &cmd).await?;
+        Ok(out.contains("SSHBOOL_OPEN"))
     }
 
     /// Open (or reuse) an authenticated session for a host.
@@ -172,7 +262,13 @@ impl ConnectionManager {
         .map_err(|e| DomainError::Crypto(e.to_string()))?;
 
         let learned_fp = Arc::new(Mutex::new(None));
-        let config = Arc::new(client::Config::default());
+        let mut config = client::Config::default();
+        if let Some(secs) = read_setting_u64(self.vault.pool(), "connections.keepaliveSecs").await {
+            if secs > 0 {
+                config.keepalive_interval = Some(std::time::Duration::from_secs(secs));
+            }
+        }
+        let config = Arc::new(config);
         let handler = ClientHandler {
             expected_fp: known.as_ref().map(|k| k.0.clone()),
             learned_fp: learned_fp.clone(),
@@ -402,11 +498,16 @@ impl ConnectionManager {
                 });
             }
             let _ = mgr.forward_tasks.write().await.remove(&fid);
+            let _ = mgr.forward_ports.write().await.remove(&fid);
         });
         self.forward_tasks
             .write()
             .await
             .insert(forward_id.to_string(), handle);
+        self.forward_ports
+            .write()
+            .await
+            .insert(forward_id.to_string(), bind_port);
         Ok(())
     }
 
@@ -415,6 +516,7 @@ impl ConnectionManager {
         if let Some(h) = self.forward_tasks.write().await.remove(forward_id) {
             h.abort();
         }
+        self.forward_ports.write().await.remove(forward_id);
         Ok(())
     }
 
@@ -466,14 +568,10 @@ impl ConnectionManager {
             .map_err(|e| DomainError::Conflict(format!("channel: {e}")))?;
 
         channel
-            .request_pty(false, "xterm-256color", cols, rows, 0, 0, &[])
+            .request_pty(false, "xterm-256color", cols, rows, 0, 0, DEFAULT_PTY_MODES)
             .await
             .map_err(|e| DomainError::Conflict(format!("pty: {e}")))?;
-        // UTF-8 locale so Arabic and other Unicode input/output work in the shell.
-        let _ = channel.set_env(false, "LANG", "C.UTF-8").await;
-        let _ = channel.set_env(false, "LC_ALL", "C.UTF-8").await;
-        let _ = channel.set_env(false, "LC_CTYPE", "C.UTF-8").await;
-        let _ = channel.set_env(false, "TERM", "xterm-256color").await;
+        set_shell_env(&mut channel).await;
         channel
             .request_shell(false)
             .await
@@ -612,6 +710,77 @@ impl ConnectionManager {
             .get(pane_id)
             .cloned()
             .unwrap_or_default()
+    }
+
+    /// Find an existing PTY pane for a host, if any.
+    pub async fn find_pane_for_host(&self, host_id: &str) -> Option<String> {
+        let panes = self.panes.read().await;
+        panes
+            .iter()
+            .find(|(_, pane)| pane.host_id == host_id)
+            .map(|(id, _)| id.clone())
+    }
+
+    /// Open a PTY pane and retain scrollback without requiring the webview listener.
+    pub async fn pane_open_mcp(
+        self: &Arc<Self>,
+        host_id: &str,
+        cols: u32,
+        rows: u32,
+    ) -> Result<(String, String), DomainError> {
+        let (pane_id, session_id, mut rx) = self.pane_open(host_id, cols, rows).await?;
+        let connections = self.clone();
+        let pane_id_sb = pane_id.clone();
+        tokio::spawn(async move {
+            while let Some(bytes) = rx.recv().await {
+                connections
+                    .pane_scrollback_append(&pane_id_sb, &bytes)
+                    .await;
+            }
+        });
+        Ok((pane_id, session_id))
+    }
+
+    /// Write a command to a pane and capture output delta from scrollback.
+    pub async fn exec_in_pane(
+        &self,
+        pane_id: &str,
+        command: &str,
+        timeout_ms: u64,
+    ) -> Result<String, DomainError> {
+        let baseline = self.pane_scrollback_get(pane_id).await;
+        let baseline_len = baseline.len();
+
+        let mut cmd_bytes = command.as_bytes().to_vec();
+        cmd_bytes.push(b'\n');
+        self.pane_write(pane_id, &cmd_bytes).await?;
+
+        let deadline =
+            tokio::time::Instant::now() + std::time::Duration::from_millis(timeout_ms.max(1000));
+        let mut last_len = baseline_len;
+        let mut stable_ticks = 0u32;
+
+        while tokio::time::Instant::now() < deadline {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            let scrollback = self.pane_scrollback_get(pane_id).await;
+            if scrollback.len() == last_len {
+                stable_ticks += 1;
+                if stable_ticks >= 3 {
+                    break;
+                }
+            } else {
+                stable_ticks = 0;
+                last_len = scrollback.len();
+            }
+        }
+
+        let final_scrollback = self.pane_scrollback_get(pane_id).await;
+        let delta = if final_scrollback.len() > baseline_len {
+            String::from_utf8_lossy(&final_scrollback[baseline_len..]).to_string()
+        } else {
+            String::new()
+        };
+        Ok(delta)
     }
 
     /// Run a non-interactive command on the host and return stdout+stderr.
@@ -768,7 +937,12 @@ impl ConnectionManager {
         let meta = sftp
             .metadata(path)
             .await
-            .map_err(|e| DomainError::Conflict(e.to_string()))?;
+            .map_err(|e| map_sftp_err("stat", e))?;
+        if meta.file_type().is_dir() {
+            return Err(DomainError::Conflict(
+                "cannot read a directory as a file".into(),
+            ));
+        }
         let mtime = meta.mtime.unwrap_or(0) as i64;
         let size = meta.size.unwrap_or(0);
         if let Some(max) = max_bytes {
@@ -778,15 +952,38 @@ impl ConnectionManager {
                 )));
             }
         }
-        let mut file = sftp
-            .open(path)
-            .await
-            .map_err(|e| DomainError::Conflict(e.to_string()))?;
-        let mut buf = Vec::with_capacity(size as usize);
-        tokio::io::AsyncReadExt::read_to_end(&mut file, &mut buf)
-            .await
-            .map_err(|e| DomainError::Conflict(e.to_string()))?;
+        let mut file = sftp.open(path).await.map_err(|e| map_sftp_err("open", e))?;
+        let mut buf = Vec::new();
+        if size > 0 {
+            buf.reserve(size.min(max_bytes.unwrap_or(size)) as usize);
+        }
+        sftp_read_file_chunked(&mut file, max_bytes, |chunk| {
+            buf.extend_from_slice(chunk);
+            Ok(true)
+        })
+        .await?;
+        let _ = file.shutdown().await;
         Ok((buf, mtime))
+    }
+
+    /// Stream a remote file (or directory tree) onto the local filesystem.
+    /// `on_progress(done, total)` — return `false` to cancel.
+    pub async fn sftp_download_to<F>(
+        &self,
+        host_id: &str,
+        remote_path: &str,
+        local_path: &str,
+        mut on_progress: F,
+    ) -> Result<u64, DomainError>
+    where
+        F: FnMut(u64, u64) -> bool + Send,
+    {
+        let sftp = self.open_sftp(host_id).await?;
+        let remote = sftp
+            .canonicalize(remote_path)
+            .await
+            .unwrap_or_else(|_| remote_path.to_string());
+        sftp_download_path(&sftp, &remote, Path::new(local_path), &mut on_progress).await
     }
 
     /// Atomic UTF-8 write: temp + rename (editor).
@@ -996,32 +1193,32 @@ impl ConnectionManager {
             }
             Ok(())
         } else {
-            let mut file = sftp
-                .open(from)
-                .await
-                .map_err(|e| DomainError::Conflict(e.to_string()))?;
+            let mut file = sftp.open(from).await.map_err(|e| map_sftp_err("open", e))?;
             let mut buf = Vec::new();
-            tokio::io::AsyncReadExt::read_to_end(&mut file, &mut buf)
-                .await
-                .map_err(|e| DomainError::Conflict(e.to_string()))?;
+            sftp_read_file_chunked(&mut file, None, |chunk| {
+                buf.extend_from_slice(chunk);
+                Ok(true)
+            })
+            .await?;
+            let _ = file.shutdown().await;
             let tmp = format!("{to}.sshbool.tmp");
             {
                 let mut out = sftp
                     .create(&tmp)
                     .await
-                    .map_err(|e| DomainError::Conflict(e.to_string()))?;
-                use tokio::io::AsyncWriteExt;
-                out.write_all(&buf)
-                    .await
-                    .map_err(|e| DomainError::Conflict(e.to_string()))?;
-                out.shutdown()
-                    .await
-                    .map_err(|e| DomainError::Conflict(e.to_string()))?;
+                    .map_err(|e| map_sftp_err("create", e))?;
+                const CHUNK: usize = 64 * 1024;
+                for chunk in buf.chunks(CHUNK) {
+                    out.write_all(chunk)
+                        .await
+                        .map_err(|e| map_sftp_err("write", e))?;
+                }
+                out.shutdown().await.map_err(|e| map_sftp_err("close", e))?;
             }
             let _ = sftp.remove_file(to).await;
             sftp.rename(&tmp, to)
                 .await
-                .map_err(|e| DomainError::Conflict(e.to_string()))
+                .map_err(|e| map_sftp_err("rename", e))
         }
     }
 
@@ -1150,4 +1347,133 @@ fn join_remote(base: &str, name: &str) -> String {
     } else {
         format!("{base}/{name}")
     }
+}
+
+/// OpenSSH and many embedded SFTP servers reject SSH_FXP_READ larger than 32KiB
+/// with a generic SSH_FX_FAILURE ("Failure: Failure"). Always read in small chunks
+/// — never `read_to_end` into a Vec pre-sized to the whole file, because tokio
+/// will then request the entire spare capacity in one packet.
+const SFTP_READ_CHUNK: usize = 32 * 1024;
+
+fn map_sftp_err(op: &str, e: impl std::fmt::Display) -> DomainError {
+    let raw = e.to_string();
+    if raw.contains("Failure") {
+        DomainError::Conflict(format!(
+            "{op} rejected by the SFTP server ({raw}). The path may be a directory, unreadable, or the read exceeded the server's size limit."
+        ))
+    } else {
+        DomainError::Conflict(format!("{op}: {raw}"))
+    }
+}
+
+async fn sftp_read_file_chunked<R, F>(
+    file: &mut R,
+    max_bytes: Option<u64>,
+    mut on_chunk: F,
+) -> Result<u64, DomainError>
+where
+    R: tokio::io::AsyncRead + Unpin,
+    F: FnMut(&[u8]) -> Result<bool, DomainError>,
+{
+    let mut buf = vec![0u8; SFTP_READ_CHUNK];
+    let mut total = 0u64;
+    loop {
+        let n = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| map_sftp_err("read", e))?;
+        if n == 0 {
+            break;
+        }
+        total += n as u64;
+        if let Some(max) = max_bytes {
+            if total > max {
+                return Err(DomainError::Conflict(format!(
+                    "file too large (>{max} bytes)"
+                )));
+            }
+        }
+        if !on_chunk(&buf[..n])? {
+            return Err(DomainError::Canceled);
+        }
+    }
+    Ok(total)
+}
+
+async fn sftp_download_path<F>(
+    sftp: &russh_sftp::client::SftpSession,
+    remote: &str,
+    local: &Path,
+    on_progress: &mut F,
+) -> Result<u64, DomainError>
+where
+    F: FnMut(u64, u64) -> bool + Send,
+{
+    let meta = sftp
+        .metadata(remote)
+        .await
+        .map_err(|e| map_sftp_err("stat", e))?;
+    if meta.file_type().is_dir() {
+        tokio::fs::create_dir_all(local)
+            .await
+            .map_err(|e| DomainError::Conflict(format!("mkdir {}: {e}", local.display())))?;
+        let entries = sftp
+            .read_dir(remote)
+            .await
+            .map_err(|e| map_sftp_err("readdir", e))?;
+        let mut written = 0u64;
+        for entry in entries {
+            let name = entry.file_name();
+            if name == "." || name == ".." {
+                continue;
+            }
+            let src = join_remote(remote, &name);
+            let dst = local.join(&name);
+            written += Box::pin(sftp_download_path(sftp, &src, &dst, on_progress)).await?;
+        }
+        return Ok(written);
+    }
+
+    if let Some(parent) = local.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| DomainError::Conflict(format!("mkdir {}: {e}", parent.display())))?;
+    }
+
+    let total = meta.size.unwrap_or(0);
+    if !on_progress(0, total) {
+        return Err(DomainError::Canceled);
+    }
+
+    let mut file = sftp
+        .open(remote)
+        .await
+        .map_err(|e| map_sftp_err("open", e))?;
+    let mut out = tokio::fs::File::create(local)
+        .await
+        .map_err(|e| DomainError::Conflict(format!("create {}: {e}", local.display())))?;
+    let mut buf = vec![0u8; SFTP_READ_CHUNK];
+    let mut written = 0u64;
+    loop {
+        let n = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| map_sftp_err("read", e))?;
+        if n == 0 {
+            break;
+        }
+        out.write_all(&buf[..n])
+            .await
+            .map_err(|e| DomainError::Conflict(format!("write {}: {e}", local.display())))?;
+        written += n as u64;
+        if !on_progress(written, total.max(written)) {
+            let _ = tokio::fs::remove_file(local).await;
+            return Err(DomainError::Canceled);
+        }
+    }
+    out.flush()
+        .await
+        .map_err(|e| DomainError::Conflict(format!("flush {}: {e}", local.display())))?;
+    let _ = file.shutdown().await;
+    Ok(written)
 }

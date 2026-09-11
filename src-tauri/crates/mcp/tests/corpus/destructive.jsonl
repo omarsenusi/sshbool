@@ -1,0 +1,20 @@
+{"cmd":"rm -rf /var/lib/app","tier":"dangerous","rules":["destroy.rm_recursive"],"note":"recursive rm"}
+{"cmd":"rm -f /etc/passwd","tier":"dangerous","rules":["destroy.rm_recursive"],"note":"forceful rm"}
+{"cmd":"shred -u /etc/shadow","tier":"dangerous","rules":["destroy.disk_wipe"],"note":"shred file"}
+{"cmd":"truncate -s 0 /var/log/auth.log","tier":"dangerous","rules":["destroy.disk_wipe"],"note":"truncate file"}
+{"cmd":"mkfs.ext4 /dev/sda1","tier":"dangerous","rules":["destroy.disk_wipe"],"note":"make filesystem"}
+{"cmd":"fdisk /dev/sdb","tier":"dangerous","rules":["destroy.disk_wipe"],"note":"partition disk"}
+{"cmd":"parted /dev/nvme0n1","tier":"dangerous","rules":["destroy.disk_wipe"],"note":"partition nvme"}
+{"cmd":"wipefs -a /dev/sda","tier":"dangerous","rules":["destroy.disk_wipe"],"note":"wipe filesystem signature"}
+{"cmd":"dd if=/dev/zero of=/dev/sda bs=1M","tier":"dangerous","rules":["destroy.disk_wipe"],"note":"dd overwrite block device"}
+{"cmd":"find /var/lib/app -delete","tier":"dangerous","rules":["destroy.find_delete"],"note":"find delete"}
+{"cmd":"find /var/lib/app -exec rm -rf {} \\;","tier":"dangerous","rules":["destroy.find_delete"],"note":"find exec rm"}
+{"cmd":"rsync -a --delete /empty/ /var/lib/app/","tier":"dangerous","rules":["destroy.find_delete"],"note":"rsync delete"}
+{"cmd":"git clean -fdx","tier":"dangerous","rules":["destroy.git_clean_reset"],"note":"git clean force"}
+{"cmd":"git reset --hard","tier":"dangerous","rules":["destroy.git_clean_reset"],"note":"git reset hard"}
+{"cmd":"git push --force","tier":"dangerous","rules":["destroy.git_clean_reset"],"note":"git push force"}
+{"cmd":"docker system prune","tier":"dangerous","rules":["destroy.container_prune"],"note":"docker prune"}
+{"cmd":"docker volume rm my_vol","tier":"dangerous","rules":["destroy.container_prune"],"note":"docker volume rm"}
+{"cmd":"docker rm -f my_container","tier":"dangerous","rules":["destroy.container_prune"],"note":"docker force rm"}
+{"cmd":"kubectl delete pod web-1","tier":"dangerous","rules":["destroy.container_prune"],"note":"kubectl delete"}
+{"cmd":"helm uninstall my-release","tier":"dangerous","rules":["destroy.container_prune"],"note":"helm uninstall"}

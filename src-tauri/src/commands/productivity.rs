@@ -1,9 +1,12 @@
 //! Productivity, settings, search.
 
 use application::{AppInfoDto, NoteDto, SearchResultDto, SnippetDto, TemplateDto};
+use futures_util::StreamExt;
 use infrastructure::AppState;
+use serde::Serialize;
 use std::sync::Arc;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -316,6 +319,9 @@ pub async fn settings_set(
         .execute(state.vault.pool())
         .await
         .map_err(db)?;
+    if key == "lockOnStartup" && value == serde_json::Value::Bool(true) {
+        state.vault.clear_launch_password().await?;
+    }
     Ok(())
 }
 
@@ -364,9 +370,161 @@ pub async fn keybindings_set(
 
 #[tauri::command]
 pub async fn app_info() -> Result<AppInfoDto, AppError> {
+    let (install_dir, exe_path) = resolve_install_context();
     Ok(AppInfoDto {
         name: "SSHBool".into(),
         version: env!("CARGO_PKG_VERSION").into(),
         tauri_version: "2".into(),
+        update_platform: detect_update_platform(),
+        install_dir,
+        exe_path,
+        is_packaged: !cfg!(debug_assertions),
     })
+}
+
+fn resolve_install_context() -> (String, String) {
+    let exe = std::env::current_exe().ok();
+    let exe_path = exe
+        .as_ref()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    let install_dir = exe
+        .as_ref()
+        .and_then(|path| find_app_bundle_dir(path))
+        .or_else(|| {
+            exe.as_ref()
+                .and_then(|path| path.parent())
+                .map(|dir| dir.to_string_lossy().into_owned())
+        })
+        .unwrap_or_default();
+
+    (install_dir, exe_path)
+}
+
+fn find_app_bundle_dir(path: &std::path::Path) -> Option<String> {
+    for ancestor in path.ancestors() {
+        if ancestor.extension().and_then(|ext| ext.to_str()) == Some("app") {
+            return Some(ancestor.to_string_lossy().into_owned());
+        }
+    }
+    None
+}
+
+fn detect_update_platform() -> String {
+    let os = match std::env::consts::OS {
+        "macos" => "darwin",
+        other => other,
+    };
+    format!("{}-{}", os, std::env::consts::ARCH)
+}
+
+#[tauri::command]
+pub async fn update_download_and_install(
+    app: AppHandle,
+    url: String,
+    file_name: String,
+) -> Result<(), AppError> {
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|error| AppError::Internal {
+            message: format!("Failed to create download client: {error}"),
+        })?;
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|error| AppError::Internal {
+            message: format!("Failed to download update: {error}"),
+        })?;
+
+    if !response.status().is_success() {
+        return Err(AppError::Internal {
+            message: format!("Failed to download update ({})", response.status()),
+        });
+    }
+
+    let total_bytes = response.content_length().unwrap_or(0);
+    let path = std::env::temp_dir().join(&file_name);
+    let mut file = tokio::fs::File::create(&path)
+        .await
+        .map_err(|error| AppError::Internal {
+            message: format!("Failed to create installer file: {error}"),
+        })?;
+
+    emit_update_progress(&app, "downloading", 0, total_bytes);
+
+    let mut downloaded_bytes: u64 = 0;
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|error| AppError::Internal {
+            message: format!("Failed while downloading update: {error}"),
+        })?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|error| AppError::Internal {
+                message: format!("Failed to write installer file: {error}"),
+            })?;
+        downloaded_bytes += chunk.len() as u64;
+        emit_update_progress(&app, "downloading", downloaded_bytes, total_bytes);
+    }
+
+    file.flush().await.map_err(|error| AppError::Internal {
+        message: format!("Failed to finalize installer file: {error}"),
+    })?;
+
+    emit_update_progress(
+        &app,
+        "installing",
+        downloaded_bytes,
+        total_bytes.max(downloaded_bytes),
+    );
+
+    spawn_installer(&path).map_err(|error| AppError::Internal {
+        message: format!("Failed to launch installer: {error}"),
+    })?;
+
+    Ok(())
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateProgressPayload {
+    phase: String,
+    downloaded_bytes: u64,
+    total_bytes: u64,
+}
+
+fn emit_update_progress(app: &AppHandle, phase: &str, downloaded_bytes: u64, total_bytes: u64) {
+    let _ = app.emit(
+        "update://progress",
+        UpdateProgressPayload {
+            phase: phase.to_string(),
+            downloaded_bytes,
+            total_bytes,
+        },
+    );
+}
+
+fn spawn_installer(path: &std::path::Path) -> std::io::Result<()> {
+    let ext = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    if ext == "msi" {
+        std::process::Command::new("msiexec")
+            .arg("/i")
+            .arg(path)
+            .args(["/passive", "/norestart"])
+            .spawn()?;
+        return Ok(());
+    }
+
+    std::process::Command::new(path).spawn()?;
+    Ok(())
 }

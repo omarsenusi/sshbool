@@ -1,11 +1,21 @@
-import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+  MutationCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query"
 import { useState, type ReactNode } from "react"
 
 import { FontProvider } from "@/components/font-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { useSftpActivitySync } from "@/hooks/use-sftp-activity-sync"
 import { formatAppError, IpcError } from "@/lib/ipc/commands"
 import { toast } from "@/stores/toast.store"
+
+function SftpActivitySyncBridge() {
+  useSftpActivitySync()
+  return null
+}
 
 function errorMessage(err: unknown): string {
   if (err instanceof IpcError) return formatAppError(err.appError)
@@ -31,13 +41,14 @@ export function AppProviders({ children }: { children: ReactNode }) {
             toast.error("Action failed", errorMessage(error))
           },
         }),
-      }),
+      })
   )
 
   return (
     <QueryClientProvider client={client}>
       <ThemeProvider>
         <FontProvider>
+          <SftpActivitySyncBridge />
           {children}
           <Toaster />
         </FontProvider>

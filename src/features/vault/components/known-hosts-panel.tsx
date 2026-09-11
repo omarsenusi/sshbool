@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
-
   Copy,
   Check,
   Trash2,
@@ -30,7 +29,14 @@ import { toast } from "@/stores/toast.store"
 type SortField = "host" | "port" | "keyType" | "date"
 type SortOrder = "asc" | "desc"
 
-export function KnownHostKeysPanel() {
+type KnownHostKeysPanelProps = {
+  /** When true, hides the page header (used inside Key Manager tabs). */
+  embedded?: boolean
+}
+
+export function KnownHostKeysPanel({
+  embedded = false,
+}: KnownHostKeysPanelProps) {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
   const [algoFilter, setAlgoFilter] = useState<string>("all")
@@ -42,7 +48,12 @@ export function KnownHostKeysPanel() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
-  const { data: knownHosts = [], isLoading, refetch, isRefetching } = useQuery({
+  const {
+    data: knownHosts = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ["known_hosts"],
     queryFn: async () => {
       const list = await ipc.knownHostsList()
@@ -74,9 +85,13 @@ export function KnownHostKeysPanel() {
   // Statistics
   const stats = useMemo(() => {
     const total = knownHosts.length
-    const ed25519Count = knownHosts.filter((h) => h.keyType.includes("ed25519")).length
+    const ed25519Count = knownHosts.filter((h) =>
+      h.keyType.includes("ed25519")
+    ).length
     const rsaCount = knownHosts.filter((h) => h.keyType.includes("rsa")).length
-    const ecdsaCount = knownHosts.filter((h) => h.keyType.includes("ecdsa")).length
+    const ecdsaCount = knownHosts.filter((h) =>
+      h.keyType.includes("ecdsa")
+    ).length
 
     return { total, ed25519Count, rsaCount, ecdsaCount }
   }, [knownHosts])
@@ -88,11 +103,14 @@ export function KnownHostKeysPanel() {
         const matchesSearch =
           h.host.toLowerCase().includes(searchQuery.toLowerCase()) ||
           h.keyType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          h.fingerprintSha256.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          h.fingerprintSha256
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
           String(h.port).includes(searchQuery)
 
         const matchesAlgo =
-          algoFilter === "all" || h.keyType.toLowerCase().includes(algoFilter.toLowerCase())
+          algoFilter === "all" ||
+          h.keyType.toLowerCase().includes(algoFilter.toLowerCase())
 
         return matchesSearch && matchesAlgo
       })
@@ -100,7 +118,8 @@ export function KnownHostKeysPanel() {
         let cmp = 0
         if (sortField === "host") cmp = a.host.localeCompare(b.host)
         else if (sortField === "port") cmp = a.port - b.port
-        else if (sortField === "keyType") cmp = a.keyType.localeCompare(b.keyType)
+        else if (sortField === "keyType")
+          cmp = a.keyType.localeCompare(b.keyType)
         else if (sortField === "date") cmp = a.firstSeenAt - b.firstSeenAt
 
         return sortOrder === "asc" ? cmp : -cmp
@@ -149,68 +168,109 @@ export function KnownHostKeysPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
-      {/* Header */}
-      <header className="border-b border-border flex shrink-0 items-center justify-between gap-4 px-5 py-3.5">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold tracking-tight">Host Keys Manager</h2>
-            <span className="text-[11px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border">
-              {stats.total} Saved
-            </span>
+      {!embedded && (
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-5 py-3.5">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold tracking-tight">
+                Host Keys Manager
+              </h2>
+              <span className="rounded border border-border bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+                {stats.total} Saved
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Manage trusted SSH server fingerprints (`known_hosts`) and revoke
+              trust when needed.
+            </p>
           </div>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Manage trusted SSH server fingerprints (`known_hosts`) and revoke trust when needed.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            className="h-8 text-xs gap-1.5"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-
-          {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2">
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
-              onClick={handleBulkDelete}
-              disabled={isBulkDeleting}
-              className="h-8 text-xs gap-1.5"
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="h-8 gap-1.5 text-xs"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Revoke {selectedIds.size} Selected
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
+              />
+              Refresh
             </Button>
-          )}
-        </div>
-      </header>
+
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="h-8 gap-1.5 text-xs"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Revoke {selectedIds.size} Selected
+              </Button>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* Body Area */}
-      <div className="flex-1 flex flex-col min-h-0 p-5 overflow-hidden">
+      <div
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden ${embedded ? "p-4" : "p-5"}`}
+      >
         {/* Search & Filter Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5 shrink-0">
-          <div className="relative flex-1 min-w-[260px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="mb-3.5 flex shrink-0 flex-wrap items-center justify-between gap-3">
+          <div className="relative min-w-[260px] flex-1">
+            <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Filter by host, port, algorithm, or fingerprint..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md bg-background border border-input pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-ring transition-colors"
+              className="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-xs text-foreground transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:outline-none"
             />
           </div>
 
           <div className="flex items-center gap-2">
+            {embedded && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  disabled={isRefetching}
+                  className="h-8 gap-1.5 text-xs"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`}
+                  />
+                  Refresh
+                </Button>
+                {selectedIds.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkDeleting}
+                    className="h-8 gap-1.5 text-xs"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Revoke {selectedIds.size}
+                  </Button>
+                )}
+              </>
+            )}
             <div className="flex items-center gap-1.5">
-              <Select value={algoFilter} onValueChange={(v) => { if (v) setAlgoFilter(v) }}>
-                <SelectTrigger className="h-8 text-xs w-[120px] bg-background">
+              <Select
+                value={algoFilter}
+                onValueChange={(v) => {
+                  if (v) setAlgoFilter(v)
+                }}
+              >
+                <SelectTrigger className="h-8 w-[120px] bg-background text-xs">
                   <div className="flex items-center gap-1.5 truncate">
-                    <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <Filter className="h-3 w-3 shrink-0 text-muted-foreground" />
                     <SelectValue placeholder="Algorithm" />
                   </div>
                 </SelectTrigger>
@@ -224,10 +284,15 @@ export function KnownHostKeysPanel() {
             </div>
 
             <div className="flex items-center gap-1.5">
-              <Select value={sortField} onValueChange={(v) => { if (v) setSortField(v as SortField) }}>
-                <SelectTrigger className="h-8 text-xs w-[140px] bg-background">
+              <Select
+                value={sortField}
+                onValueChange={(v) => {
+                  if (v) setSortField(v as SortField)
+                }}
+              >
+                <SelectTrigger className="h-8 w-[140px] bg-background text-xs">
                   <div className="flex items-center gap-1.5 truncate">
-                    <ArrowUpDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <ArrowUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />
                     <SelectValue placeholder="Sort By" />
                   </div>
                 </SelectTrigger>
@@ -242,8 +307,10 @@ export function KnownHostKeysPanel() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="h-8 text-[11px] font-mono px-2.5"
+                onClick={() =>
+                  setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                }
+                className="h-8 px-2.5 font-mono text-[11px]"
               >
                 {sortOrder.toUpperCase()}
               </Button>
@@ -252,18 +319,19 @@ export function KnownHostKeysPanel() {
         </div>
 
         {/* Compact Table View */}
-        <div className="flex-1 border border-border rounded-lg overflow-hidden bg-card/40 flex flex-col">
-          <div className="overflow-x-auto overflow-y-auto flex-1">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-muted/40 text-muted-foreground border-b border-border sticky top-0 z-10 backdrop-blur-xs">
+        <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card/40">
+          <div className="flex-1 overflow-x-auto overflow-y-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead className="sticky top-0 z-10 border-b border-border bg-muted/40 text-muted-foreground backdrop-blur-xs">
                 <tr>
-                  <th className="p-3 w-10 text-center">
+                  <th className="w-10 p-3 text-center">
                     <button
                       type="button"
                       onClick={toggleSelectAll}
                       className="text-muted-foreground hover:text-foreground"
                     >
-                      {selectedIds.size > 0 && selectedIds.size === processedHosts.length ? (
+                      {selectedIds.size > 0 &&
+                      selectedIds.size === processedHosts.length ? (
                         <CheckSquare className="h-3.5 w-3.5 text-primary" />
                       ) : (
                         <Square className="h-3.5 w-3.5" />
@@ -274,23 +342,33 @@ export function KnownHostKeysPanel() {
                   <th className="p-3 font-medium">Algorithm</th>
                   <th className="p-3 font-medium">SHA-256 Fingerprint</th>
                   <th className="p-3 font-medium">Verified Date</th>
-                  <th className="p-3 font-medium text-right">Actions</th>
+                  <th className="p-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-xs text-muted-foreground">
+                    <td
+                      colSpan={6}
+                      className="py-12 text-center text-xs text-muted-foreground"
+                    >
                       Loading trusted host keys...
                     </td>
                   </tr>
                 ) : processedHosts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-xs text-muted-foreground">
-                      <ShieldAlert className="h-6 w-6 text-muted-foreground mx-auto mb-2 opacity-50" />
-                      <p className="font-medium text-foreground">No trusted host keys found</p>
-                      <p className="text-[11px] mt-0.5">
-                        {searchQuery ? "No entries match your search query." : "Saved SSH server keys will appear here."}
+                    <td
+                      colSpan={6}
+                      className="py-12 text-center text-xs text-muted-foreground"
+                    >
+                      <ShieldAlert className="mx-auto mb-2 h-6 w-6 text-muted-foreground opacity-50" />
+                      <p className="font-medium text-foreground">
+                        No trusted host keys found
+                      </p>
+                      <p className="mt-0.5 text-[11px]">
+                        {searchQuery
+                          ? "No entries match your search query."
+                          : "Saved SSH server keys will appear here."}
                       </p>
                     </td>
                   </tr>
@@ -324,16 +402,16 @@ export function KnownHostKeysPanel() {
                         </td>
 
                         <td className="p-3">
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-mono font-medium bg-muted text-muted-foreground border border-border">
+                          <span className="inline-flex items-center rounded border border-border bg-muted px-2 py-0.5 font-mono text-[10px] font-medium text-muted-foreground">
                             {item.keyType}
                           </span>
                         </td>
 
-                        <td className="p-3 font-mono text-[11px] text-muted-foreground break-all select-all">
+                        <td className="p-3 font-mono text-[11px] break-all text-muted-foreground select-all">
                           {item.fingerprintSha256}
                         </td>
 
-                        <td className="p-3 text-muted-foreground text-[11px]">
+                        <td className="p-3 text-[11px] text-muted-foreground">
                           {new Date(item.firstSeenAt).toLocaleDateString()}
                         </td>
 
@@ -342,7 +420,12 @@ export function KnownHostKeysPanel() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleCopy(item.fingerprintSha256, `${item.id}-sha`)}
+                              onClick={() =>
+                                handleCopy(
+                                  item.fingerprintSha256,
+                                  `${item.id}-sha`
+                                )
+                              }
                               className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                             >
                               {copiedId === `${item.id}-sha` ? (
@@ -364,7 +447,7 @@ export function KnownHostKeysPanel() {
                                   bulkDeleteMutation.mutate([item.id])
                                 }
                               }}
-                              className="h-7 px-2 text-[11px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                              className="h-7 px-2 text-[11px] text-destructive hover:bg-destructive/10 hover:text-destructive"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -380,7 +463,7 @@ export function KnownHostKeysPanel() {
 
           {/* Table Footer with Pagination Controls */}
           {processedHosts.length > 0 && (
-            <div className="border-t border-border px-4 py-2 bg-muted/20 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground shrink-0">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
               <div>
                 Showing{" "}
                 <span className="font-medium text-foreground">
@@ -390,7 +473,11 @@ export function KnownHostKeysPanel() {
                 <span className="font-medium text-foreground">
                   {Math.min(startIndex + pageSize, processedHosts.length)}
                 </span>{" "}
-                of <span className="font-medium text-foreground">{processedHosts.length}</span> entries
+                of{" "}
+                <span className="font-medium text-foreground">
+                  {processedHosts.length}
+                </span>{" "}
+                entries
               </div>
 
               <div className="flex items-center gap-4">
@@ -405,7 +492,7 @@ export function KnownHostKeysPanel() {
                       }
                     }}
                   >
-                    <SelectTrigger className="h-7 text-xs w-[70px] bg-background">
+                    <SelectTrigger className="h-7 w-[70px] bg-background text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -419,9 +506,15 @@ export function KnownHostKeysPanel() {
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <span className="text-[11px] mr-1">
-                    Page <span className="font-medium text-foreground">{validCurrentPage}</span> of{" "}
-                    <span className="font-medium text-foreground">{totalPages}</span>
+                  <span className="mr-1 text-[11px]">
+                    Page{" "}
+                    <span className="font-medium text-foreground">
+                      {validCurrentPage}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-medium text-foreground">
+                      {totalPages}
+                    </span>
                   </span>
                   <Button
                     variant="outline"
@@ -436,7 +529,9 @@ export function KnownHostKeysPanel() {
                     variant="outline"
                     size="sm"
                     disabled={validCurrentPage >= totalPages}
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
                     className="h-7 w-7 p-0"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />

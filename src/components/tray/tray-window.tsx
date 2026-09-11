@@ -26,13 +26,15 @@ export function TrayWindow() {
     }
 
     // native OS focus loss listener
-    win.onFocusChanged(({ payload: focused }) => {
-      if (!focused) {
-        void ipc.trayClose().catch(() => {})
-      }
-    }).then((fn) => {
-      unlisten = fn
-    })
+    win
+      .onFocusChanged(({ payload: focused }) => {
+        if (!focused) {
+          void ipc.trayClose().catch(() => {})
+        }
+      })
+      .then((fn) => {
+        unlisten = fn
+      })
 
     // DOM focus loss listener fallback
     function handleBlur() {
@@ -47,8 +49,14 @@ export function TrayWindow() {
   }, [win])
 
   return (
-    <div className="h-screen w-screen overflow-hidden dark" style={{ background: "transparent" }}>
-      <TrayPopup onClose={() => void ipc.trayClose().catch(() => {})} standalone />
+    <div
+      className="dark h-screen w-screen overflow-hidden"
+      style={{ background: "transparent" }}
+    >
+      <TrayPopup
+        onClose={() => void ipc.trayClose().catch(() => {})}
+        standalone
+      />
     </div>
   )
 }

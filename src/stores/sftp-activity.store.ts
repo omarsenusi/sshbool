@@ -1,15 +1,20 @@
+import { emit } from "@tauri-apps/api/event"
 import { create } from "zustand"
+
+import { formatAppError, IpcError } from "@/lib/ipc/commands"
 
 export type SftpActivityKind =
   | "rename"
   | "delete"
   | "mkdir"
+  | "create"
   | "chmod"
   | "paste"
   | "move"
   | "copy"
   | "upload"
   | "download"
+  | "save"
 
 export type SftpActivityStatus = "running" | "done" | "error"
 
@@ -41,7 +46,7 @@ type SftpActivityState = {
   finish: (
     id: string,
     status: "done" | "error",
-    opts?: { error?: string; bytesDone?: number; bytesTotal?: number },
+    opts?: { error?: string; bytesDone?: number; bytesTotal?: number }
   ) => void
   clear: (hostId?: string) => void
 }
@@ -50,6 +55,44 @@ const MAX = 40
 
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+export type SftpActivityEvent =
+  | { type: "start"; entry: SftpActivityEntry }
+  | {
+      type: "finish"
+      id: string
+      status: "done" | "error"
+      error?: string
+      bytesDone?: number
+      bytesTotal?: number
+    }
+
+function broadcastActivity(event: SftpActivityEvent) {
+  void emit("sftp://activity", event).catch(() => {})
+}
+
+function applyFinish(
+  entries: SftpActivityEntry[],
+  id: string,
+  status: "done" | "error",
+  opts?: { error?: string; bytesDone?: number; bytesTotal?: number }
+): SftpActivityEntry[] {
+  return entries.map((e) => {
+    if (e.id !== id) return e
+    const bytesTotal = opts?.bytesTotal ?? e.bytesTotal
+    const bytesDone =
+      opts?.bytesDone ??
+      (status === "done" ? (bytesTotal ?? e.bytesDone) : e.bytesDone)
+    return {
+      ...e,
+      status,
+      error: opts?.error,
+      bytesDone,
+      bytesTotal,
+      at: Date.now(),
+    }
+  })
 }
 
 export const useSftpActivityStore = create<SftpActivityState>((set) => ({
@@ -68,6 +111,7 @@ export const useSftpActivityStore = create<SftpActivityState>((set) => ({
       at: Date.now(),
     }
     set((s) => ({ entries: [entry, ...s.entries].slice(0, MAX) }))
+    broadcastActivity({ type: "start", entry })
     return id
   },
   setProgress: (id, bytesDone, bytesTotal) =>
@@ -80,27 +124,15 @@ export const useSftpActivityStore = create<SftpActivityState>((set) => ({
               bytesTotal: bytesTotal ?? e.bytesTotal,
               at: Date.now(),
             }
-          : e,
+          : e
       ),
     })),
   finish: (id, status, opts) =>
-    set((s) => ({
-      entries: s.entries.map((e) => {
-        if (e.id !== id) return e
-        const bytesTotal = opts?.bytesTotal ?? e.bytesTotal
-        const bytesDone =
-          opts?.bytesDone ??
-          (status === "done" ? (bytesTotal ?? e.bytesDone) : e.bytesDone)
-        return {
-          ...e,
-          status,
-          error: opts?.error,
-          bytesDone,
-          bytesTotal,
-          at: Date.now(),
-        }
-      }),
-    })),
+    set((s) => {
+      const entries = applyFinish(s.entries, id, status, opts)
+      broadcastActivity({ type: "finish", id, status, ...opts })
+      return { entries }
+    }),
   clear: (hostId) =>
     set((s) => ({
       entries: hostId ? s.entries.filter((e) => e.hostId !== hostId) : [],
@@ -116,7 +148,7 @@ export async function runSftpActivity<T>(
     side?: "local" | "remote"
     bytesTotal?: number
   },
-  fn: () => Promise<T>,
+  fn: () => Promise<T>
 ): Promise<T> {
   const { start, finish } = useSftpActivityStore.getState()
   const id = start(opts)
@@ -129,11 +161,31 @@ export async function runSftpActivity<T>(
     return result
   } catch (err) {
     finish(id, "error", {
-      error: err instanceof Error ? err.message : String(err),
+      error:
+        err instanceof IpcError
+          ? formatAppError(err.appError)
+          : err instanceof Error
+            ? err.message
+            : String(err),
       bytesTotal: opts.bytesTotal,
     })
     throw err
   }
+}
+
+/** Merge activity events from other windows (e.g. editor popout saves). */
+export function applySftpActivityEvent(event: SftpActivityEvent) {
+  const state = useSftpActivityStore.getState()
+  if (event.type === "start") {
+    if (state.entries.some((e) => e.id === event.entry.id)) return
+    useSftpActivityStore.setState((s) => ({
+      entries: [event.entry, ...s.entries].slice(0, MAX),
+    }))
+    return
+  }
+  useSftpActivityStore.setState((s) => ({
+    entries: applyFinish(s.entries, event.id, event.status, event),
+  }))
 }
 
 export function activityProgressPct(entry: {

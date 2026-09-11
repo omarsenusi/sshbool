@@ -4,10 +4,12 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
-import { ipc } from "@/lib/ipc/commands"
+import { useEditorMonacoOptions } from "@/hooks/use-editor-monaco-options"
+import { IpcError, ipc } from "@/lib/ipc/commands"
 import { useEditorStore } from "@/stores/editor.store"
+import { runSftpActivity } from "@/stores/sftp-activity.store"
 
-const MonacoEditor = lazy(() => import("@monaco-editor/react"))
+const MonacoEditor = lazy(() => import("./monaco-editor-lazy"))
 
 export type EditorToolbarApi = {
   dirty: boolean
@@ -33,6 +35,7 @@ export function RemoteEditor({
   renderToolbar,
 }: Props) {
   const { resolvedTheme } = useTheme()
+  const { monacoOptions, autoSave } = useEditorMonacoOptions()
   const setDirty = useEditorStore((s) => s.setDirty)
   const [value, setValue] = useState("")
   const [mtime, setMtime] = useState<number | null>(null)
@@ -54,7 +57,19 @@ export function RemoteEditor({
   }, [file.data, tabId, setDirty])
 
   const save = useMutation({
-    mutationFn: () => ipc.sftpWrite(hostId, path, value, mtime),
+    mutationFn: () => {
+      const bytesTotal = new TextEncoder().encode(value).byteLength
+      return runSftpActivity(
+        {
+          hostId,
+          kind: "save",
+          label: path,
+          side: "remote",
+          bytesTotal,
+        },
+        () => ipc.sftpWrite(hostId, path, value, mtime)
+      )
+    },
     onSuccess: (res) => {
       setMtime(res.mtime)
       setLocalDirty(false)
@@ -73,18 +88,38 @@ export function RemoteEditor({
     return () => window.removeEventListener("keydown", onKey)
   }, [dirty, save])
 
+  useEffect(() => {
+    if (!autoSave || !dirty || save.isPending) return
+    const timer = window.setTimeout(() => {
+      save.mutate()
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [autoSave, dirty, value, save])
+
   if (!path) {
     return (
-      <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         Open a remote file from SFTP to edit.
       </div>
     )
   }
 
   if (file.isError) {
+    const message =
+      file.error instanceof IpcError
+        ? file.error.message
+        : file.error instanceof Error
+          ? file.error.message
+          : "Failed to load file."
     return (
-      <div className="text-destructive flex h-full items-center justify-center p-4 text-center text-sm">
-        Failed to load file.
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-destructive">
+        <p>Failed to load file.</p>
+        <p className="max-w-md font-mono text-xs text-muted-foreground">
+          {message}
+        </p>
+        <Button size="xs" variant="outline" onClick={() => void file.refetch()}>
+          Retry
+        </Button>
       </div>
     )
   }
@@ -100,7 +135,7 @@ export function RemoteEditor({
       {renderToolbar ? (
         renderToolbar(toolbarApi)
       ) : !compact ? (
-        <div className="border-border flex items-center justify-between border-b px-2 py-1 text-xs">
+        <div className="flex items-center justify-between border-b border-border px-2 py-1 text-xs">
           <span className="font-mono">
             {path}
             {dirty ? " •" : ""}
@@ -115,7 +150,7 @@ export function RemoteEditor({
           </Button>
         </div>
       ) : (
-        <div className="border-border flex items-center justify-end border-b px-2 py-1">
+        <div className="flex items-center justify-end border-b border-border px-2 py-1">
           <Button
             size="xs"
             disabled={!dirty || save.isPending}
@@ -127,32 +162,37 @@ export function RemoteEditor({
         </div>
       )}
       <div className="min-h-0 flex-1">
-        <Suspense
-          fallback={
-            <div className="text-muted-foreground flex h-full items-center justify-center text-xs">
-              Loading editor…
-            </div>
-          }
-        >
-          <MonacoEditor
-            height="100%"
-            theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
-            path={path}
-            value={value}
-            loading="Loading…"
-            onChange={(v) => {
-              setValue(v ?? "")
-              setLocalDirty(true)
-              if (tabId) setDirty(tabId, true)
-            }}
-            options={{
-              fontFamily: "JetBrains Mono, monospace",
-              fontSize: 13,
-              minimap: { enabled: false },
-              automaticLayout: true,
-            }}
-          />
-        </Suspense>
+        {file.isLoading && !file.data ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Loading file…
+          </div>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Loading editor…
+              </div>
+            }
+          >
+            <MonacoEditor
+              height="100%"
+              theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+              path={path}
+              value={value}
+              loading={
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Loading editor…
+                </div>
+              }
+              onChange={(v) => {
+                setValue(v ?? "")
+                setLocalDirty(true)
+                if (tabId) setDirty(tabId, true)
+              }}
+              options={monacoOptions}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   )

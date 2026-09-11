@@ -20,7 +20,8 @@ function statusClass(status: string) {
     return "text-foreground"
   if (status === "done" || status === "completed") return "text-emerald-500"
   if (status === "error" || status === "failed") return "text-destructive"
-  if (status === "canceled" || status === "cancelled") return "text-muted-foreground"
+  if (status === "canceled" || status === "cancelled")
+    return "text-muted-foreground"
   return "text-muted-foreground"
 }
 
@@ -30,7 +31,7 @@ function transferPct(t: TransferJobDto): number {
     if (t.totalBytes <= 0) return 0
     return Math.min(
       100,
-      Math.max(0, Math.round((t.transferredBytes / t.totalBytes) * 100)),
+      Math.max(0, Math.round((t.transferredBytes / t.totalBytes) * 100))
     )
   }
   if (t.totalBytes <= 0) {
@@ -41,7 +42,7 @@ function transferPct(t: TransferJobDto): number {
   }
   return Math.min(
     100,
-    Math.max(0, Math.round((t.transferredBytes / t.totalBytes) * 100)),
+    Math.max(0, Math.round((t.transferredBytes / t.totalBytes) * 100))
   )
 }
 
@@ -60,7 +61,9 @@ function SizePct({
 }) {
   if (status === "error" && error) {
     return (
-      <span className={cn("ml-auto shrink-0 tabular-nums", statusClass(status))}>
+      <span
+        className={cn("ml-auto shrink-0 tabular-nums", statusClass(status))}
+      >
         {error}
       </span>
     )
@@ -79,7 +82,7 @@ function SizePct({
     <span
       className={cn(
         "ml-auto flex shrink-0 items-center gap-1.5 tabular-nums",
-        statusClass(status),
+        statusClass(status)
       )}
     >
       {sizeText && <span>{sizeText}</span>}
@@ -94,11 +97,11 @@ function ProgressBar({ pct, active }: { pct: number | null; active: boolean }) {
   if (!active) return null
   const width = pct ?? 15
   return (
-    <div className="bg-muted mt-0.5 h-1 w-full overflow-hidden rounded-full">
+    <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-muted">
       <div
         className={cn(
-          "bg-primary h-full rounded-full transition-[width] duration-200",
-          pct == null && "animate-pulse",
+          "h-full rounded-full bg-primary transition-[width] duration-200",
+          pct == null && "animate-pulse"
         )}
         style={{ width: `${width}%` }}
       />
@@ -115,7 +118,7 @@ function CancelTransferButton({ jobId }: { jobId: string }) {
       title="Cancel transfer"
       aria-label="Cancel transfer"
       disabled={pending}
-      className="text-muted-foreground hover:bg-destructive/15 hover:text-destructive shrink-0 rounded p-0.5 disabled:opacity-50"
+      className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
       onClick={(e) => {
         e.stopPropagation()
         setPending(true)
@@ -141,16 +144,14 @@ export function SftpActivityStrip({
       allEntries
         .filter(
           (e) =>
-            e.hostId === hostId &&
-            e.kind !== "upload" &&
-            e.kind !== "download",
+            e.hostId === hostId && e.kind !== "upload" && e.kind !== "download"
         )
         .slice(0, 12),
-    [allEntries, hostId],
+    [allEntries, hostId]
   )
   const hostTransfers = useMemo(
     () => transfers.filter((t) => t.hostId === hostId).slice(0, 8),
-    [transfers, hostId],
+    [transfers, hostId]
   )
 
   const busy =
@@ -160,11 +161,11 @@ export function SftpActivityStrip({
   if (entries.length === 0 && hostTransfers.length === 0) return null
 
   return (
-    <div className="border-border text-muted-foreground max-h-32 overflow-y-auto border-t px-3 py-1.5 text-[11px]">
-      <div className="mb-1 flex items-center gap-2 font-semibold uppercase tracking-wide">
+    <div className="max-h-32 overflow-y-auto border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground">
+      <div className="mb-1 flex items-center gap-2 font-semibold tracking-wide uppercase">
         <span>Activity</span>
         {busy && (
-          <span className="text-foreground inline-flex items-center gap-1 normal-case tracking-normal">
+          <span className="inline-flex items-center gap-1 tracking-normal text-foreground normal-case">
             <Loader2 className="size-3 animate-spin" />
             Working…
           </span>
@@ -178,13 +179,10 @@ export function SftpActivityStrip({
             <li key={e.id} className="min-w-0">
               <div className="flex min-w-0 items-center gap-2 truncate">
                 {active ? (
-                  <Loader2 className="text-foreground size-3 shrink-0 animate-spin" />
+                  <Loader2 className="size-3 shrink-0 animate-spin text-foreground" />
                 ) : null}
                 <span
-                  className={cn(
-                    "shrink-0 font-medium",
-                    statusClass(e.status),
-                  )}
+                  className={cn("shrink-0 font-medium", statusClass(e.status))}
                 >
                   {kindLabel(e.kind)}
                 </span>
@@ -211,9 +209,9 @@ export function SftpActivityStrip({
             <li key={t.id} className="min-w-0">
               <div className="flex min-w-0 items-center gap-2 truncate">
                 {active && (
-                  <Loader2 className="text-foreground size-3 shrink-0 animate-spin" />
+                  <Loader2 className="size-3 shrink-0 animate-spin text-foreground" />
                 )}
-                <span className="text-foreground shrink-0 font-medium">
+                <span className="shrink-0 font-medium text-foreground">
                   {t.kind}
                 </span>
                 <span className="min-w-0 truncate">{t.sourceRoot}</span>

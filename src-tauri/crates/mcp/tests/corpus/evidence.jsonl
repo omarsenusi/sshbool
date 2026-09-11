@@ -1,0 +1,4 @@
+{"cmd":"history -c","tier":"dangerous","rules":["evidence.clear_logs_history"],"note":"history clear"}
+{"cmd":"rm -rf /var/log/*","tier":"dangerous","rules":["evidence.clear_logs_history"],"note":"remove var log"}
+{"cmd":"journalctl --vacuum-time=1s","tier":"dangerous","rules":["evidence.clear_logs_history"],"note":"journalctl vacuum"}
+{"cmd":"unset HISTFILE","tier":"dangerous","rules":["evidence.clear_logs_history"],"note":"unset histfile"}

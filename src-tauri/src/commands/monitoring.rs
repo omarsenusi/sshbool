@@ -623,20 +623,7 @@ pub async fn services_list(
     Ok(services)
 }
 
-fn validate_systemd_unit(unit: &str) -> Result<(), AppError> {
-    let valid = !unit.is_empty()
-        && unit.len() <= 256
-        && unit
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '@' | ':'));
-    if !valid {
-        return Err(AppError::Validation {
-            field: "unit".into(),
-            message: "invalid systemd unit name".into(),
-        });
-    }
-    Ok(())
-}
+use infrastructure::validate_systemd_unit;
 
 #[tauri::command]
 pub async fn service_control(

@@ -1,0 +1,3 @@
+{"cmd":"redis-cli FLUSHALL","tier":"dangerous","rules":["data.redis_flush"],"note":"redis flushall"}
+{"cmd":"redis-cli FLUSHDB","tier":"dangerous","rules":["data.redis_flush"],"note":"redis flushdb"}
+{"cmd":"redis-cli SHUTDOWN","tier":"dangerous","rules":["data.redis_flush"],"note":"redis shutdown"}

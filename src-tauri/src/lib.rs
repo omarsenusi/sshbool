@@ -3,8 +3,16 @@
 
 mod commands;
 mod container;
+pub mod desktop_bridge;
 mod error;
 mod events;
+mod guacamole_protocol;
+mod guacamole_token;
+mod guacd_manager;
+mod mcp_executor;
+mod rdp_credentials;
+#[cfg(target_os = "windows")]
+mod rdp_windows;
 
 use std::sync::Arc;
 
@@ -14,6 +22,7 @@ use tauri::{Emitter, Manager};
 use tracing_subscriber::EnvFilter;
 
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 mod win32 {
     #[link(name = "kernel32")]
     extern "system" {
@@ -26,6 +35,7 @@ mod win32 {
 }
 
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 fn hide_console_window() {
     unsafe {
         let hwnd = win32::GetConsoleWindow();
@@ -246,6 +256,7 @@ pub fn run() {
             commands::vault::vault_init,
             commands::vault::vault_unlock,
             commands::vault::vault_lock,
+            commands::vault::vault_auto_unlock,
             commands::vault::vault_backup,
             commands::vault::vault_restore,
             commands::vault::keys_list,
@@ -304,6 +315,7 @@ pub fn run() {
             commands::transfers::local_list_dir,
             commands::transfers::local_mkdir,
             commands::transfers::local_rename,
+            commands::transfers::local_copy,
             commands::transfers::local_delete,
             commands::transfers::transfer_upload,
             commands::transfers::transfer_upload_many,
@@ -324,9 +336,12 @@ pub fn run() {
             commands::productivity::search_global,
             commands::productivity::settings_get,
             commands::productivity::settings_set,
+            commands::clipboard::clipboard_write_text,
+            commands::clipboard::clipboard_read_text,
             commands::productivity::keybindings_list,
             commands::productivity::keybindings_set,
             commands::productivity::app_info,
+            commands::productivity::update_download_and_install,
             commands::phase2::proxies_list,
             commands::phase2::proxies_upsert,
             commands::phase2::port_forwards_upsert,
@@ -334,6 +349,7 @@ pub fn run() {
             commands::phase2::port_forwards_list,
             commands::phase2::port_forwards_start,
             commands::phase2::port_forwards_stop,
+            commands::phase2::port_check_available,
             commands::monitoring::monitoring_start,
             commands::monitoring::monitoring_stop,
             commands::monitoring::monitoring_snapshot,
@@ -359,6 +375,10 @@ pub fn run() {
             commands::phase2::editor_git_status,
             commands::phase2::editor_diff,
             commands::phase2::rdp_launch_native,
+            commands::phase2::desktop_inapp_connect,
+            commands::phase2::desktop_inapp_disconnect,
+            commands::phase2::desktop_guacamole_connect,
+            commands::phase2::desktop_guacd_setup,
             commands::phase2::workspace_window_open,
             commands::phase2::window_minimize,
             commands::phase2::window_toggle_maximize,
@@ -411,9 +431,39 @@ pub fn run() {
             commands::team::team_list_shared,
             commands::team::team_apply_policy,
             commands::team::retention_prune,
+            commands::mcp::mcp_server_start,
+            commands::mcp::mcp_server_stop,
+            commands::mcp::mcp_server_status,
+            commands::mcp::mcp_pairing_code_create,
+            commands::mcp::mcp_client_pair,
+            commands::mcp::mcp_clients_list,
+            commands::mcp::mcp_client_set_mode,
+            commands::mcp::mcp_client_set_enabled,
+            commands::mcp::mcp_client_delete,
+            commands::mcp::mcp_client_grant_host,
+            commands::mcp::mcp_client_revoke_host,
+            commands::mcp::mcp_calls_list,
+            commands::mcp::mcp_approvals_pending,
+            commands::mcp::mcp_approval_respond,
+            commands::mcp::mcp_kill_switch,
+            commands::mcp::mcp_grants_list,
+            commands::mcp::mcp_grant_revoke,
+            commands::mcp::mcp_budgets_get,
+            commands::mcp::mcp_budgets_set,
+            commands::mcp::mcp_policy_list,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running SSHBool");
+        .build(tauri::generate_context!())
+        .expect("error while building SSHBool")
+        .run(|_app, event| {
+            if let tauri::RunEvent::Exit = event {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build();
+                if let Ok(rt) = rt {
+                    rt.block_on(crate::guacd_manager::shutdown_guacd());
+                }
+            }
+        });
 }
 
 pub use container::AppContainer;

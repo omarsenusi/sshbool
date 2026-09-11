@@ -1,0 +1,10 @@
+{"cmd":"ls -la /var/log","tier":"safe","rules":[],"note":"ls command"}
+{"cmd":"cat /etc/hostname","tier":"safe","rules":[],"note":"cat hostname"}
+{"cmd":"uptime","tier":"safe","rules":[],"note":"uptime"}
+{"cmd":"uname -a","tier":"safe","rules":[],"note":"uname"}
+{"cmd":"whoami","tier":"safe","rules":[],"note":"whoami"}
+{"cmd":"df -h","tier":"safe","rules":[],"note":"df command"}
+{"cmd":"du -sh /tmp","tier":"safe","rules":[],"note":"du command"}
+{"cmd":"ps aux","tier":"safe","rules":[],"note":"ps command"}
+{"cmd":"docker ps","tier":"safe","rules":[],"note":"docker ps"}
+{"cmd":"systemctl status nginx","tier":"safe","rules":[],"note":"systemctl status"}

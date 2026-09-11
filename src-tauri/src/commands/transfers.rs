@@ -434,6 +434,15 @@ async fn upload_one(
     local_path: &str,
     remote_path: &str,
 ) -> Result<String, AppError> {
+    let meta = tokio::fs::metadata(local_path)
+        .await
+        .map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+    if meta.is_dir() {
+        return upload_dir(app, state, host_id, local_path, remote_path).await;
+    }
+
     let bytes = tokio::fs::read(local_path)
         .await
         .map_err(|e| AppError::Io {
@@ -523,6 +532,57 @@ async fn upload_one(
     }
 }
 
+async fn upload_dir(
+    app: &AppHandle,
+    state: &Arc<AppState>,
+    host_id: &str,
+    local_path: &str,
+    remote_path: &str,
+) -> Result<String, AppError> {
+    let dest = resolve_remote_dest(state, host_id, local_path, remote_path).await?;
+    match state.connections.sftp_stat(host_id, &dest).await {
+        Ok(meta) if meta.is_dir => {}
+        Ok(_) => {
+            return Err(AppError::Conflict {
+                message: format!("remote path exists and is not a folder: {dest}"),
+            });
+        }
+        Err(_) => {
+            state.connections.sftp_mkdir(host_id, &dest).await?;
+        }
+    }
+
+    let mut rd = tokio::fs::read_dir(local_path)
+        .await
+        .map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+    let mut last_id = String::new();
+    let mut count = 0u32;
+    while let Some(entry) = rd.next_entry().await.map_err(|e| AppError::Io {
+        message: e.to_string(),
+    })? {
+        let child = entry.path();
+        let child_s = child.to_string_lossy().into_owned();
+        last_id = Box::pin(upload_one(app, state, host_id, &child_s, &dest)).await?;
+        count += 1;
+    }
+    if count > 0 {
+        return Ok(last_id);
+    }
+
+    let job_id = begin_job(state, host_id, "upload", local_path, &dest, 0).await?;
+    finish_job(
+        app, state, &job_id, host_id, "upload", local_path, &dest, 0, 0, "done", None,
+    )
+    .await?;
+    Ok(job_id)
+}
+
+async fn cleanup_download_dest(dest: &str) {
+    let _ = tokio::fs::remove_file(dest).await;
+}
+
 async fn download_one(
     app: &AppHandle,
     state: &Arc<AppState>,
@@ -535,18 +595,6 @@ async fn download_one(
     let dest = resolve_local_dest(remote_path, local_path).await?;
     let job_id = begin_job(state, host_id, "download", remote_path, &dest, total).await?;
     let cancel = register_cancel(&job_id).await;
-    let _ = bump_progress(
-        app,
-        state,
-        &job_id,
-        host_id,
-        "download",
-        remote_path,
-        &dest,
-        0,
-        total,
-    )
-    .await;
 
     if is_canceled(&cancel) {
         unregister_cancel(&job_id).await;
@@ -565,13 +613,58 @@ async fn download_one(
         return Ok(job_id);
     }
 
-    let read_result = state
+    if let Some(parent) = Path::new(&dest).parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| AppError::Io {
+                message: e.to_string(),
+            })?;
+    }
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(i64, i64)>();
+    {
+        let app = app.clone();
+        let state = Arc::clone(state);
+        let job_id = job_id.clone();
+        let host_id = host_id.to_string();
+        let remote_path = remote_path.to_string();
+        let dest = dest.clone();
+        tokio::spawn(async move {
+            let mut last = -1i64;
+            while let Some((done, tot)) = rx.recv().await {
+                if done == tot || done - last >= (tot / 50).max(1) || last < 0 {
+                    last = done;
+                    let _ = bump_progress(
+                        &app,
+                        &state,
+                        &job_id,
+                        &host_id,
+                        "download",
+                        &remote_path,
+                        &dest,
+                        done,
+                        tot,
+                    )
+                    .await;
+                }
+            }
+        });
+    }
+
+    let cancel_flag = Arc::clone(&cancel);
+    let download_result = state
         .connections
-        .sftp_read_bytes(host_id, remote_path, None)
+        .sftp_download_to(host_id, remote_path, &dest, |done, tot| {
+            let _ = tx.send((done as i64, tot as i64));
+            !is_canceled(&cancel_flag)
+        })
         .await;
 
+    drop(tx);
+    unregister_cancel(&job_id).await;
+
     if is_canceled(&cancel) {
-        unregister_cancel(&job_id).await;
+        cleanup_download_dest(&dest).await;
         let _ = mark_canceled(
             app,
             state,
@@ -587,82 +680,9 @@ async fn download_one(
         return Ok(job_id);
     }
 
-    match read_result {
-        Ok((bytes, _)) => {
-            let total = bytes.len() as i64;
-            if is_canceled(&cancel) {
-                unregister_cancel(&job_id).await;
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
-            let _ = bump_progress(
-                app,
-                state,
-                &job_id,
-                host_id,
-                "download",
-                remote_path,
-                &dest,
-                total / 2,
-                total,
-            )
-            .await;
-            if let Some(parent) = Path::new(&dest).parent() {
-                tokio::fs::create_dir_all(parent)
-                    .await
-                    .map_err(|e| AppError::Io {
-                        message: e.to_string(),
-                    })?;
-            }
-            if is_canceled(&cancel) {
-                unregister_cancel(&job_id).await;
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
-            tokio::fs::write(&dest, &bytes)
-                .await
-                .map_err(|e| AppError::Io {
-                    message: e.to_string(),
-                })?;
-            unregister_cancel(&job_id).await;
-            if is_canceled(&cancel) {
-                let _ = tokio::fs::remove_file(&dest).await;
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
+    match download_result {
+        Ok(transferred) => {
+            let transferred = transferred as i64;
             finish_job(
                 app,
                 state,
@@ -672,30 +692,31 @@ async fn download_one(
                 remote_path,
                 &dest,
                 total,
-                total,
+                transferred,
                 "done",
                 None,
             )
             .await?;
             Ok(job_id)
         }
+        Err(e) if matches!(e, DomainError::Canceled) || is_canceled(&cancel) => {
+            cleanup_download_dest(&dest).await;
+            let _ = mark_canceled(
+                app,
+                state,
+                &job_id,
+                host_id,
+                "download",
+                remote_path,
+                &dest,
+                0,
+                total,
+            )
+            .await;
+            Ok(job_id)
+        }
         Err(e) => {
-            unregister_cancel(&job_id).await;
-            if is_canceled(&cancel) {
-                let _ = mark_canceled(
-                    app,
-                    state,
-                    &job_id,
-                    host_id,
-                    "download",
-                    remote_path,
-                    &dest,
-                    0,
-                    total,
-                )
-                .await;
-                return Ok(job_id);
-            }
+            cleanup_download_dest(&dest).await;
             let msg = e.to_string();
             let _ = finish_job(
                 app,
@@ -896,6 +917,66 @@ pub async fn local_rename(from: String, to: String) -> Result<(), AppError> {
         .map_err(|e| AppError::Io {
             message: e.to_string(),
         })
+}
+
+async fn copy_local_path(src: &Path, dest: &Path) -> Result<(), AppError> {
+    let src_canon = src.canonicalize().map_err(|e| AppError::Io {
+        message: format!("invalid source path: {e}"),
+    })?;
+    if dest == src || dest == src_canon {
+        return Err(AppError::Validation {
+            field: "to".into(),
+            message: "source and destination are the same".into(),
+        });
+    }
+    if dest.starts_with(&src_canon) {
+        return Err(AppError::Validation {
+            field: "to".into(),
+            message: "cannot copy a folder into itself".into(),
+        });
+    }
+
+    let meta = tokio::fs::metadata(src).await.map_err(|e| AppError::Io {
+        message: e.to_string(),
+    })?;
+    if meta.is_dir() {
+        tokio::fs::create_dir_all(dest)
+            .await
+            .map_err(|e| AppError::Io {
+                message: e.to_string(),
+            })?;
+        let mut rd = tokio::fs::read_dir(src).await.map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+        while let Some(entry) = rd.next_entry().await.map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })? {
+            let name = entry.file_name();
+            Box::pin(copy_local_path(&entry.path(), &dest.join(name))).await?;
+        }
+        Ok(())
+    } else {
+        if let Some(parent) = dest.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| AppError::Io {
+                    message: e.to_string(),
+                })?;
+        }
+        tokio::fs::copy(src, dest).await.map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+        Ok(())
+    }
+}
+
+#[tauri::command]
+pub async fn local_copy(from: String, to: String) -> Result<(), AppError> {
+    let src = PathBuf::from(&from);
+    let dest = PathBuf::from(&to);
+    validate_local_sandbox(&src)?;
+    validate_local_sandbox(&dest)?;
+    copy_local_path(&src, &dest).await
 }
 
 fn validate_local_delete_path(raw_path: &str) -> Result<PathBuf, AppError> {

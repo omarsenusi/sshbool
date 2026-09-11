@@ -94,7 +94,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }
       return {
         tabs: s.tabs.map((t) =>
-          t.id === id ? { ...t, id: newId, path: normalized, dirty: false } : t,
+          t.id === id ? { ...t, id: newId, path: normalized, dirty: false } : t
         ),
         activeId: s.activeId === id ? newId : s.activeId,
       }

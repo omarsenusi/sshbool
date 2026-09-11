@@ -4,18 +4,27 @@ import {
   Cloud,
   FolderKey,
   Home,
+  Plug,
   Plus,
   Settings,
   Shield,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { HostRow } from "@/features/connections/components/host-row"
 import { HostTile } from "@/features/connections/components/host-tile"
+import { connectHost } from "@/features/connections/connect-host"
 import {
   flattenHosts,
   hostAccent,
 } from "@/features/connections/host-appearance"
+import {
+  saveHostRailPrefs,
+  useHostRailPrefs,
+} from "@/hooks/use-host-rail-prefs"
+import { useSetting } from "@/hooks/use-setting"
 import { ipc } from "@/lib/ipc/commands"
+import { SETTINGS } from "@/lib/settings-defaults"
 import { cn } from "@/lib/utils"
 import { useConnectionStore } from "@/stores/connection.store"
 import {
@@ -29,6 +38,7 @@ const bottomGlobals: { id: ActivityId; icon: typeof Home; label: string }[] = [
   { id: "keys", icon: FolderKey, label: "Keys" },
   // Plugins hidden for now — bring back when ready.
   { id: "audit", icon: Shield, label: "Audit" },
+  { id: "mcp", icon: Plug, label: "MCP" },
   { id: "sync", icon: Cloud, label: "Sync" },
   { id: "settings", icon: Settings, label: "Settings" },
 ]
@@ -40,25 +50,68 @@ export function HostRail() {
   const setSelectedHostId = useLayoutStore((s) => s.setSelectedHostId)
   const setAddHostOpen = useLayoutStore((s) => s.setAddHostOpen)
   const rememberView = useLayoutStore((s) => s.rememberView)
+  const railMode = useLayoutStore((s) => s.hostRailMode)
+  const autoConnectOnSelect = useSetting(
+    SETTINGS.connections.autoConnectOnSelect
+  )
+  const railWidth = useLayoutStore((s) => s.hostRailWidth[s.hostRailMode])
+  const setHostRailWidth = useLayoutStore((s) => s.setHostRailWidth)
   const clearError = useConnectionStore((s) => s.clearError)
   const byHost = useConnectionStore((s) => s.byHost)
+
+  useHostRailPrefs()
+  const labelMode = railMode === "label"
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = railWidth
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      setHostRailWidth(railMode, startWidth + (moveEvent.clientX - startX))
+    }
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+      saveHostRailPrefs()
+    }
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+  }
+
+  // Keyboard resize for parity with the mouse handle.
+  const handleResizeKey = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 24 : 8
+    const delta =
+      e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0
+    if (!delta) return
+    e.preventDefault()
+    setHostRailWidth(railMode, railWidth + delta)
+    saveHostRailPrefs()
+  }
 
   const tree = useQuery({
     queryKey: ["hosts", "tree"],
     queryFn: () => ipc.hostsListTree(),
   })
 
-  const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+  const urlWsId =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("wsId")
+      : null
   const activeWorkspaceIdQuery = useQuery<string>({
     queryKey: ["settings", "activeWorkspaceId", urlWsId],
     queryFn: async () => {
       if (urlWsId) return urlWsId
-      return ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      return (
+        ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      )
     },
   })
   const hostWorkspacesQuery = useQuery<Record<string, string>>({
     queryKey: ["settings", "hostWorkspaces"],
-    queryFn: async () => (await ipc.settingsGet("hostWorkspaces")) as Record<string, string> ?? {},
+    queryFn: async () =>
+      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ??
+      {},
   })
   const activeWsId = activeWorkspaceIdQuery.data ?? urlWsId ?? "default"
   const hostWorkspaces = hostWorkspacesQuery.data ?? {}
@@ -71,11 +124,18 @@ export function HostRail() {
 
   return (
     <nav
-      className="bg-sidebar border-border flex w-[var(--hostrail-w)] shrink-0 flex-col items-center overflow-hidden border-r"
+      className={cn(
+        "relative flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar",
+        labelMode ? "items-stretch" : "items-center"
+      )}
+      style={{ width: `${railWidth}px` }}
       aria-label="Hosts"
     >
       <div
-        className="flex h-[var(--titlebar-h)] w-full shrink-0 items-center justify-center"
+        className={cn(
+          "flex h-[var(--titlebar-h)] w-full shrink-0 items-center gap-2",
+          labelMode ? "justify-start px-2.5" : "justify-center"
+        )}
         title="SSHBool"
         data-tauri-drag-region
       >
@@ -84,22 +144,42 @@ export function HostRail() {
           alt=""
           width={28}
           height={28}
-          className="size-7 rounded-md object-cover"
+          className="size-7 shrink-0 rounded-md object-cover"
           draggable={false}
         />
+        {labelMode && (
+          <span className="truncate text-sm font-semibold">SSHBool</span>
+        )}
       </div>
 
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1.5 overflow-y-auto px-1.5 py-2">
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize host rail"
+        tabIndex={0}
+        className="absolute top-0 right-0 bottom-0 z-30 w-1.5 cursor-col-resize transition-colors outline-none hover:bg-primary/50 focus-visible:bg-primary active:bg-primary"
+        onMouseDown={handleResizeStart}
+        onKeyDown={handleResizeKey}
+        title="Drag to resize host rail"
+      />
+
+      <div
+        className={cn(
+          "flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-y-auto px-1.5 py-2",
+          labelMode ? "items-stretch" : "items-center"
+        )}
+      >
         <button
           type="button"
           aria-label="Overview"
           title="Overview"
           aria-current={homeActive ? "page" : undefined}
           className={cn(
-             "text-muted-foreground relative flex size-8 shrink-0 items-center justify-center rounded-md transition-all",
+            "relative flex shrink-0 items-center rounded-md text-muted-foreground transition-all",
+            labelMode ? "w-full gap-2 px-2 py-1.5" : "size-8 justify-center",
             homeActive
               ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-              : "hover:bg-sidebar-accent/60",
+              : "hover:bg-sidebar-accent/60"
           )}
           onClick={() => {
             setSelectedHostId(null)
@@ -109,17 +189,26 @@ export function HostRail() {
         >
           {homeActive && (
             <span
-              className="absolute -left-[10px] top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-sm"
+              className={cn(
+                "absolute top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-sm",
+                labelMode ? "-left-[6px]" : "-left-[10px]"
+              )}
               aria-hidden
             />
           )}
-          <Home className="size-4" />
+          <Home className="size-4 shrink-0" />
+          {labelMode && (
+            <span className="min-w-0 flex-1 truncate text-left text-sm">
+              Overview
+            </span>
+          )}
         </button>
 
         {hosts.map((host) => {
           const status = byHost[host.id]?.status ?? "idle"
+          const Entry = labelMode ? HostRow : HostTile
           return (
-            <HostTile
+            <Entry
               key={host.id}
               label={host.label}
               accent={hostAccent(host)}
@@ -144,6 +233,9 @@ export function HostRail() {
                   : "terminal"
                 setActivity(next)
                 rememberView(host.id, next)
+                if (autoConnectOnSelect.value && status === "idle") {
+                  void connectHost(host.id, { label: host.label })
+                }
               }}
             />
           )
@@ -151,38 +243,51 @@ export function HostRail() {
 
         <Button
           variant="ghost"
-          size="icon"
+          size={labelMode ? "sm" : "icon"}
           aria-label="Add host"
           title="Add host"
-          className="text-muted-foreground size-8 shrink-0 rounded-md border border-dashed"          onClick={() => {
+          className={cn(
+            "shrink-0 rounded-md border border-dashed text-muted-foreground",
+            labelMode ? "w-full justify-start gap-2 px-2" : "size-8"
+          )}
+          onClick={() => {
             setSelectedHostId(null)
             setAddHostOpen(true)
             setActivity("home")
           }}
         >
-          <Plus className="size-4" />
+          <Plus className="size-4 shrink-0" />
+          {labelMode && <span className="truncate">Add host</span>}
         </Button>
       </div>
 
-      <div className="border-border flex w-full flex-col items-center gap-0.5 border-t px-1.5 py-2">
+      <div
+        className={cn(
+          "flex w-full flex-col gap-0.5 border-t border-border px-1.5 py-2",
+          labelMode ? "items-stretch" : "items-center"
+        )}
+      >
         {bottomGlobals.map(({ id, icon: Icon, label }) => (
           <Button
             key={id}
             variant="ghost"
-            size="icon"
+            size={labelMode ? "sm" : "icon"}
             aria-label={label}
             title={label}
             aria-current={activity === id ? "page" : undefined}
             className={cn(
-              "text-muted-foreground size-8",
-              activity === id && "bg-sidebar-accent text-sidebar-accent-foreground",
+              "text-muted-foreground",
+              labelMode ? "w-full justify-start gap-2 px-2" : "size-8",
+              activity === id &&
+                "bg-sidebar-accent text-sidebar-accent-foreground"
             )}
             onClick={() => {
               setSelectedHostId(null)
               setActivity(id)
             }}
           >
-            <Icon className="size-4" />
+            <Icon className="size-4 shrink-0" />
+            {labelMode && <span className="truncate">{label}</span>}
           </Button>
         ))}
       </div>

@@ -18,24 +18,24 @@ export function Toaster() {
         <div
           key={t.id}
           className={cn(
-            "pointer-events-auto border-border bg-popover text-popover-foreground flex items-start gap-2 rounded-lg border px-3 py-2 shadow-lg",
+            "pointer-events-auto flex items-start gap-2 rounded-lg border border-border bg-popover px-3 py-2 text-popover-foreground shadow-lg",
             t.kind === "success" && "border-emerald-500/40",
             t.kind === "error" && "border-destructive/50",
-            t.kind === "info" && "border-sky-500/40",
+            t.kind === "info" && "border-sky-500/40"
           )}
           role="status"
         >
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">{t.title}</div>
             {t.description && (
-              <div className="text-muted-foreground mt-0.5 text-xs break-words whitespace-pre-wrap">
+              <div className="mt-0.5 text-xs break-words whitespace-pre-wrap text-muted-foreground">
                 {t.description}
               </div>
             )}
           </div>
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground shrink-0 rounded p-0.5"
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
             aria-label="Dismiss"
             onClick={() => dismiss(t.id)}
           >

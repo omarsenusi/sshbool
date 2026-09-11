@@ -301,12 +301,18 @@ pub async fn active_features(state: &AppState) -> Vec<String> {
         "ai".to_string(),
         "sync".to_string(),
         "marketplace_paid".to_string(),
+        "mcp_server".to_string(),
     ]
 }
 
 /// Soft gate helper — Free keeps core SSH; Pro/Team unlock sync/team/paid plugins.
 pub async fn require_feature(state: &AppState, feature: &str) -> Result<(), AppError> {
     if matches!(feature, "core_ssh" | "sftp" | "terminal" | "keys" | "vault") {
+        return Ok(());
+    }
+    // Local dev builds: MCP server must be testable without a Pro license token.
+    #[cfg(debug_assertions)]
+    if feature == "mcp_server" {
         return Ok(());
     }
     let feats = active_features(state).await;

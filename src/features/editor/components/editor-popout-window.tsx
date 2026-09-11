@@ -10,7 +10,7 @@ import { editorTabTitle } from "@/stores/editor.store"
 const EditorWorkspace = lazy(() =>
   import("@/features/editor/components/editor-workspace").then((m) => ({
     default: m.EditorWorkspace,
-  })),
+  }))
 )
 
 export function EditorPopoutWindow({ hostId, path }: EditorPopoutParams) {
@@ -21,13 +21,13 @@ export function EditorPopoutWindow({ hostId, path }: EditorPopoutParams) {
   }, [title])
 
   return (
-    <div className="bg-background text-foreground flex h-screen w-screen flex-col overflow-hidden">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
       <WindowChrome title="SSHBool" subtitle={title} />
       <div className="min-h-0 flex-1">
         <ErrorBoundary>
           <Suspense
             fallback={
-              <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Loading editor…
               </div>
             }

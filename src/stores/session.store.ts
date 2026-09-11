@@ -7,6 +7,8 @@ type SessionPane = {
   title: string
   /** Rendered in a separate OS window. */
   poppedOut?: boolean
+  /** MCP-managed pane hidden from tab strip until show_terminal is requested. */
+  mcpHidden?: boolean
 }
 
 type SessionState = {
@@ -24,19 +26,24 @@ export const useSessionStore = create<SessionState>((set) => ({
   addPane: (pane) =>
     set((s) => ({
       panes: [...s.panes.filter((p) => p.paneId !== pane.paneId), pane],
-      activePaneId: pane.paneId,
+      activePaneId: pane.mcpHidden ? s.activePaneId : pane.paneId,
     })),
   removePane: (paneId) =>
     set((s) => {
       const panes = s.panes.filter((p) => p.paneId !== paneId)
       return {
         panes,
-        activePaneId: s.activePaneId === paneId ? (panes[0]?.paneId ?? null) : s.activePaneId,
+        activePaneId:
+          s.activePaneId === paneId
+            ? (panes[0]?.paneId ?? null)
+            : s.activePaneId,
       }
     }),
   setActive: (paneId) => set({ activePaneId: paneId }),
   setPoppedOut: (paneId, poppedOut) =>
     set((s) => ({
-      panes: s.panes.map((p) => (p.paneId === paneId ? { ...p, poppedOut } : p)),
+      panes: s.panes.map((p) =>
+        p.paneId === paneId ? { ...p, poppedOut } : p
+      ),
     })),
 }))

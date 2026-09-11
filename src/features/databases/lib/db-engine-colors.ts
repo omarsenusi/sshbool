@@ -6,7 +6,8 @@ export function getEngineColor(engine: string) {
     case "postgresql":
       return {
         bg: "bg-blue-500/10 border-blue-500/20 text-blue-400",
-        gradient: "from-blue-600/30 via-indigo-600/20 to-transparent border-blue-500/30",
+        gradient:
+          "from-blue-600/30 via-indigo-600/20 to-transparent border-blue-500/30",
         accent: "text-blue-400 bg-blue-500/20 border-blue-500/30",
         btn: "bg-blue-600 hover:bg-blue-500 text-white",
         text: "text-blue-400",
@@ -16,7 +17,8 @@ export function getEngineColor(engine: string) {
     case "mariadb":
       return {
         bg: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-        gradient: "from-amber-600/30 via-orange-600/20 to-transparent border-amber-500/30",
+        gradient:
+          "from-amber-600/30 via-orange-600/20 to-transparent border-amber-500/30",
         accent: "text-amber-400 bg-amber-500/20 border-amber-500/30",
         btn: "bg-amber-600 hover:bg-amber-500 text-white",
         text: "text-amber-400",

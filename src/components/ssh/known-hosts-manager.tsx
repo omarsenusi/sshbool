@@ -1,6 +1,16 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { ShieldCheck, Copy, Check, Server, Key, Trash2, Search, X, ShieldAlert } from "lucide-react"
+import {
+  ShieldCheck,
+  Copy,
+  Check,
+  Server,
+  Key,
+  Trash2,
+  Search,
+  X,
+  ShieldAlert,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ipc } from "@/lib/ipc/commands"
 import { KnownHostDto } from "@/lib/ipc/types"
@@ -11,7 +21,10 @@ interface KnownHostKeysManagerProps {
   onClose: () => void
 }
 
-export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProps) {
+export function KnownHostKeysManager({
+  open,
+  onClose,
+}: KnownHostKeysManagerProps) {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -32,7 +45,9 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["known_hosts"] })
-      toast.success("Host key removed. Reconnecting will trigger verification prompt.")
+      toast.success(
+        "Host key removed. Reconnecting will trigger verification prompt."
+      )
       setDeletingId(null)
     },
     onError: (err) => {
@@ -68,10 +83,12 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
     )
   } else if (filteredHosts.length === 0) {
     content = (
-      <div className="py-12 text-center border border-dashed border-zinc-800 rounded-xl p-8">
-        <ShieldAlert className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
-        <p className="text-sm text-zinc-400 font-medium">No trusted host keys found</p>
-        <p className="text-xs text-zinc-500 mt-1">
+      <div className="rounded-xl border border-dashed border-zinc-800 p-8 py-12 text-center">
+        <ShieldAlert className="mx-auto mb-2 h-8 w-8 text-zinc-600" />
+        <p className="text-sm font-medium text-zinc-400">
+          No trusted host keys found
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
           {searchQuery
             ? "No host keys matched your filter criteria."
             : "Trusted SSH server keys will appear here when you connect."}
@@ -88,9 +105,9 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
           className="rounded-xl border border-zinc-800/90 bg-zinc-900/40 p-4 transition-all hover:border-amber-500/30 hover:bg-zinc-900/60"
         >
           {/* Top info tiles */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-zinc-800/80 bg-zinc-900/80 p-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 mb-1">
+              <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
                 <Server className="h-3.5 w-3.5 text-amber-500/70" />
                 Connecting To
               </div>
@@ -100,7 +117,7 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
             </div>
 
             <div className="rounded-lg border border-zinc-800/80 bg-zinc-900/80 p-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 mb-1">
+              <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
                 <Key className="h-3.5 w-3.5 text-amber-500/70" />
                 Key Algorithm
               </div>
@@ -111,41 +128,43 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
           </div>
 
           {/* Fingerprints */}
-          <div className="space-y-2.5 mb-3">
+          <div className="mb-3 space-y-2.5">
             {/* SHA-256 */}
             <div>
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 font-medium mb-1">
+              <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-zinc-400">
                 <span>SHA-256 Fingerprint</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleCopy(item.fingerprintSha256, `${item.id}-sha`)}
-                  className="h-6 px-2 text-[10px] text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 border border-zinc-800/80"
+                  onClick={() =>
+                    handleCopy(item.fingerprintSha256, `${item.id}-sha`)
+                  }
+                  className="h-6 border border-zinc-800/80 px-2 text-[10px] text-zinc-400 hover:bg-amber-500/10 hover:text-amber-400"
                 >
                   {copiedId === `${item.id}-sha` ? (
                     <>
-                      <Check className="h-3 w-3 text-emerald-400 mr-1" />
+                      <Check className="mr-1 h-3 w-3 text-emerald-400" />
                       Copied
                     </>
                   ) : (
                     <>
-                      <Copy className="h-3 w-3 mr-1" />
+                      <Copy className="mr-1 h-3 w-3" />
                       Copy
                     </>
                   )}
                 </Button>
               </div>
-              <code className="block break-all rounded-lg border border-zinc-800/90 bg-zinc-950/90 p-2.5 text-xs font-mono text-amber-300/90 select-all">
+              <code className="block rounded-lg border border-zinc-800/90 bg-zinc-950/90 p-2.5 font-mono text-xs break-all text-amber-300/90 select-all">
                 {item.fingerprintSha256}
               </code>
             </div>
           </div>
 
           {/* Card actions / timestamp */}
-          <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 text-[11px] text-zinc-500">
+          <div className="flex items-center justify-between border-t border-zinc-800/60 pt-2 text-[11px] text-zinc-500">
             <div>
               Verified:{" "}
-              <span className="text-zinc-400 font-medium">
+              <span className="font-medium text-zinc-400">
                 {new Date(item.firstSeenAt).toLocaleDateString()}
               </span>
             </div>
@@ -158,9 +177,9 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
                 setDeletingId(item.id)
                 deleteMutation.mutate(item.id)
               }}
-              className="h-7 px-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+              className="h-7 border border-red-500/20 px-2.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
             >
-              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
               {isDeleting ? "Revoking..." : "Revoke Trust"}
             </Button>
           </div>
@@ -170,15 +189,15 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl rounded-2xl border border-amber-500/20 bg-zinc-950/95 p-6 shadow-2xl shadow-amber-950/20 text-foreground overflow-hidden relative flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex animate-in items-center justify-center bg-black/80 p-4 backdrop-blur-md duration-200 fade-in">
+      <div className="relative flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-amber-500/20 bg-zinc-950/95 p-6 text-foreground shadow-2xl shadow-amber-950/20">
         {/* Sleek amber accent line */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600" />
+        <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600" />
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4 mb-4">
+        <div className="mb-4 flex items-center justify-between border-b border-zinc-800/80 pb-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-amber-500/10 p-2.5 text-amber-400 border border-amber-500/20">
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-amber-400">
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
@@ -186,11 +205,11 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
                 <h2 className="text-lg font-bold tracking-tight text-zinc-100">
                   Trusted SSH Host Keys
                 </h2>
-                <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-amber-400 border border-amber-500/20 uppercase tracking-wider">
+                <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider text-amber-400 uppercase">
                   {knownHosts.length} Saved Keys
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="mt-0.5 text-xs text-zinc-400">
                 View, copy fingerprints, or revoke trusted remote host keys
               </p>
             </div>
@@ -200,7 +219,7 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900"
+            className="rounded-lg text-zinc-400 hover:bg-zinc-900 hover:text-white"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -208,23 +227,21 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
 
         {/* Search bar */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <input
             type="text"
             placeholder="Filter by host IP, port, algorithm, or fingerprint..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl bg-zinc-900/90 border border-zinc-800 pl-9 pr-4 py-2 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+            className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 py-2 pr-4 pl-9 text-xs text-zinc-200 transition-colors placeholder:text-zinc-500 focus:border-amber-500/50 focus:outline-none"
           />
         </div>
 
         {/* Content list */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-          {content}
-        </div>
+        <div className="flex-1 space-y-4 overflow-y-auto pr-1">{content}</div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-zinc-800/80 mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between border-t border-zinc-800/80 pt-4">
           <p className="text-[11px] text-zinc-500">
             Revoking a host key will prompt verification on next SSH handshake.
           </p>
@@ -232,7 +249,7 @@ export function KnownHostKeysManager({ open, onClose }: KnownHostKeysManagerProp
             variant="outline"
             size="sm"
             onClick={onClose}
-            className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white text-xs px-4"
+            className="border-zinc-800 bg-zinc-900 px-4 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white"
           >
             Close
           </Button>

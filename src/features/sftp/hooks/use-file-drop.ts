@@ -8,7 +8,7 @@ function physicalToCss(x: number, y: number) {
 
 function pointInElement(
   el: HTMLElement | null | undefined,
-  physical: { x: number; y: number },
+  physical: { x: number; y: number }
 ) {
   if (!el) return false
   const { x, y } = physicalToCss(physical.x, physical.y)
@@ -26,7 +26,7 @@ function pointInElement(
 export function useOsFileDrop(
   enabled: boolean,
   onPaths: (paths: string[]) => void,
-  targetRef?: RefObject<HTMLElement | null>,
+  targetRef?: RefObject<HTMLElement | null>
 ) {
   const [dragging, setDragging] = useState(false)
   const onPathsRef = useRef(onPaths)

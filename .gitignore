@@ -31,3 +31,6 @@ src-tauri/target
 # ide
 .idea
 .vscode
+.agents/
+.claude/
+
