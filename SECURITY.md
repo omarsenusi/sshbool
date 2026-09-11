@@ -4,10 +4,10 @@
 
 Currently, the SSHBool project is in active development. Only the latest release on the main branch is officially supported for security updates. 
 
-| Version | Supported          |
-| ------- | ------------------ |
-| v1.0.x  | :white_check_mark: |
-| < 1.0   | :x:                |
+| Version              | Supported          |
+| -------------------- | ------------------ |
+| v0.1.7 and later     | :white_check_mark: |
+| Before v0.1.4        | :x:                |
 
 ## Reporting a Vulnerability
 

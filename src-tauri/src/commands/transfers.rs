@@ -434,6 +434,15 @@ async fn upload_one(
     local_path: &str,
     remote_path: &str,
 ) -> Result<String, AppError> {
+    let meta = tokio::fs::metadata(local_path)
+        .await
+        .map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+    if meta.is_dir() {
+        return upload_dir(app, state, host_id, local_path, remote_path).await;
+    }
+
     let bytes = tokio::fs::read(local_path)
         .await
         .map_err(|e| AppError::Io {
@@ -521,6 +530,53 @@ async fn upload_one(
             Err(e.into())
         }
     }
+}
+
+async fn upload_dir(
+    app: &AppHandle,
+    state: &Arc<AppState>,
+    host_id: &str,
+    local_path: &str,
+    remote_path: &str,
+) -> Result<String, AppError> {
+    let dest = resolve_remote_dest(state, host_id, local_path, remote_path).await?;
+    match state.connections.sftp_stat(host_id, &dest).await {
+        Ok(meta) if meta.is_dir => {}
+        Ok(_) => {
+            return Err(AppError::Conflict {
+                message: format!("remote path exists and is not a folder: {dest}"),
+            });
+        }
+        Err(_) => {
+            state.connections.sftp_mkdir(host_id, &dest).await?;
+        }
+    }
+
+    let mut rd = tokio::fs::read_dir(local_path)
+        .await
+        .map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+    let mut last_id = String::new();
+    let mut count = 0u32;
+    while let Some(entry) = rd.next_entry().await.map_err(|e| AppError::Io {
+        message: e.to_string(),
+    })? {
+        let child = entry.path();
+        let child_s = child.to_string_lossy().into_owned();
+        last_id = Box::pin(upload_one(app, state, host_id, &child_s, &dest)).await?;
+        count += 1;
+    }
+    if count > 0 {
+        return Ok(last_id);
+    }
+
+    let job_id = begin_job(state, host_id, "upload", local_path, &dest, 0).await?;
+    finish_job(
+        app, state, &job_id, host_id, "upload", local_path, &dest, 0, 0, "done", None,
+    )
+    .await?;
+    Ok(job_id)
 }
 
 async fn download_one(
@@ -896,6 +952,66 @@ pub async fn local_rename(from: String, to: String) -> Result<(), AppError> {
         .map_err(|e| AppError::Io {
             message: e.to_string(),
         })
+}
+
+async fn copy_local_path(src: &Path, dest: &Path) -> Result<(), AppError> {
+    let src_canon = src.canonicalize().map_err(|e| AppError::Io {
+        message: format!("invalid source path: {e}"),
+    })?;
+    if dest == src || dest == src_canon {
+        return Err(AppError::Validation {
+            field: "to".into(),
+            message: "source and destination are the same".into(),
+        });
+    }
+    if dest.starts_with(&src_canon) {
+        return Err(AppError::Validation {
+            field: "to".into(),
+            message: "cannot copy a folder into itself".into(),
+        });
+    }
+
+    let meta = tokio::fs::metadata(src).await.map_err(|e| AppError::Io {
+        message: e.to_string(),
+    })?;
+    if meta.is_dir() {
+        tokio::fs::create_dir_all(dest)
+            .await
+            .map_err(|e| AppError::Io {
+                message: e.to_string(),
+            })?;
+        let mut rd = tokio::fs::read_dir(src).await.map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+        while let Some(entry) = rd.next_entry().await.map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })? {
+            let name = entry.file_name();
+            Box::pin(copy_local_path(&entry.path(), &dest.join(name))).await?;
+        }
+        Ok(())
+    } else {
+        if let Some(parent) = dest.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| AppError::Io {
+                    message: e.to_string(),
+                })?;
+        }
+        tokio::fs::copy(src, dest).await.map_err(|e| AppError::Io {
+            message: e.to_string(),
+        })?;
+        Ok(())
+    }
+}
+
+#[tauri::command]
+pub async fn local_copy(from: String, to: String) -> Result<(), AppError> {
+    let src = PathBuf::from(&from);
+    let dest = PathBuf::from(&to);
+    validate_local_sandbox(&src)?;
+    validate_local_sandbox(&dest)?;
+    copy_local_path(&src, &dest).await
 }
 
 fn validate_local_delete_path(raw_path: &str) -> Result<PathBuf, AppError> {

@@ -1,4 +1,4 @@
-import { ArrowUp, Eye, EyeOff, FolderPlus, Loader2, RefreshCw } from "lucide-react"
+import { ArrowUp, Eye, EyeOff, FilePlus, FolderPlus, Loader2, RefreshCw } from "lucide-react"
 import { useEffect, useMemo, useState, type MouseEvent } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -49,14 +49,16 @@ type FilePaneProps = {
   onOpen: (entry: SftpEntryDto) => void
   onRefresh: () => void
   onMkdir: () => void
+  onNewFile?: () => void
   onContextMenu: (e: MouseEvent, entry: SftpEntryDto | null) => void
   showHidden: boolean
   onToggleHidden: () => void
   dropHighlight?: boolean
-  onDropOnPane?: () => void
-  onDropOnEntry?: (entry: SftpEntryDto) => void
+  highlightDropPath?: string | null
   onDragStartEntries?: (entries: SftpEntryDto[]) => void
-  onDragOverPane?: (e: React.DragEvent) => void
+  onDragSessionMove?: (x: number, y: number) => void
+  onDragSessionEnd?: (x: number, y: number) => void
+  focused?: boolean
   className?: string
 }
 
@@ -73,14 +75,16 @@ export function FilePane({
   onOpen,
   onRefresh,
   onMkdir,
+  onNewFile,
   onContextMenu,
   showHidden,
   onToggleHidden,
   dropHighlight,
-  onDropOnPane,
-  onDropOnEntry,
+  highlightDropPath,
   onDragStartEntries,
-  onDragOverPane,
+  onDragSessionMove,
+  onDragSessionEnd,
+  focused,
   className,
 }: FilePaneProps) {
   const [draft, setDraft] = useState(path)
@@ -94,7 +98,16 @@ export function FilePane({
   }, [path])
 
   return (
-    <section className={cn("border-border flex min-h-0 min-w-0 flex-1 flex-col border", className)}>
+    <section
+      data-sftp-pane={side}
+      data-sftp-dir={path}
+      className={cn(
+        "border-border flex min-h-0 min-w-0 flex-1 flex-col border",
+        focused && "ring-primary/40 ring-1",
+        dropHighlight && "bg-primary/5",
+        className,
+      )}
+    >
       <div className="border-border flex items-center gap-1 border-b px-2 py-1.5">
         <span className="text-muted-foreground shrink-0 text-[11px] font-semibold uppercase tracking-wide">
           {title}
@@ -108,6 +121,11 @@ export function FilePane({
           >
             {showHidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
           </Button>
+          {onNewFile && (
+            <Button size="icon-xs" variant="ghost" title="New file" onClick={onNewFile}>
+              <FilePlus className="size-3.5" />
+            </Button>
+          )}
           <Button size="icon-xs" variant="ghost" title="New folder" onClick={onMkdir}>
             <FolderPlus className="size-3.5" />
           </Button>
@@ -153,10 +171,10 @@ export function FilePane({
           onContextMenu={onContextMenu}
           dragSide={side}
           onDragStartEntries={onDragStartEntries}
+          onDragSessionMove={onDragSessionMove}
+          onDragSessionEnd={onDragSessionEnd}
           dropHighlight={dropHighlight}
-          onDropOnPane={onDropOnPane}
-          onDropOnEntry={onDropOnEntry}
-          onDragOverPane={onDragOverPane}
+          highlightDropPath={highlightDropPath}
         />
         {loading && visible.length === 0 && (
           <div className="bg-background/50 pointer-events-none absolute inset-0 flex items-start justify-center pt-8">

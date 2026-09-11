@@ -315,6 +315,7 @@ pub fn run() {
             commands::transfers::local_list_dir,
             commands::transfers::local_mkdir,
             commands::transfers::local_rename,
+            commands::transfers::local_copy,
             commands::transfers::local_delete,
             commands::transfers::transfer_upload,
             commands::transfers::transfer_upload_many,

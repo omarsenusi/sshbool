@@ -12,6 +12,7 @@ import {
   type MenuItem,
 } from "@/features/sftp/components/file-context-menu"
 import { FilePane, joinPath } from "@/features/sftp/components/file-pane"
+import type { InternalSftpDrag } from "@/features/sftp/components/file-list"
 import {
   ChmodDialog,
   ConfirmDeleteDialog,
@@ -40,6 +41,19 @@ type MenuState = { x: number; y: number; side: PaneSide; entry: SftpEntryDto | n
 function basename(path: string) {
   const parts = path.replace(/\\/g, "/").split("/")
   return parts[parts.length - 1] || path
+}
+
+function uniquifyName(name: string, used: Set<string>): string {
+  if (!used.has(name)) return name
+  const dot = name.lastIndexOf(".")
+  const split = dot > 0 && (dot > 1 || !name.startsWith("."))
+  const stem = split ? name.slice(0, dot) : name
+  const ext = split ? name.slice(dot) : ""
+  for (let n = 1; n < 500; n++) {
+    const candidate = n === 1 ? `${stem} copy${ext}` : `${stem} copy ${n}${ext}`
+    if (!used.has(candidate)) return candidate
+  }
+  return `${stem} copy ${Date.now()}${ext}`
 }
 
 function totalSize(entries: SftpEntryDto[]) {
@@ -80,16 +94,21 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     size?: number
   } | null>(null)
   const [mkdirSide, setMkdirSide] = useState<PaneSide | null>(null)
+  const [newFileOpen, setNewFileOpen] = useState(false)
   const [del, setDel] = useState<{
     side: PaneSide
     entries: SftpEntryDto[]
   } | null>(null)
   const [chmodPath, setChmodPath] = useState<string | null>(null)
-  const [dragPayload, setDragPayload] = useState<{
-    side: PaneSide
-    paths: string[]
-  } | null>(null)
+  const dragPayloadRef = useRef<InternalSftpDrag | null>(null)
   const [paneDrop, setPaneDrop] = useState<"local" | "remote" | null>(null)
+  const [dropFolderPath, setDropFolderPath] = useState<string | null>(null)
+  const [dragGhost, setDragGhost] = useState<{
+    x: number
+    y: number
+    count: number
+    label: string
+  } | null>(null)
   const [focusedPane, setFocusedPane] = useState<PaneSide>("remote")
 
   const localNav = usePathHistory("")
@@ -350,8 +369,12 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     if (!hostClipboard?.entries.length) return
     const { side: srcSide, mode, entries } = hostClipboard
     const names = entries.map((e) => e.name).join(", ")
+    const listing =
+      destDir === localPath ? localEntries : destDir === remotePath ? remoteEntries : []
+    const used = new Set(listing.map((e) => e.name))
 
-    await runSftpActivity(
+    try {
+      await runSftpActivity(
       {
         hostId,
         kind: mode === "cut" ? "move" : "paste",
@@ -361,13 +384,24 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       },
       async () => {
         for (const entry of entries) {
-          const dest = joinPath(destDir, entry.name, side)
+          let destName = entry.name
+          let dest = joinPath(destDir, destName, side)
+          if (dest === entry.path) {
+            if (mode === "cut") continue
+            destName = uniquifyName(destName, used)
+            dest = joinPath(destDir, destName, side)
+          } else if (used.has(destName)) {
+            destName = uniquifyName(destName, used)
+            dest = joinPath(destDir, destName, side)
+          }
+          used.add(destName)
+
           if (srcSide === "remote" && side === "remote") {
             if (mode === "copy") await ipc.sftpCopy(hostId, entry.path, dest)
             else await ipc.sftpRename(hostId, entry.path, dest)
           } else if (srcSide === "local" && side === "local") {
             if (mode === "cut") await ipc.localRename(entry.path, dest)
-            // local-local copy: not supported without local_copy — skip (user can upload)
+            else await ipc.localCopy(entry.path, dest)
           } else if (srcSide === "local" && side === "remote") {
             await ipc.transferUpload(hostId, entry.path, destDir)
             if (mode === "cut") await ipc.localDelete(entry.path, true)
@@ -380,6 +414,12 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         await invalidateAll()
       },
     )
+    } catch (err) {
+      toast.error(
+        "Paste failed",
+        err instanceof Error ? err.message : String(err),
+      )
+    }
   }
 
   function buildMenu(side: PaneSide, entry: SftpEntryDto | null): MenuItem[] {
@@ -466,7 +506,12 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     })
     items.push({
       type: "item",
-      label: "Paste",
+      label:
+        hostClipboard && hostClipboard.side === "local" && side === "remote"
+          ? "Paste (upload)"
+          : hostClipboard && hostClipboard.side === "remote" && side === "local"
+            ? "Paste (download)"
+            : "Paste",
       disabled: !hostClipboard?.entries.length,
       onClick: () =>
         void doPaste(
@@ -492,6 +537,13 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       label: "New folder",
       onClick: () => setMkdirSide(side),
     })
+    if (side === "remote") {
+      items.push({
+        type: "item",
+        label: "New file",
+        onClick: () => setNewFileOpen(true),
+      })
+    }
     if (side === "remote" && focus && !multi) {
       items.push({
         type: "item",
@@ -515,42 +567,141 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     return items
   }
 
-  async function handleCrossDrop(targetSide: PaneSide, destDir: string) {
-    if (!dragPayload) return
-    const { side, paths } = dragPayload
+  function beginInternalDrag(side: PaneSide, ents: SftpEntryDto[]) {
+    dragPayloadRef.current = {
+      side,
+      paths: ents.map((x) => x.path),
+    }
+  }
+
+  function hitDropTarget(x: number, y: number): {
+    side: PaneSide
+    destDir: string
+    folderPath: string | null
+  } | null {
+    const el = document.elementFromPoint(x, y)
+    if (!el) return null
+    const pane = el.closest("[data-sftp-pane]") as HTMLElement | null
+    if (!pane) return null
+    const side = pane.dataset.sftpPane
+    const destDir = pane.dataset.sftpDir
+    if (side !== "local" && side !== "remote") return null
+    if (!destDir || destDir === "…") return null
+    const folder = el.closest("[data-sftp-drop-folder]") as HTMLElement | null
+    const folderPath = folder?.dataset.sftpDropFolder || null
+    return { side, destDir: folderPath || destDir, folderPath }
+  }
+
+  function moveInternalDrag(x: number, y: number) {
+    const payload = dragPayloadRef.current
+    if (!payload) return
+    const hit = hitDropTarget(x, y)
+    const over =
+      hit && hit.side !== payload.side ? hit.side : null
+    setPaneDrop(over)
+    setDropFolderPath(
+      hit && hit.side !== payload.side ? hit.folderPath : null,
+    )
+    const label =
+      payload.paths.length === 1
+        ? basename(payload.paths[0]!)
+        : `${payload.paths.length} items`
+    setDragGhost({ x, y, count: payload.paths.length, label })
+  }
+
+  function endInternalDrag(x: number, y: number) {
+    const payload = dragPayloadRef.current
+    dragPayloadRef.current = null
+    setPaneDrop(null)
+    setDropFolderPath(null)
+    setDragGhost(null)
+    if (!payload?.paths.length) return
+    const hit = hitDropTarget(x, y)
+    if (!hit) return
+    void handleCrossDrop(hit.side, hit.destDir, payload)
+  }
+
+  async function handleCrossDrop(
+    targetSide: PaneSide,
+    destDir: string,
+    payload: InternalSftpDrag,
+  ) {
+    if (!payload.paths.length) return
+    const { side, paths } = payload
+    dragPayloadRef.current = null
+    setPaneDrop(null)
+    setDropFolderPath(null)
+    setDragGhost(null)
+
     const ents = entriesFor(side, paths)
     const bytes = totalSize(ents)
+    const label =
+      paths.length === 1
+        ? `${basename(paths[0]!)} → ${destDir}`
+        : `${paths.length} items → ${destDir}`
 
-    if (side === targetSide) {
-      const label =
-        paths.length === 1
-          ? `${basename(paths[0]!)} → ${destDir}`
-          : `${paths.length} items → ${destDir}`
-      await runSftpActivity(
-        {
-          hostId,
-          kind: "move",
-          label,
-          side: targetSide,
-          bytesTotal: bytes || undefined,
-        },
-        async () => {
-          for (const p of paths) {
-            const name = basename(p)
-            const dest = joinPath(destDir, name, targetSide)
-            if (side === "remote") await ipc.sftpRename(hostId, p, dest)
-            else await ipc.localRename(p, dest)
-          }
-        },
+    try {
+      if (side === targetSide) {
+        const moves = paths.filter(
+          (p) => joinPath(destDir, basename(p), targetSide) !== p,
+        )
+        if (moves.length === 0) return
+        await runSftpActivity(
+          {
+            hostId,
+            kind: "move",
+            label,
+            side: targetSide,
+            bytesTotal: bytes || undefined,
+          },
+          async () => {
+            for (const p of moves) {
+              const dest = joinPath(destDir, basename(p), targetSide)
+              if (side === "remote") await ipc.sftpRename(hostId, p, dest)
+              else await ipc.localRename(p, dest)
+            }
+          },
+        )
+      } else if (side === "local" && targetSide === "remote") {
+        await runSftpActivity(
+          {
+            hostId,
+            kind: "upload",
+            label,
+            side: "remote",
+            bytesTotal: bytes || undefined,
+          },
+          async () => {
+            await qc.invalidateQueries({ queryKey: ["transfers"] })
+            if (paths.length === 1) {
+              await ipc.transferUpload(hostId, paths[0]!, destDir)
+            } else {
+              await ipc.transferUploadMany(hostId, paths, destDir)
+            }
+          },
+        )
+      } else {
+        await runSftpActivity(
+          {
+            hostId,
+            kind: "download",
+            label,
+            side: "local",
+            bytesTotal: bytes || undefined,
+          },
+          async () => {
+            await qc.invalidateQueries({ queryKey: ["transfers"] })
+            for (const p of paths) await ipc.transferDownload(hostId, p, destDir)
+          },
+        )
+      }
+      await invalidateAll()
+    } catch (err) {
+      toast.error(
+        "Transfer failed",
+        err instanceof Error ? err.message : String(err),
       )
-    } else if (side === "local" && targetSide === "remote") {
-      await ipc.transferUploadMany(hostId, paths, destDir)
-    } else {
-      for (const p of paths) await ipc.transferDownload(hostId, p, destDir)
     }
-    setDragPayload(null)
-    setPaneDrop(null)
-    await invalidateAll()
   }
 
   useEffect(() => {
@@ -558,8 +709,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       const target = e.target as HTMLElement
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return
 
-      const side: PaneSide =
-        remoteSelected.length > 0 && localSelected.length === 0 ? "remote" : "local"
+      const side = focusedPaneRef.current
       const selected = side === "local" ? localSelected : remoteSelected
       const entries = entriesFor(side, selected)
 
@@ -583,6 +733,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         setClipboard({ hostId, side, mode: "cut", entries })
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+        e.preventDefault()
         void doPaste(side, side === "local" ? localPath : remotePath)
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
@@ -698,17 +849,11 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
           showHidden={showHiddenLocal}
           onToggleHidden={() => setShowHiddenLocal((v) => !v)}
           dropHighlight={paneDrop === "local"}
-          onDragStartEntries={(ents) =>
-            setDragPayload({ side: "local", paths: ents.map((x) => x.path) })
-          }
-          onDragOverPane={(e) => {
-            if (dragPayload && dragPayload.side !== "local") {
-              e.preventDefault()
-              setPaneDrop("local")
-            }
-          }}
-          onDropOnPane={() => void handleCrossDrop("local", localPath)}
-          onDropOnEntry={(entry) => void handleCrossDrop("local", entry.path)}
+          highlightDropPath={paneDrop === "local" ? dropFolderPath : null}
+          focused={focusedPane === "local"}
+          onDragStartEntries={(ents) => beginInternalDrag("local", ents)}
+          onDragSessionMove={moveInternalDrag}
+          onDragSessionEnd={endInternalDrag}
         />
         </div>
         <div
@@ -739,6 +884,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             }}
             onRefresh={() => void qc.invalidateQueries({ queryKey: ["sftp", hostId] })}
             onMkdir={() => setMkdirSide("remote")}
+            onNewFile={() => setNewFileOpen(true)}
             onContextMenu={(e, entry) => {
               setFocusedPane("remote")
               setMenu({ x: e.clientX, y: e.clientY, side: "remote", entry })
@@ -746,17 +892,11 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             showHidden={showHiddenRemote}
             onToggleHidden={() => setShowHiddenRemote((v) => !v)}
             dropHighlight={paneDrop === "remote" || osDragging}
-            onDragStartEntries={(ents) =>
-              setDragPayload({ side: "remote", paths: ents.map((x) => x.path) })
-            }
-            onDragOverPane={(e) => {
-              if (dragPayload && dragPayload.side !== "remote") {
-                e.preventDefault()
-                setPaneDrop("remote")
-              }
-            }}
-            onDropOnPane={() => void handleCrossDrop("remote", remotePath)}
-            onDropOnEntry={(entry) => void handleCrossDrop("remote", entry.path)}
+            highlightDropPath={paneDrop === "remote" ? dropFolderPath : null}
+            focused={focusedPane === "remote"}
+            onDragStartEntries={(ents) => beginInternalDrag("remote", ents)}
+            onDragSessionMove={moveInternalDrag}
+            onDragSessionEnd={endInternalDrag}
             className="h-full"
           />
           <DropOverlay visible={osDragging} />
@@ -764,6 +904,15 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       </div>
 
       <SftpActivityStrip hostId={hostId} transfers={recentTransfers} />
+
+      {dragGhost && (
+        <div
+          className="pointer-events-none fixed z-[300] max-w-[240px] truncate rounded-md bg-zinc-900 px-2 py-1 text-xs text-zinc-50 shadow-lg"
+          style={{ left: dragGhost.x + 12, top: dragGhost.y + 12 }}
+        >
+          {dragGhost.label}
+        </div>
+      )}
 
       {menu && (
         <FileContextMenu
@@ -807,6 +956,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         open={!!mkdirSide}
         initial="New folder"
         title="New folder"
+        confirmLabel="Create"
         onClose={() => setMkdirSide(null)}
         onSubmit={async (name) => {
           if (!mkdirSide) return
@@ -826,6 +976,40 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
           )
           setMkdirSide(null)
           await invalidateAll()
+        }}
+      />
+
+      <RenameDialog
+        open={newFileOpen}
+        initial="untitled.txt"
+        title="New file"
+        confirmLabel="Create"
+        onClose={() => setNewFileOpen(false)}
+        onSubmit={async (name) => {
+          if (/[/\\]/.test(name) || name === "." || name === "..") {
+            toast.error("Invalid name", "File name cannot contain path separators.")
+            throw new Error("invalid file name")
+          }
+          const dest = joinPath(remotePath, name, "remote")
+          const exists = remoteEntries.some((e) => e.path === dest || e.name === name)
+          if (exists) {
+            toast.error("File exists", `"${name}" already exists in this folder`)
+            throw new Error("file exists")
+          }
+          await runSftpActivity(
+            {
+              hostId,
+              kind: "create",
+              label: name,
+              side: "remote",
+            },
+            async () => {
+              await ipc.sftpWrite(hostId, dest, "")
+            },
+          )
+          setNewFileOpen(false)
+          await invalidateAll()
+          useLayoutStore.getState().openEditor(hostId, normalizeRemotePath(dest))
         }}
       />
 

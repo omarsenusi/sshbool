@@ -7,6 +7,7 @@ export type SftpActivityKind =
   | "rename"
   | "delete"
   | "mkdir"
+  | "create"
   | "chmod"
   | "paste"
   | "move"

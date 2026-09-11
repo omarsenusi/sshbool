@@ -261,6 +261,7 @@ export const ipc = {
   localListDir: (path: string) => call<SftpEntryDto[]>("local_list_dir", { path }),
   localMkdir: (path: string) => call<void>("local_mkdir", { path }),
   localRename: (from: string, to: string) => call<void>("local_rename", { from, to }),
+  localCopy: (from: string, to: string) => call<void>("local_copy", { from, to }),
   localDelete: (path: string, recursive: boolean) =>
     call<void>("local_delete", { path, recursive }),
   transferUpload: (hostId: string, localPath: string, remotePath: string) =>
