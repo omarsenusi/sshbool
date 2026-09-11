@@ -183,15 +183,16 @@ async fn backfill_legacy_migrations(pool: &SqlitePool) -> Result<(), DomainError
 }
 
 async fn run_migration_sql(pool: &SqlitePool, id: &str, sql: &str) -> Result<(), DomainError> {
-    // Split on `;` and strip comment-only lines. Do NOT skip a whole chunk just because
-    // it begins with a `--` header comment (that used to drop CREATE TABLE statements).
-    for stmt in sql.split(';') {
-        let meaningful = stmt
-            .lines()
-            .map(str::trim)
-            .filter(|l| !l.is_empty() && !l.starts_with("--"))
-            .collect::<Vec<_>>()
-            .join("\n");
+    // Strip comment lines starting with `--` BEFORE splitting on `;` so semicolons in comments don't break statements.
+    let clean_sql = sql
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.starts_with("--"))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    for stmt in clean_sql.split(';') {
+        let meaningful = stmt.trim();
         if meaningful.is_empty() {
             continue;
         }

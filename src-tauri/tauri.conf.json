@@ -66,8 +66,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "externalBin": ["binaries/wfreerdp"],
     "resources": {
+      "binaries/wfreerdp-x86_64-pc-windows-msvc.exe": "binaries/wfreerdp-x86_64-pc-windows-msvc.exe",
       "binaries/guacd/README.md": "binaries/guacd/README.md",
       "../scripts/download-guacd.ps1": "scripts/download-guacd.ps1"
     },
