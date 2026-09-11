@@ -3,7 +3,12 @@
 
 mod commands;
 mod container;
+pub mod desktop_bridge;
 mod error;
+mod guacamole_protocol;
+mod guacamole_token;
+mod guacd_manager;
+mod rdp_credentials;
 mod events;
 mod mcp_executor;
 #[cfg(target_os = "windows")]
@@ -343,6 +348,7 @@ pub fn run() {
             commands::phase2::port_forwards_list,
             commands::phase2::port_forwards_start,
             commands::phase2::port_forwards_stop,
+            commands::phase2::port_check_available,
             commands::monitoring::monitoring_start,
             commands::monitoring::monitoring_stop,
             commands::monitoring::monitoring_snapshot,
@@ -368,6 +374,10 @@ pub fn run() {
             commands::phase2::editor_git_status,
             commands::phase2::editor_diff,
             commands::phase2::rdp_launch_native,
+            commands::phase2::desktop_inapp_connect,
+            commands::phase2::desktop_inapp_disconnect,
+            commands::phase2::desktop_guacamole_connect,
+            commands::phase2::desktop_guacd_setup,
             commands::phase2::workspace_window_open,
             commands::phase2::window_minimize,
             commands::phase2::window_toggle_maximize,
@@ -441,8 +451,18 @@ pub fn run() {
             commands::mcp::mcp_budgets_set,
             commands::mcp::mcp_policy_list,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running SSHBool");
+        .build(tauri::generate_context!())
+        .expect("error while building SSHBool")
+        .run(|_app, event| {
+            if let tauri::RunEvent::Exit = event {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build();
+                if let Ok(rt) = rt {
+                    rt.block_on(crate::guacd_manager::shutdown_guacd());
+                }
+            }
+        });
 }
 
 pub use container::AppContainer;

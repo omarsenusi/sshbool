@@ -11,6 +11,7 @@ import { HostSettingsPanel } from "@/features/connections/components/host-settin
 import { DashboardPanel } from "@/features/dashboard/components/dashboard-panel"
 import { DatabasesPanel } from "@/features/databases/components/databases-panel"
 import { DevtoolsPanel } from "@/features/devtools/components/devtools-panel"
+import { TunnelsPanel } from "@/features/tunnels/components/tunnels-panel"
 import { DockerPanel } from "@/features/docker/components/docker-panel"
 import { RemoteDesktopView } from "@/features/desktop/components/remote-desktop-view"
 import { K8sPanel } from "@/features/kubernetes/components/k8s-panel"
@@ -466,6 +467,9 @@ export function App() {
           ) : (
             <Empty>Pick a server.</Empty>
           ))}
+        {activity === "tunnels" && (
+          <TunnelsPanel hostId={selectedHostId} />
+        )}
         {activity === "desktop" &&
           (selectedHostId ? (
             <RemoteDesktopView hostId={selectedHostId} />

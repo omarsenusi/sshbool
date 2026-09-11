@@ -48,6 +48,8 @@
           "'self'",
           "ipc:",
           "asset:",
+          "ws://127.0.0.1:*",
+          "ws://localhost:*",
           "https://ssh.devbool.com",
           "https://github.com",
           "https://*.githubusercontent.com",
@@ -95,6 +97,10 @@
     "externalBin": [
       "binaries/wfreerdp"
     ],
+    "resources": {
+      "binaries/guacd/README.md": "binaries/guacd/README.md",
+      "../scripts/download-guacd.ps1": "scripts/download-guacd.ps1"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

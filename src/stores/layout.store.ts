@@ -15,6 +15,7 @@ export type ActivityId =
   | "kubernetes"
   | "databases"
   | "devtools"
+  | "tunnels"
   | "hostSettings"
   | "ai"
   | "keys"
@@ -35,6 +36,7 @@ export const HOST_SCOPED_ACTIVITIES: ActivityId[] = [
   "kubernetes",
   "databases",
   "devtools",
+  "tunnels",
   "hostSettings",
 ]
 

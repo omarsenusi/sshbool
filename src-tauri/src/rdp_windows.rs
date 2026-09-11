@@ -4,6 +4,8 @@
 //! then types the password via SDL credential dialog and xRDP greeter (in-window only).
 //! Manual login: mstsc.exe + temp `.rdp` with `prompt for credentials:i:1`.
 
+#![allow(dead_code)]
+
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -47,6 +49,7 @@ pub struct MstscLaunchOpts<'a> {
     pub connect_host: &'a str,
     pub local_port: u16,
     pub username: &'a str,
+    pub password: &'a str,
     pub domain: &'a str,
     pub share_clipboard: bool,
     pub smart_sizing: bool,
@@ -207,10 +210,123 @@ pub fn freerdp_available(extra_candidates: &[PathBuf]) -> bool {
     freerdp_stdin_available(extra_candidates)
 }
 
-/// Termix-style mstsc launch — never embeds a password in the .rdp file.
-pub fn launch_mstsc_manual(opts: &MstscLaunchOpts<'_>) -> Result<(), String> {
+#[repr(C)]
+struct FileTime {
+    dw_low_date_time: u32,
+    dw_high_date_time: u32,
+}
+
+#[repr(C)]
+struct CredentialW {
+    flags: u32,
+    type_: u32,
+    target_name: *mut u16,
+    comment: *mut u16,
+    last_written: FileTime,
+    credential_blob_size: u32,
+    credential_blob: *mut u8,
+    persist: u32,
+    attribute_count: u32,
+    attributes: *mut std::ffi::c_void,
+    target_alias: *mut u16,
+    user_name: *mut u16,
+}
+
+#[link(name = "advapi32")]
+extern "system" {
+    fn CredWriteW(credential: *const CredentialW, flags: u32) -> i32;
+    fn CredDeleteW(target_name: *const u16, type_: u32, flags: u32) -> i32;
+}
+
+const CRED_TYPE_GENERIC: u32 = 1;
+const CRED_PERSIST_SESSION: u32 = 1;
+
+fn to_wide(s: &str) -> Vec<u16> {
+    s.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+pub fn write_session_credential(target: &str, username: &str, password: &str) -> bool {
+    let mut target_w = to_wide(target);
+    let mut user_w = to_wide(username);
+    let password_bytes: Vec<u8> = password
+        .encode_utf16()
+        .flat_map(|c| c.to_le_bytes())
+        .collect();
+
+    let cred = CredentialW {
+        flags: 0,
+        type_: CRED_TYPE_GENERIC,
+        target_name: target_w.as_mut_ptr(),
+        comment: std::ptr::null_mut(),
+        last_written: FileTime {
+            dw_low_date_time: 0,
+            dw_high_date_time: 0,
+        },
+        credential_blob_size: password_bytes.len() as u32,
+        credential_blob: password_bytes.as_ptr() as *mut u8,
+        persist: CRED_PERSIST_SESSION,
+        attribute_count: 0,
+        attributes: std::ptr::null_mut(),
+        target_alias: std::ptr::null_mut(),
+        user_name: user_w.as_mut_ptr(),
+    };
+
+    let ret = unsafe { CredWriteW(&cred, 0) != 0 };
+    if ret {
+        tracing::debug!("RDP: wrote session credential for {target}");
+    } else {
+        tracing::warn!("RDP: failed to write session credential for {target}");
+    }
+    ret
+}
+
+pub fn delete_session_credential(target: &str) -> bool {
+    let target_w = to_wide(target);
+    unsafe { CredDeleteW(target_w.as_ptr(), CRED_TYPE_GENERIC, 0) != 0 }
+}
+
+/// Native Windows mstsc launch — safe, clean, and zero-leak.
+///
+/// By default, credentials are NOT injected via `cmdkey` or Credential Manager
+/// to protect passwords from being exposed in Windows Process Lists (Task Manager / Event 4688)
+/// and to avoid NLA negotiation conflicts on non-Windows targets (such as Linux xRDP).
+///
+/// NOTE TO DEVELOPERS:
+/// If you want to re-enable automatic password passing to mstsc via Windows Credential Manager:
+/// Uncomment the `AUTO_LOGIN_INJECTION` blocks below.
+pub fn launch_mstsc(opts: &MstscLaunchOpts<'_>) -> Result<(), String> {
     let addr = format_address(opts.connect_host, opts.local_port);
     let qualified_user = qualified_username(opts.domain, opts.username);
+
+    // =========================================================================
+    // [AUTO_LOGIN_INJECTION BLOCK - DISABLED FOR SECURITY & STABILITY]
+    //
+    // To enable automatic password injection into mstsc.exe via Windows Credential Manager:
+    // 1. Uncomment the lines below.
+    // 2. Also uncomment the corresponding cleanup block in the background thread below.
+    //
+    // let has_password = !opts.password.is_empty() && !qualified_user.is_empty();
+    // let targets = if has_password {
+    //     let list = vec![
+    //         format!("TERMSRV/{addr}"),
+    //         format!("TERMSRV/{}", opts.connect_host),
+    //         format!("TERMSRV/{}:{}", opts.connect_host, opts.local_port),
+    //     ];
+    //     for target in &list {
+    //         write_session_credential(target, &qualified_user, opts.password);
+    //         let _ = no_window("cmdkey")
+    //             .args([
+    //                 &format!("/generic:{target}"),
+    //                 &format!("/user:{qualified_user}"),
+    //                 &format!("/pass:{}", opts.password),
+    //             ])
+    //             .status();
+    //     }
+    //     list
+    // } else {
+    //     Vec::new()
+    // };
+    // =========================================================================
 
     let mut lines = vec![
         format!("full address:s:{addr}"),
@@ -250,14 +366,25 @@ pub fn launch_mstsc_manual(opts: &MstscLaunchOpts<'_>) -> Result<(), String> {
 
     cmd.spawn()
         .map(|_| {
-            tracing::info!("RDP: mstsc manual login to {addr}");
+            tracing::info!("RDP: mstsc launched cleanly to {addr} (safe manual prompt)");
             let cleanup_dir = temp_dir.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(30));
+                // =============================================================
+                // [CLEANUP BLOCK FOR AUTO_LOGIN - UNCOMMENT IF RE-ENABLED]
+                // for t in cleanup_targets {
+                //     delete_session_credential(&t);
+                //     let _ = no_window("cmdkey").args([&format!("/delete:{t}")]).status();
+                // }
+                // =============================================================
                 let _ = std::fs::remove_dir_all(cleanup_dir);
             });
         })
         .map_err(|e| format!("failed to start mstsc.exe: {e}"))
+}
+
+pub fn launch_mstsc_manual(opts: &MstscLaunchOpts<'_>) -> Result<(), String> {
+    launch_mstsc(opts)
 }
 
 fn format_address(host: &str, port: u16) -> String {
@@ -283,7 +410,10 @@ fn clear_loopback_creds(connect_host: &str, connect_addr: &str) {
     for target in [
         format!("TERMSRV/{connect_host}"),
         format!("TERMSRV/{connect_addr}"),
+        "TERMSRV/127.0.0.1".to_string(),
+        "TERMSRV/localhost".to_string(),
     ] {
+        delete_session_credential(&target);
         let _ = no_window("cmdkey")
             .args([&format!("/delete:{target}")])
             .status();

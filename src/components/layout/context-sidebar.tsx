@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Activity,
+  ArrowLeftRight,
   Database,
   FileCode2,
   HardDrive,
@@ -40,6 +41,7 @@ const tools: { id: ActivityId; icon: typeof TerminalSquare; label: string }[] = 
   // Docker / Kubernetes hidden for now — bring back when ready.
   { id: "databases", icon: Database, label: "Databases" },
   { id: "devtools", icon: Wrench, label: "Dev Tools" },
+  { id: "tunnels", icon: ArrowLeftRight, label: "Tunnels" },
   { id: "desktop", icon: Monitor, label: "Remote Desktop" },
   { id: "hostSettings", icon: Settings, label: "Settings" },
 ]

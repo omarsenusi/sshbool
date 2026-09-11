@@ -181,7 +181,7 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
         {section === "connections" && <ConnectionsSettings />}
         {section === "editor" && <EditorSettingsPanel />}
         {section === "sftp" && <SftpSettingsPanel />}
-        {section === "keyboard" && <KeyboardSettingsPanel />}
+        {(section as string) === "keyboard" && <KeyboardSettingsPanel />}
         {!["general", "appearance", "terminal", "about", "updates", "security", "license", "team", "connections", "editor", "sftp", "keyboard"].includes(
           section,
         ) && (

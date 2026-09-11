@@ -310,6 +310,8 @@ export const ipc = {
   portForwardsDelete: (id: string) => call<void>("port_forwards_delete", { id }),
   portForwardsStart: (id: string) => call<void>("port_forwards_start", { id }),
   portForwardsStop: (id: string) => call<void>("port_forwards_stop", { id }),
+  portCheckAvailable: (bindAddr: string, bindPort: number) =>
+    call<boolean>("port_check_available", { bindAddr, bindPort }),
   monitoringSnapshot: (hostId: string) =>
     call<MonitoringSnapshot>("monitoring_snapshot", { hostId }),
   monitoringSeries: (hostId: string, metric: string) =>
@@ -444,6 +446,68 @@ export const ipc = {
   teamApplyPolicy: (teamId: string) => call<void>("team_apply_policy", { teamId }),
   retentionPrune: (days?: number) =>
     call<Record<string, unknown>>("retention_prune", { days: days ?? 30 }),
+
+  desktopInappConnect: (
+    hostId: string,
+    remoteTarget: string,
+    remotePort: number,
+    protocol?: string
+  ) =>
+    call<{
+      sessionId: string
+      wsPort: number
+      wsUrl: string
+      localTcpPort: number
+      remoteHost: string
+      remotePort: number
+      protocol: string
+      vaultPassword?: string
+    }>("desktop_inapp_connect", { hostId, remoteTarget, remotePort, protocol }),
+
+  desktopGuacamoleConnect: (
+    hostId: string,
+    remoteTarget: string,
+    remotePort: number,
+    username?: string,
+    password?: string,
+    domain?: string,
+    useSshCredentials?: boolean,
+    width?: number,
+    height?: number,
+    colorDepth?: number,
+    performance?: string,
+  ) =>
+    call<{
+      sessionId: string
+      wsPort: number
+      wsUrl: string
+      token: string
+      localTcpPort: number
+      remoteHost: string
+      remotePort: number
+      protocol: string
+      username: string
+    }>("desktop_guacamole_connect", {
+      hostId,
+      remoteTarget,
+      remotePort,
+      username: username ?? null,
+      password: password ?? null,
+      domain: domain ?? null,
+      useSshCredentials: useSshCredentials ?? true,
+      width: width ?? null,
+      height: height ?? null,
+      colorDepth: colorDepth ?? null,
+      performance: performance ?? null,
+    }),
+
+  desktopGuacdSetup: (installDocker?: boolean) =>
+    call<{ ok: boolean; message: string }>("desktop_guacd_setup", {
+      installDocker: installDocker ?? false,
+    }),
+
+  desktopInappDisconnect: (hostId: string, remotePort?: number) =>
+    call<void>("desktop_inapp_disconnect", { hostId, remotePort }),
 }
 
 export type { GroupDto }

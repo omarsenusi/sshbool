@@ -222,6 +222,18 @@ pub async fn port_forwards_stop(
 }
 
 #[tauri::command]
+pub async fn port_check_available(
+    bind_addr: String,
+    bind_port: u16,
+) -> Result<bool, AppError> {
+    match tokio::net::TcpListener::bind((bind_addr.as_str(), bind_port)).await {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}
+
+
+#[tauri::command]
 pub async fn auth_fido2_status() -> Result<Value, AppError> {
     Ok(json!({
         "available": false,
@@ -734,7 +746,7 @@ pub async fn folders_compare(
 
 #[tauri::command]
 pub async fn rdp_launch_native(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     state: State<'_, Arc<AppState>>,
     host_id: Option<String>,
     host: String,
@@ -868,11 +880,11 @@ pub async fn rdp_launch_native(
             "lan" => 5,
             _ => 6,
         };
-        let freerdp_candidates = crate::rdp_windows::freerdp_sidecar_candidates(&app);
         let mstsc_opts = crate::rdp_windows::MstscLaunchOpts {
             connect_host,
             local_port,
             username: &u,
+            password: &p,
             domain: &d,
             share_clipboard: share_clipboard.unwrap_or(true),
             smart_sizing: smart_sizing.unwrap_or(true),
@@ -884,44 +896,9 @@ pub async fn rdp_launch_native(
             connection_type: connection_val,
         };
 
-        if !p.is_empty() {
-            if !crate::rdp_windows::freerdp_stdin_available(&freerdp_candidates) {
-                tracing::info!("RDP: FreeRDP 3.x not found, downloading");
-                match tokio::task::spawn_blocking(crate::rdp_windows::provision_freerdp_bundle).await
-                {
-                    Ok(Ok(path)) => {
-                        tracing::info!("RDP: provisioned FreeRDP at {}", path.display());
-                    }
-                    Ok(Err(e)) => tracing::warn!("RDP: FreeRDP download failed: {e}"),
-                    Err(e) => tracing::warn!("RDP: FreeRDP download task failed: {e}"),
-                }
-            }
-
-            let freerdp_opts = crate::rdp_windows::RdpLaunchOpts {
-                connect_host,
-                local_port,
-                username: &u,
-                password: &p,
-                domain: &d,
-                freerdp_candidates: &freerdp_candidates,
-                share_clipboard: share_clipboard.unwrap_or(true),
-                smart_sizing: smart_sizing.unwrap_or(true),
-                admin_mode: admin_mode.unwrap_or(false),
-                full_screen: full_screen.unwrap_or(false),
-                width: w,
-                height: h,
-                color_depth: bpp,
-            };
-
-            crate::rdp_windows::launch_with_protocol_password(&freerdp_opts).map_err(|message| {
-                AppError::Internal { message }
-            })?;
-            ("freerdp", false)
-        } else {
-            crate::rdp_windows::launch_mstsc_manual(&mstsc_opts)
-                .map_err(|message| AppError::Internal { message })?;
-            ("mstsc", false)
-        }
+        crate::rdp_windows::launch_mstsc(&mstsc_opts)
+            .map_err(|message| AppError::Internal { message })?;
+        ("mstsc", false)
     };
 
     #[cfg(target_os = "macos")]
@@ -1246,5 +1223,234 @@ pub async fn tray_close(app: tauri::AppHandle) -> Result<(), AppError> {
     if let Some(win) = app.get_webview_window("tray_popup") {
         let _ = win.close();
     }
+    Ok(())
+}
+
+async fn ensure_desktop_tunnel(
+    state: &State<'_, Arc<AppState>>,
+    host_id: &str,
+    dest_host: &str,
+    remote_port: u16,
+) -> Result<u16, AppError> {
+    let tunnel_id = format!("inapp-desktop-tunnel-{host_id}");
+
+    let local_tcp_port = if state.connections.forward_is_active(&tunnel_id).await {
+        if let Some(existing) = state.connections.forward_local_port(&tunnel_id).await {
+            existing
+        } else {
+            let _ = state.connections.port_forward_stop(&tunnel_id).await;
+            let picked = pick_local_port().await?;
+            state
+                .connections
+                .port_forward_start(
+                    &tunnel_id,
+                    host_id,
+                    "127.0.0.1",
+                    picked,
+                    dest_host,
+                    remote_port,
+                )
+                .await?;
+            picked
+        }
+    } else {
+        let _ = state.connections.port_forward_stop(&tunnel_id).await;
+        let picked = pick_local_port().await?;
+        state
+            .connections
+            .port_forward_start(
+                &tunnel_id,
+                host_id,
+                "127.0.0.1",
+                picked,
+                dest_host,
+                remote_port,
+            )
+            .await?;
+        picked
+    };
+
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    Ok(local_tcp_port)
+}
+
+/// Connect to in-app VNC desktop via local WebSocket-to-SSH bridge (noVNC).
+#[tauri::command]
+pub async fn desktop_inapp_connect(
+    state: State<'_, Arc<AppState>>,
+    host_id: String,
+    remote_target: String,
+    remote_port: u16,
+    protocol: Option<String>,
+) -> Result<Value, AppError> {
+    let dest_host = if remote_target.is_empty() || remote_target == "localhost" {
+        "127.0.0.1".to_string()
+    } else {
+        remote_target
+    };
+
+    let local_tcp_port =
+        ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
+
+    let session_id = format!("{host_id}-{remote_port}");
+    let proto = protocol.unwrap_or_else(|| "vnc".into());
+
+    let ws_port = crate::desktop_bridge::DESKTOP_BRIDGES
+        .start_vnc(session_id.clone(), local_tcp_port)
+        .await
+        .map_err(|e| AppError::Internal { message: e })?;
+
+    let vault_pass = resolve_host_vault_password(&state, &host_id)
+        .await
+        .unwrap_or_default();
+
+    Ok(json!({
+        "sessionId": session_id,
+        "wsPort": ws_port,
+        "wsUrl": format!("ws://127.0.0.1:{ws_port}"),
+        "localTcpPort": local_tcp_port,
+        "remoteHost": dest_host,
+        "remotePort": remote_port,
+        "protocol": proto,
+        "vaultPassword": vault_pass,
+    }))
+}
+
+/// Connect to in-app RDP via Guacamole + guacd (credentials stay in Rust token).
+#[tauri::command]
+pub async fn desktop_guacamole_connect(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
+    host_id: String,
+    remote_target: String,
+    remote_port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    domain: Option<String>,
+    use_ssh_credentials: Option<bool>,
+    width: Option<u32>,
+    height: Option<u32>,
+    color_depth: Option<u32>,
+    performance: Option<String>,
+) -> Result<Value, AppError> {
+    let use_ssh = use_ssh_credentials.unwrap_or(true);
+    let dest_host = if remote_target.is_empty() || remote_target == "localhost" {
+        "127.0.0.1".to_string()
+    } else {
+        remote_target
+    };
+
+    let host_row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT username FROM hosts WHERE id = ?")
+            .bind(&host_id)
+            .fetch_optional(state.vault.pool())
+            .await
+            .ok()
+            .flatten();
+
+    let vault_user = host_row.and_then(|r| r.0).unwrap_or_default();
+
+    let mut u = username.unwrap_or_default();
+    if u.is_empty() && use_ssh {
+        u = vault_user.clone();
+    }
+
+    let vault_pass = resolve_host_vault_password(&state, &host_id).await;
+    let p = crate::rdp_credentials::resolve_rdp_password(
+        &password.unwrap_or_default(),
+        use_ssh,
+        vault_pass.as_deref(),
+    );
+
+    if use_ssh && p.is_empty() {
+        return Err(AppError::Validation {
+            field: "password".into(),
+            message: "No SSH password saved for this host. Add a password in host settings or enter RDP credentials manually.".into(),
+        });
+    }
+
+    if u.is_empty() {
+        return Err(AppError::Validation {
+            field: "username".into(),
+            message: "RDP username is required.".into(),
+        });
+    }
+
+    crate::guacd_manager::ensure_guacd_running(Some(&app))
+        .await
+        .map_err(|message| AppError::Internal { message })?;
+
+    let local_tcp_port =
+        ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
+
+    let session_id = format!("{host_id}-{remote_port}");
+    let ws_port = crate::desktop_bridge::DESKTOP_BRIDGES
+        .start_guacamole(session_id.clone())
+        .await
+        .map_err(|e| AppError::Internal { message: e })?;
+
+    let w = width.unwrap_or(1280);
+    let h = height.unwrap_or(720);
+    let bpp = color_depth.unwrap_or(32);
+    let perf = performance.unwrap_or_else(|| "auto".into());
+
+    let token = crate::guacamole_token::build_rdp_token(
+        "127.0.0.1",
+        local_tcp_port,
+        &u,
+        &p,
+        domain.as_deref(),
+        w,
+        h,
+        bpp,
+        &perf,
+    )
+    .map_err(|message| AppError::Internal { message })?;
+
+    Ok(json!({
+        "sessionId": session_id,
+        "wsPort": ws_port,
+        "wsUrl": format!("ws://127.0.0.1:{ws_port}"),
+        "token": token,
+        "localTcpPort": local_tcp_port,
+        "remoteHost": dest_host,
+        "remotePort": remote_port,
+        "protocol": "rdp",
+        "username": u,
+    }))
+}
+
+/// Install/start guacd (Docker container or bundled binary).
+#[tauri::command]
+pub async fn desktop_guacd_setup(
+    app: tauri::AppHandle,
+    install_docker: Option<bool>,
+) -> Result<Value, AppError> {
+    let install = install_docker.unwrap_or(false);
+    let message = crate::guacd_manager::provision_guacd_bundle(Some(&app), install)
+        .map_err(|e| AppError::Internal { message: e })?;
+
+    if !install {
+        crate::guacd_manager::ensure_guacd_running(Some(&app))
+            .await
+            .map_err(|e| AppError::Internal { message: e })?;
+    }
+
+    Ok(json!({ "ok": true, "message": message }))
+}
+
+/// Disconnect in-app desktop bridge and stop tunnel.
+#[tauri::command]
+pub async fn desktop_inapp_disconnect(
+    state: State<'_, Arc<AppState>>,
+    host_id: String,
+    remote_port: Option<u16>,
+) -> Result<(), AppError> {
+    let port = remote_port.unwrap_or(5900);
+    let session_id = format!("{host_id}-{port}");
+    crate::desktop_bridge::DESKTOP_BRIDGES.stop(&session_id).await;
+
+    let tunnel_id = format!("inapp-desktop-tunnel-{host_id}");
+    let _ = state.connections.port_forward_stop(&tunnel_id).await;
     Ok(())
 }
