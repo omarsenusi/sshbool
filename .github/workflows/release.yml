@@ -55,6 +55,11 @@ jobs:
         with:
           workspaces: src-tauri
       - run: bun install --frozen-lockfile
+      - name: Get app version
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=v$VERSION" >> $GITHUB_OUTPUT
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,8 +73,8 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_id) }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('SSHBool {0}', github.ref_name) || format('SSHBool build-{0}', github.run_id) }}
+          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || steps.get_version.outputs.version }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('SSHBool {0}', github.ref_name) || format('SSHBool {0}', steps.get_version.outputs.version) }}
           releaseBody: "See the docs for changelog."
           releaseDraft: false
           prerelease: false
