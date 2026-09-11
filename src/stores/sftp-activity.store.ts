@@ -46,7 +46,7 @@ type SftpActivityState = {
   finish: (
     id: string,
     status: "done" | "error",
-    opts?: { error?: string; bytesDone?: number; bytesTotal?: number },
+    opts?: { error?: string; bytesDone?: number; bytesTotal?: number }
   ) => void
   clear: (hostId?: string) => void
 }
@@ -76,7 +76,7 @@ function applyFinish(
   entries: SftpActivityEntry[],
   id: string,
   status: "done" | "error",
-  opts?: { error?: string; bytesDone?: number; bytesTotal?: number },
+  opts?: { error?: string; bytesDone?: number; bytesTotal?: number }
 ): SftpActivityEntry[] {
   return entries.map((e) => {
     if (e.id !== id) return e
@@ -124,7 +124,7 @@ export const useSftpActivityStore = create<SftpActivityState>((set) => ({
               bytesTotal: bytesTotal ?? e.bytesTotal,
               at: Date.now(),
             }
-          : e,
+          : e
       ),
     })),
   finish: (id, status, opts) =>
@@ -148,7 +148,7 @@ export async function runSftpActivity<T>(
     side?: "local" | "remote"
     bytesTotal?: number
   },
-  fn: () => Promise<T>,
+  fn: () => Promise<T>
 ): Promise<T> {
   const { start, finish } = useSftpActivityStore.getState()
   const id = start(opts)

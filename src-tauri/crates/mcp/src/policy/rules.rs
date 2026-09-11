@@ -38,7 +38,6 @@ pub static RULE_CATALOG: &[CommandRule] = &[
         tier: Tier::Dangerous,
         reason: "Prunes or forcefully removes containers, volumes, or Kubernetes resources",
     },
-
     // ── Availability ────────────────────────────────────────────────────
     CommandRule {
         id: "avail.system_shutdown",
@@ -65,7 +64,6 @@ pub static RULE_CATALOG: &[CommandRule] = &[
         tier: Tier::Dangerous,
         reason: "Contains a process exhaustion / fork bomb pattern",
     },
-
     // ── Privilege / Identity ────────────────────────────────────────────
     CommandRule {
         id: "priv.sudo_su",
@@ -82,14 +80,12 @@ pub static RULE_CATALOG: &[CommandRule] = &[
         tier: Tier::Dangerous,
         reason: "Modifies system user accounts, passwords, or sudoers configuration",
     },
-
     // ── Package / System State ──────────────────────────────────────────
     CommandRule {
         id: "pkg.remove",
         tier: Tier::Dangerous,
         reason: "Uninstalls or purges system packages or global runtime modules",
     },
-
     // ── Data ────────────────────────────────────────────────────────────
     CommandRule {
         id: "data.drop_truncate",
@@ -106,14 +102,12 @@ pub static RULE_CATALOG: &[CommandRule] = &[
         tier: Tier::Dangerous,
         reason: "Flushes Redis databases or shuts down the datastore",
     },
-
     // ── Evidence Tampering ──────────────────────────────────────────────
     CommandRule {
         id: "evidence.clear_logs_history",
         tier: Tier::Dangerous,
         reason: "Clears shell history, vacuoms journalctl, or truncates system log files",
     },
-
     // ── Write / Bounded Modify ──────────────────────────────────────────
     CommandRule {
         id: "write.file_create_modify",

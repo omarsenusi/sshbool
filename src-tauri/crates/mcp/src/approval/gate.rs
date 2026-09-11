@@ -5,9 +5,9 @@ use crate::approval::nonce::hash_canonical_args;
 use crate::approval::{global_broker, ApprovalOutcome, ApprovalResponse};
 use crate::error::McpError;
 use crate::executor::McpToolExecutor;
+use crate::policy::tier::Tier;
 use crate::repo::approvals::{insert_approval, update_approval_decision, ApprovalRow};
 use crate::repo::grants::{consume_grant_use, find_active_grant, insert_grant, GrantRow};
-use crate::policy::tier::Tier;
 use crate::runtime::McpRuntimeState;
 use crate::{ApprovalRequest, McpNotifier};
 use infrastructure::redact::redact;
@@ -52,12 +52,11 @@ struct GateConfig {
 }
 
 async fn load_host_meta(pool: &SqlitePool, host_id: &str) -> Result<HostMeta, McpError> {
-    let row = sqlx::query_as::<_, (String, i64)>(
-        "SELECT label, production FROM hosts WHERE id = ?",
-    )
-    .bind(host_id)
-    .fetch_optional(pool)
-    .await?;
+    let row =
+        sqlx::query_as::<_, (String, i64)>("SELECT label, production FROM hosts WHERE id = ?")
+            .bind(host_id)
+            .fetch_optional(pool)
+            .await?;
 
     Ok(match row {
         Some((label, production)) => HostMeta {
@@ -141,7 +140,10 @@ async fn build_write_preview(
     host_id: &str,
 ) -> Option<String> {
     let exec = executor?;
-    let path = args.get("path").or_else(|| args.get("destination_path"))?.as_str()?;
+    let path = args
+        .get("path")
+        .or_else(|| args.get("destination_path"))?
+        .as_str()?;
     match tool_name {
         "write_file" => {
             let new_content = args["content"].as_str()?;
@@ -188,15 +190,8 @@ async fn gate_tier_tool(
 
     if config.allow_session_grants {
         if let Some(ref handle) = ctx.session_handle {
-            if let Some(grant) = find_active_grant(
-                &ctx.pool,
-                &ctx.client_id,
-                handle,
-                tool_name,
-                &shape,
-                now,
-            )
-            .await?
+            if let Some(grant) =
+                find_active_grant(&ctx.pool, &ctx.client_id, handle, tool_name, &shape, now).await?
             {
                 if consume_grant_use(&ctx.pool, &grant.id).await? {
                     return Ok(GateResult {
@@ -293,14 +288,8 @@ async fn gate_tier_tool(
             }
             ApprovalOutcome::AllowSession => {
                 if !grantable || !config.allow_session_grants {
-                    update_approval_decision(
-                        &ctx.pool,
-                        &approval_id,
-                        "deny",
-                        Some("system"),
-                        now,
-                    )
-                    .await?;
+                    update_approval_decision(&ctx.pool, &approval_id, "deny", Some("system"), now)
+                        .await?;
                     return Err(McpError::InvalidArguments(
                         "Session grants are not available for this action".into(),
                     ));
@@ -365,7 +354,9 @@ async fn gate_tier_tool(
                     now,
                 )
                 .await?;
-                Err(McpError::ApprovalDenied("Human denied the operation".into()))
+                Err(McpError::ApprovalDenied(
+                    "Human denied the operation".into(),
+                ))
             }
             ApprovalOutcome::Timeout => {
                 update_approval_decision(&ctx.pool, &approval_id, "timeout", Some("system"), now)

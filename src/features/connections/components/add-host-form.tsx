@@ -23,7 +23,7 @@ const AUTO_KEY = "auto"
 function emptyForm(
   port = 22,
   username = "root",
-  authMethod: AuthMethodDefault = "key",
+  authMethod: AuthMethodDefault = "key"
 ): NewHostDto {
   return {
     label: "",
@@ -82,10 +82,15 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
       emptyForm(
         Number(defaultPort.value) || 22,
         String(defaultUsername.value) || "root",
-        defaultAuthMethod.value as AuthMethodDefault,
-      ),
+        defaultAuthMethod.value as AuthMethodDefault
+      )
     )
-  }, [defaultPort.isLoading, defaultPort.value, defaultUsername.value, defaultAuthMethod.value])
+  }, [
+    defaultPort.isLoading,
+    defaultPort.value,
+    defaultUsername.value,
+    defaultAuthMethod.value,
+  ])
 
   const keys = useQuery({
     queryKey: ["keys"],
@@ -107,17 +112,25 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
       return ipc.hostsCreate(payload)
     },
     onSuccess: async (id) => {
-      const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
-      const activeWsId = urlWsId ?? ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
-      const hostWs = ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {}
+      const urlWsId =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("wsId")
+          : null
+      const activeWsId =
+        urlWsId ??
+        ((await ipc.settingsGet("activeWorkspaceId")) as string) ??
+        "default"
+      const hostWs =
+        ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ??
+        {}
       hostWs[id] = activeWsId
       await ipc.settingsSet("hostWorkspaces", hostWs)
       setForm(
         emptyForm(
           Number(defaultPort.value) || 22,
           String(defaultUsername.value) || "root",
-          defaultAuthMethod.value as AuthMethodDefault,
-        ),
+          defaultAuthMethod.value as AuthMethodDefault
+        )
       )
       setAddHostOpen(false)
       setSelectedHostId(id)
@@ -137,45 +150,50 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
     }
   }
 
-  const keyValue = form.sshKeyId && form.sshKeyId.length > 0 ? form.sshKeyId : AUTO_KEY
+  const keyValue =
+    form.sshKeyId && form.sshKeyId.length > 0 ? form.sshKeyId : AUTO_KEY
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-3 p-6">
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Add host</h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Saved servers appear as colored tiles in the left rail.
         </p>
       </div>
       <input
-        className="border-input bg-background w-full rounded-md border px-2 py-1.5 text-sm"
+        className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         placeholder="Label"
         value={form.label}
         onChange={(e) => setForm({ ...form, label: e.target.value })}
       />
       <input
-        className="border-input bg-background w-full rounded-md border px-2 py-1.5 text-sm"
+        className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
         placeholder="Hostname"
         value={form.hostname}
         onChange={(e) => setForm({ ...form, hostname: e.target.value })}
       />
       <div className="flex gap-2">
         <input
-          className="border-input bg-background w-full rounded-md border px-2 py-1.5 text-sm"
+          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
           placeholder="User"
           value={form.username ?? ""}
           onChange={(e) => setForm({ ...form, username: e.target.value })}
         />
         <input
-          className="border-input bg-background w-24 rounded-md border px-2 py-1.5 text-sm"
+          className="w-24 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
           type="number"
           value={form.port}
-          onChange={(e) => setForm({ ...form, port: Number(e.target.value) || 22 })}
+          onChange={(e) =>
+            setForm({ ...form, port: Number(e.target.value) || 22 })
+          }
         />
       </div>
 
       <div className="space-y-1.5">
-        <div className="text-muted-foreground text-xs font-medium">Auth method</div>
+        <div className="text-xs font-medium text-muted-foreground">
+          Auth method
+        </div>
         <Select
           value={form.authMethod}
           onValueChange={(v) => {
@@ -212,7 +230,7 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
       {form.authMethod === "password" && (
         <input
           type="password"
-          className="border-input bg-background w-full rounded-md border px-2 py-1.5 text-sm"
+          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
           placeholder="Password"
           value={form.password ?? ""}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -221,7 +239,9 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
 
       {form.authMethod === "key" && (
         <div className="space-y-1.5">
-          <div className="text-muted-foreground text-xs font-medium">SSH Key</div>
+          <div className="text-xs font-medium text-muted-foreground">
+            SSH Key
+          </div>
           <Select
             value={keyValue}
             onValueChange={(v) => {
@@ -239,7 +259,9 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={AUTO_KEY}>Auto key (latest in vault)</SelectItem>
+              <SelectItem value={AUTO_KEY}>
+                Auto key (latest in vault)
+              </SelectItem>
               {(keys.data ?? []).map((k) => (
                 <SelectItem key={k.id} value={k.id}>
                   {k.name} · {k.keyType}
@@ -248,22 +270,24 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
             </SelectContent>
           </Select>
           {(keys.data?.length ?? 0) === 0 && (
-            <p className="text-muted-foreground text-xs">
-              No keys in vault yet — import one in Key Manager, or Auto will fail until a key
-              exists.
+            <p className="text-xs text-muted-foreground">
+              No keys in vault yet — import one in Key Manager, or Auto will
+              fail until a key exists.
             </p>
           )}
         </div>
       )}
 
       <div className="space-y-1.5">
-        <div className="text-muted-foreground text-xs font-medium">Server icon</div>
+        <div className="text-xs font-medium text-muted-foreground">
+          Server icon
+        </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
             className={cn(
-              "border-input bg-background relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border",
-              !form.icon && "text-muted-foreground hover:bg-muted/40",
+              "relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-input bg-background",
+              !form.icon && "text-muted-foreground hover:bg-muted/40"
             )}
             style={
               form.icon
@@ -294,7 +318,7 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-muted-foreground h-7 justify-start px-2"
+                className="h-7 justify-start px-2 text-muted-foreground"
                 onClick={() => setForm({ ...form, icon: null })}
               >
                 <X className="size-3.5" />
@@ -316,7 +340,9 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
       </div>
 
       <div className="space-y-1.5">
-        <div className="text-muted-foreground text-xs font-medium">Tile color</div>
+        <div className="text-xs font-medium text-muted-foreground">
+          Tile color
+        </div>
         <div className="flex flex-wrap gap-2">
           {HOST_COLOR_PRESETS.map((c) => (
             <button
@@ -325,7 +351,7 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
               aria-label={`Color ${c}`}
               className={cn(
                 "size-7 rounded-md",
-                form.color === c && "ring-foreground ring-2 ring-offset-2",
+                form.color === c && "ring-2 ring-foreground ring-offset-2"
               )}
               style={{ backgroundColor: c }}
               onClick={() => setForm({ ...form, color: c })}
@@ -353,7 +379,7 @@ export function AddHostForm({ onDone }: { onDone?: () => void }) {
         </Button>
       </div>
       {create.isError && (
-        <p className="text-destructive text-xs">
+        <p className="text-xs text-destructive">
           {(create.error as Error)?.message ?? "Could not add host"}
         </p>
       )}

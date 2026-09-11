@@ -252,7 +252,10 @@ pub async fn execute_write_tool(
             let path = args["path"]
                 .as_str()
                 .ok_or_else(|| McpError::InvalidArguments("Missing path".into()))?;
-            let recursive = args.get("recursive").and_then(|v| v.as_bool()).unwrap_or(false);
+            let recursive = args
+                .get("recursive")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             exec.sftp_delete(host_id, path, recursive).await
         }
         "chmod_path" => {
@@ -277,7 +280,7 @@ pub async fn execute_write_tool(
                 super::exec_show_terminal(args),
                 super::exec_timeout_ms(args),
             )
-                .await
+            .await
         }
         "kill_process" => {
             let pid = args["pid"]
@@ -293,8 +296,10 @@ pub async fn execute_write_tool(
                 super::exec_show_terminal(args),
                 super::exec_timeout_ms(args),
             )
-                .await
+            .await
         }
-        _ => Err(McpError::ToolNotAvailable(format!("Unknown write tool: {tool_name}"))),
+        _ => Err(McpError::ToolNotAvailable(format!(
+            "Unknown write tool: {tool_name}"
+        ))),
     }
 }

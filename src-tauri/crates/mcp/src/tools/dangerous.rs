@@ -13,7 +13,8 @@ pub fn dangerous_tools() -> Vec<ToolDefinition> {
     vec![
         ToolDefinition {
             name: "exec_command".into(),
-            description: "Execute arbitrary shell command on host (DANGEROUS - risk classified)".into(),
+            description: "Execute arbitrary shell command on host (DANGEROUS - risk classified)"
+                .into(),
             tier: "dangerous".into(),
             input_schema: json!({
                 "type": "object",
@@ -182,8 +183,14 @@ pub async fn validate_dangerous_tool(
     }
 
     match tool_name {
-        "exec_command" | "exec_script" | "run_background_task" | "install_package"
-        | "restart_service" | "reboot_host" | "k8s_apply" | "db_execute_mutation" => {
+        "exec_command"
+        | "exec_script"
+        | "run_background_task"
+        | "install_package"
+        | "restart_service"
+        | "reboot_host"
+        | "k8s_apply"
+        | "db_execute_mutation" => {
             require_reason(args)?;
         }
         _ => {}
@@ -360,11 +367,9 @@ pub async fn execute_dangerous_tool(
             )
             .await
         }
-        "db_execute_mutation" => {
-            Err(McpError::ToolNotAvailable(
-                "db_execute_mutation requires database connection wiring".into(),
-            ))
-        }
+        "db_execute_mutation" => Err(McpError::ToolNotAvailable(
+            "db_execute_mutation requires database connection wiring".into(),
+        )),
         _ => Err(McpError::ToolNotAvailable(format!(
             "Unknown dangerous tool: {tool_name}"
         ))),

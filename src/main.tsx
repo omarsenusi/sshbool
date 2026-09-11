@@ -18,43 +18,40 @@ const erDiagramPopout = parseErDiagramPopoutParams()
 
 async function boot() {
   if (terminalPopout) {
-    const { TerminalPopoutWindow } = await import(
-      "@/features/terminal/components/terminal-popout-window"
-    )
+    const { TerminalPopoutWindow } =
+      await import("@/features/terminal/components/terminal-popout-window")
     createRoot(root).render(
       <StrictMode>
         <AppProviders>
           <TerminalPopoutWindow {...terminalPopout} />
         </AppProviders>
-      </StrictMode>,
+      </StrictMode>
     )
     return
   }
 
   if (editorPopout) {
-    const { EditorPopoutWindow } = await import(
-      "@/features/editor/components/editor-popout-window"
-    )
+    const { EditorPopoutWindow } =
+      await import("@/features/editor/components/editor-popout-window")
     createRoot(root).render(
       <StrictMode>
         <AppProviders>
           <EditorPopoutWindow {...editorPopout} />
         </AppProviders>
-      </StrictMode>,
+      </StrictMode>
     )
     return
   }
 
   if (erDiagramPopout) {
-    const { ErDiagramPopoutWindow } = await import(
-      "@/features/databases/components/er-diagram-popout-window"
-    )
+    const { ErDiagramPopoutWindow } =
+      await import("@/features/databases/components/er-diagram-popout-window")
     createRoot(root).render(
       <StrictMode>
         <AppProviders>
           <ErDiagramPopoutWindow {...erDiagramPopout} />
         </AppProviders>
-      </StrictMode>,
+      </StrictMode>
     )
     return
   }
@@ -67,7 +64,7 @@ async function boot() {
         <AppProviders>
           <TrayWindow />
         </AppProviders>
-      </StrictMode>,
+      </StrictMode>
     )
     return
   }
@@ -78,7 +75,7 @@ async function boot() {
       <AppProviders>
         <App />
       </AppProviders>
-    </StrictMode>,
+    </StrictMode>
   )
 }
 

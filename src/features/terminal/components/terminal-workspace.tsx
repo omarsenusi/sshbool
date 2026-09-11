@@ -25,7 +25,7 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
   const setPoppedOut = useSessionStore((s) => s.setPoppedOut)
   const selectedHostId = useLayoutStore((s) => s.selectedHostId)
   const connected = useConnectionStore((s) =>
-    selectedHostId ? s.byHost[selectedHostId]?.status === "connected" : false,
+    selectedHostId ? s.byHost[selectedHostId]?.status === "connected" : false
   )
 
   const tree = useQuery({
@@ -44,7 +44,7 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
       selectedHostId
         ? panes.filter((p) => p.hostId === selectedHostId && !p.mcpHidden)
         : [],
-    [panes, selectedHostId],
+    [panes, selectedHostId]
   )
 
   const active =
@@ -72,7 +72,7 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
   useEffect(() => {
     const unsub = useConnectionStore.subscribe((state) => {
       const { panes: currentPanes, removePane } = useSessionStore.getState()
-      
+
       // Close panes for disconnected hosts
       for (const pane of currentPanes) {
         if (state.byHost[pane.hostId]?.status !== "connected") {
@@ -83,7 +83,7 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
     })
     return unsub
   }, [])
-  
+
   const closePane = useMutation({
     mutationFn: async (paneId: string) => {
       try {
@@ -96,7 +96,11 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
     },
   })
 
-  async function popOut(pane: { paneId: string; hostId: string; title: string }) {
+  async function popOut(pane: {
+    paneId: string
+    hostId: string
+    title: string
+  }) {
     const ok = await openTerminalPopout({
       ...pane,
       onClosed: () => setPoppedOut(pane.paneId, false),
@@ -141,7 +145,7 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
             )}
             {hostLabel && (
               <span
-                className="text-foreground/80 max-w-[10rem] truncate text-xs font-semibold"
+                className="max-w-[10rem] truncate text-xs font-semibold text-foreground/80"
                 title={
                   selectedHost
                     ? `${selectedHost.username ?? "root"}@${selectedHost.hostname}`
@@ -181,7 +185,7 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
       </WindowTabStrip>
       <div className="relative min-h-0 flex-1">
         {hostPanes.length === 0 && (
-          <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             {!selectedHostId
               ? "Select a host from the rail."
               : !connected
@@ -202,22 +206,35 @@ export function TerminalWorkspace({ visible = true }: { visible?: boolean }) {
               className={cn(
                 "relative h-full w-full",
                 (!forSelected || !isActive) &&
-                  "pointer-events-none absolute inset-0 invisible",
+                  "pointer-events-none invisible absolute inset-0"
               )}
               aria-hidden={!forSelected || !isActive}
             >
               {!p.poppedOut && (
-                <TerminalPane paneId={p.paneId} hostId={p.hostId} visible={paneVisible} />
+                <TerminalPane
+                  paneId={p.paneId}
+                  hostId={p.hostId}
+                  visible={paneVisible}
+                />
               )}
               {p.poppedOut && isActive && (
-                <div className="bg-background absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 text-sm">
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background text-sm">
                   <p className="text-muted-foreground">
-                    Terminal is in a separate window (same SSH session + history).
+                    Terminal is in a separate window (same SSH session +
+                    history).
                   </p>
-                  <Button size="sm" variant="outline" onClick={() => void popOut(p)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void popOut(p)}
+                  >
                     Focus window
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => void bringBack(p.paneId)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void bringBack(p.paneId)}
+                  >
                     Show here again
                   </Button>
                 </div>

@@ -29,7 +29,10 @@ export function parentRemotePath(path: string): string {
   return trimmed.slice(0, i) || "/"
 }
 
-export function splitRemotePath(path: string): { dir: string; fragment: string } {
+export function splitRemotePath(path: string): {
+  dir: string
+  fragment: string
+} {
   const normalized = normalizeRemotePath(path || "")
   if (!normalized) return { dir: ".", fragment: "" }
   const i = normalized.lastIndexOf("/")

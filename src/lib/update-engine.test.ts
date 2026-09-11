@@ -15,7 +15,9 @@ import {
   usesGithubFallback,
 } from "@/lib/update-engine"
 
-const baseUpdate = (overrides: Partial<UpdateCheckResult> = {}): UpdateCheckResult => ({
+const baseUpdate = (
+  overrides: Partial<UpdateCheckResult> = {}
+): UpdateCheckResult => ({
   has_update: true,
   current_version: "0.1.8",
   latest_version: "0.1.9",
@@ -75,8 +77,8 @@ describe("resolveInstallMode", () => {
           can_install_in_app: false,
         }),
         packagedApp,
-        true,
-      ),
+        true
+      )
     ).toBe("github")
   })
 })
@@ -84,7 +86,14 @@ describe("resolveInstallMode", () => {
 describe("canInstallUpdate", () => {
   it("allows install when platform package or GitHub fallback exists", () => {
     expect(canInstallUpdate(baseUpdate())).toBe(true)
-    expect(canInstallUpdate(baseUpdate({ has_platform_download: false, platform_download_url: null }))).toBe(true)
+    expect(
+      canInstallUpdate(
+        baseUpdate({
+          has_platform_download: false,
+          platform_download_url: null,
+        })
+      )
+    ).toBe(true)
   })
 
   it("returns false for null update", () => {
@@ -100,7 +109,12 @@ describe("usesGithubFallback", () => {
 
   it("is true when no platform package", () => {
     expect(
-      usesGithubFallback(baseUpdate({ has_platform_download: false, platform_download_url: null })),
+      usesGithubFallback(
+        baseUpdate({
+          has_platform_download: false,
+          platform_download_url: null,
+        })
+      )
     ).toBe(true)
   })
 })
@@ -108,20 +122,27 @@ describe("usesGithubFallback", () => {
 describe("getGithubFallbackUrl", () => {
   it("prefers API github url", () => {
     expect(getGithubFallbackUrl(baseUpdate())).toBe(
-      "https://github.com/prefnex/sshbool/releases/latest",
+      "https://github.com/prefnex/sshbool/releases/latest"
     )
   })
 })
 
 describe("getPlatformInstallSummary", () => {
   it("includes platform and install dir for packaged builds", () => {
-    expect(getPlatformInstallSummary(baseUpdate(), packagedApp)).toContain("windows-x86_64")
-    expect(getPlatformInstallSummary(baseUpdate(), packagedApp)).toContain("Program Files")
+    expect(getPlatformInstallSummary(baseUpdate(), packagedApp)).toContain(
+      "windows-x86_64"
+    )
+    expect(getPlatformInstallSummary(baseUpdate(), packagedApp)).toContain(
+      "Program Files"
+    )
   })
 
   it("explains dev build limitations", () => {
     expect(
-      getPlatformInstallSummary(baseUpdate(), { ...packagedApp, isPackaged: false }),
+      getPlatformInstallSummary(baseUpdate(), {
+        ...packagedApp,
+        isPackaged: false,
+      })
     ).toContain("dev build")
   })
 })
@@ -133,16 +154,29 @@ describe("getInstallButtonLabel", () => {
 
   it("shows GitHub when no platform package", () => {
     expect(
-      getInstallButtonLabel(baseUpdate({ has_platform_download: false, platform_download_url: null })),
+      getInstallButtonLabel(
+        baseUpdate({
+          has_platform_download: false,
+          platform_download_url: null,
+        })
+      )
     ).toBe("View on GitHub")
   })
 
   it("shows phase labels while installing", () => {
     expect(
-      getInstallButtonLabel(baseUpdate(), { phase: "downloading", percent: 40 }, true),
+      getInstallButtonLabel(
+        baseUpdate(),
+        { phase: "downloading", percent: 40 },
+        true
+      )
     ).toBe("Downloading…")
     expect(
-      getInstallButtonLabel(baseUpdate(), { phase: "installing", percent: 100 }, true),
+      getInstallButtonLabel(
+        baseUpdate(),
+        { phase: "installing", percent: 100 },
+        true
+      )
     ).toBe("Installing…")
   })
 })

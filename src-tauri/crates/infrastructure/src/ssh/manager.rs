@@ -263,8 +263,7 @@ impl ConnectionManager {
 
         let learned_fp = Arc::new(Mutex::new(None));
         let mut config = client::Config::default();
-        if let Some(secs) = read_setting_u64(self.vault.pool(), "connections.keepaliveSecs").await
-        {
+        if let Some(secs) = read_setting_u64(self.vault.pool(), "connections.keepaliveSecs").await {
             if secs > 0 {
                 config.keepalive_interval = Some(std::time::Duration::from_secs(secs));
             }
@@ -569,15 +568,7 @@ impl ConnectionManager {
             .map_err(|e| DomainError::Conflict(format!("channel: {e}")))?;
 
         channel
-            .request_pty(
-                false,
-                "xterm-256color",
-                cols,
-                rows,
-                0,
-                0,
-                DEFAULT_PTY_MODES,
-            )
+            .request_pty(false, "xterm-256color", cols, rows, 0, 0, DEFAULT_PTY_MODES)
             .await
             .map_err(|e| DomainError::Conflict(format!("pty: {e}")))?;
         set_shell_env(&mut channel).await;

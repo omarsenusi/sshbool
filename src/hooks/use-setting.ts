@@ -39,7 +39,7 @@ export function useSetting<K extends SettingsKey>(key: K) {
 
 /** Read a setting once outside React. */
 export async function readSetting<K extends SettingsKey>(
-  key: K,
+  key: K
 ): Promise<SettingsValues[K]> {
   const raw = await ipc.settingsGet(key)
   if (raw === null || raw === undefined) return settingDefault(key)

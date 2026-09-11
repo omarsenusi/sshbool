@@ -4,7 +4,9 @@ import { PASSWORD_PLACEHOLDER, resolveVaultPassword } from "./credentials"
 
 describe("resolveVaultPassword", () => {
   it("prefers vault password over UI placeholder", () => {
-    expect(resolveVaultPassword(PASSWORD_PLACEHOLDER, "real-secret")).toBe("real-secret")
+    expect(resolveVaultPassword(PASSWORD_PLACEHOLDER, "real-secret")).toBe(
+      "real-secret"
+    )
   })
 
   it("uses manual UI password when not placeholder", () => {

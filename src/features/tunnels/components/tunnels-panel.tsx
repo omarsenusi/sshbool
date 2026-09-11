@@ -37,17 +37,23 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
   const qc = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTunnel, setEditingTunnel] = useState<TunnelConfig | null>(null)
-  const [activeTunnelIds, setActiveTunnelIds] = useState<Record<string, boolean>>({})
+  const [activeTunnelIds, setActiveTunnelIds] = useState<
+    Record<string, boolean>
+  >({})
   const [tunnelErrors, setTunnelErrors] = useState<Record<string, string>>({})
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const isHostConnected = useConnectionStore((s) =>
-    hostId ? s.byHost[hostId]?.status === "connected" : false,
+    hostId ? s.byHost[hostId]?.status === "connected" : false
   )
 
   const queryKey = ["port_forwards", hostId]
 
-  const { data: rawForwards = [], isLoading, refetch } = useQuery({
+  const {
+    data: rawForwards = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey,
     queryFn: async () => {
       if (!hostId) return []
@@ -92,7 +98,10 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
     },
   })
 
-  const handleToggleTunnel = async (tunnel: TunnelConfig, targetActive: boolean) => {
+  const handleToggleTunnel = async (
+    tunnel: TunnelConfig,
+    targetActive: boolean
+  ) => {
     if (!tunnel.id) return
 
     setTunnelErrors((prev) => ({ ...prev, [tunnel.id!]: "" }))
@@ -140,33 +149,45 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
   if (!hostId) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm">
-        <ArrowLeftRight className="text-muted-foreground mb-3 h-10 w-10 opacity-40" />
-        <h3 className="font-semibold text-base">No Server Selected</h3>
-        <p className="text-muted-foreground mt-1 max-w-sm text-xs">
-          Select a server from the sidebar to manage and activate SSH port forwarding tunnels.
+        <ArrowLeftRight className="mb-3 h-10 w-10 text-muted-foreground opacity-40" />
+        <h3 className="text-base font-semibold">No Server Selected</h3>
+        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+          Select a server from the sidebar to manage and activate SSH port
+          forwarding tunnels.
         </p>
       </div>
     )
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 md:p-6 text-sm">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-sm md:p-6">
       {/* Header section */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold tracking-tight">SSH Tunnels & Port Forwarding</h2>
-            <Badge variant={isHostConnected ? "default" : "secondary"} className="rounded-md">
+            <h2 className="text-xl font-bold tracking-tight">
+              SSH Tunnels & Port Forwarding
+            </h2>
+            <Badge
+              variant={isHostConnected ? "default" : "secondary"}
+              className="rounded-md"
+            >
               {isHostConnected ? "Connected" : "Disconnected"}
             </Badge>
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Manage local and remote SSH port forwarding rules for secure network tunneling.
+          <p className="mt-1 text-xs text-muted-foreground">
+            Manage local and remote SSH port forwarding rules for secure network
+            tunneling.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => refetch()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => refetch()}
+          >
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             Refresh
           </Button>
@@ -185,11 +206,13 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
       </div>
 
       {!isHostConnected && (
-        <Card className="border-amber-500/20 bg-amber-500/10 rounded-md">
+        <Card className="rounded-md border-amber-500/20 bg-amber-500/10">
           <CardContent className="flex items-center gap-3 p-3 text-xs text-amber-500">
             <ShieldAlert className="h-4 w-4 shrink-0" />
             <div>
-              <strong className="font-semibold">Host Disconnected:</strong> You can create and configure SSH tunnels now. They can be activated once connected to the server.
+              <strong className="font-semibold">Host Disconnected:</strong> You
+              can create and configure SSH tunnels now. They can be activated
+              once connected to the server.
             </div>
           </CardContent>
         </Card>
@@ -197,19 +220,22 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
 
       {/* Main content table / card view */}
       {isLoading ? (
-        <div className="flex items-center justify-center p-12 text-muted-foreground text-xs">
+        <div className="flex items-center justify-center p-12 text-xs text-muted-foreground">
           <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
           Loading tunnels...
         </div>
       ) : rawForwards.length === 0 ? (
-        <Card className="border-dashed rounded-md">
-          <CardHeader className="text-center py-8">
+        <Card className="rounded-md border-dashed">
+          <CardHeader className="py-8 text-center">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-muted">
               <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
             </div>
-            <CardTitle className="text-base font-semibold">No SSH Tunnels Configured</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              No SSH Tunnels Configured
+            </CardTitle>
             <CardDescription className="text-xs">
-              Click "Add Tunnel" to forward local or remote ports through your SSH connection.
+              Click "Add Tunnel" to forward local or remote ports through your
+              SSH connection.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center pb-6">
@@ -249,12 +275,16 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
                   <TableRow key={tunnel.id}>
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold">{tunnel.label || "SSH Tunnel"}</span>
+                        <span className="text-sm font-semibold">
+                          {tunnel.label || "SSH Tunnel"}
+                        </span>
                         {tunnel.autoStart && (
-                          <span className="text-[10px] text-muted-foreground">Auto-start on connect</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Auto-start on connect
+                          </span>
                         )}
                         {errorMsg && (
-                          <span className="mt-1 text-xs text-destructive flex items-center gap-1 font-normal">
+                          <span className="mt-1 flex items-center gap-1 text-xs font-normal text-destructive">
                             <ShieldAlert className="h-3 w-3 shrink-0" />
                             {errorMsg}
                           </span>
@@ -263,12 +293,15 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
                     </TableCell>
 
                     <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs uppercase rounded-sm">
+                      <Badge
+                        variant="outline"
+                        className="rounded-sm font-mono text-xs uppercase"
+                      >
                         {tunnel.kind === "local"
                           ? "Local (-L)"
                           : tunnel.kind === "remote"
-                          ? "Remote (-R)"
-                          : "Dynamic (-D)"}
+                            ? "Remote (-R)"
+                            : "Dynamic (-D)"}
                       </Badge>
                     </TableCell>
 
@@ -278,7 +311,9 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
 
                     <TableCell className="font-mono text-xs">
                       {tunnel.kind === "dynamic" ? (
-                        <span className="text-muted-foreground italic">SOCKS5 Proxy</span>
+                        <span className="text-muted-foreground italic">
+                          SOCKS5 Proxy
+                        </span>
                       ) : (
                         `${tunnel.destAddr}:${tunnel.destPort}`
                       )}
@@ -289,15 +324,20 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
                         <Switch
                           checked={isActive}
                           disabled={!isHostConnected}
-                          onCheckedChange={(val) => handleToggleTunnel(tunnel, val)}
+                          onCheckedChange={(val) =>
+                            handleToggleTunnel(tunnel, val)
+                          }
                         />
                         {isActive ? (
-                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 font-normal rounded-sm">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <Badge className="gap-1 rounded-sm border-emerald-500/20 bg-emerald-500/10 font-normal text-emerald-400">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                             Active
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="font-normal text-muted-foreground rounded-sm">
+                          <Badge
+                            variant="secondary"
+                            className="rounded-sm font-normal text-muted-foreground"
+                          >
                             Stopped
                           </Badge>
                         )}
@@ -336,7 +376,7 @@ export function TunnelsPanel({ hostId }: { hostId: string | null }) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive rounded-md"
+                          className="h-8 w-8 rounded-md text-destructive hover:text-destructive"
                           title="Delete"
                           onClick={() => {
                             if (tunnel.id) {

@@ -63,7 +63,10 @@ export function UpdateAvailableDialog({
   onInstall,
 }: Props) {
   const showProgress =
-    installing && progress && progress.phase !== "idle" && progress.phase !== "error"
+    installing &&
+    progress &&
+    progress.phase !== "idle" &&
+    progress.phase !== "error"
 
   return (
     <Dialog
@@ -78,18 +81,24 @@ export function UpdateAvailableDialog({
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isForced ? <ShieldAlert className="text-destructive size-4" /> : null}
+            {isForced ? (
+              <ShieldAlert className="size-4 text-destructive" />
+            ) : null}
             {isForced ? "Required update" : "Update available"}
           </DialogTitle>
           <DialogDescription>
             SSHBool {currentVersion} →{" "}
-            <span className="text-foreground font-medium">{latestVersion}</span>
+            <span className="font-medium text-foreground">{latestVersion}</span>
             {isCritical ? (
-              <span className="text-destructive ml-2 font-medium">Critical</span>
+              <span className="ml-2 font-medium text-destructive">
+                Critical
+              </span>
             ) : null}
           </DialogDescription>
           {!showProgress && platformSummary ? (
-            <p className="text-muted-foreground text-[11px]">{platformSummary}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {platformSummary}
+            </p>
           ) : null}
         </DialogHeader>
 
@@ -104,13 +113,14 @@ export function UpdateAvailableDialog({
         ) : (
           <div className="max-h-52 space-y-3 overflow-y-auto pr-1">
             {isForced && (
-              <p className="text-destructive text-xs">
-                This update is mandatory. Install it to keep using SSHBool safely.
+              <p className="text-xs text-destructive">
+                This update is mandatory. Install it to keep using SSHBool
+                safely.
               </p>
             )}
 
             {notes && changelog.length === 0 && (
-              <p className="text-muted-foreground whitespace-pre-line text-xs leading-relaxed">
+              <p className="text-xs leading-relaxed whitespace-pre-line text-muted-foreground">
                 {notes}
               </p>
             )}
@@ -122,17 +132,24 @@ export function UpdateAvailableDialog({
                     <span
                       className={cn(
                         "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase",
-                        entry.category === "security" && "bg-destructive/10 text-destructive",
-                        entry.category === "added" && "bg-emerald-500/10 text-emerald-600",
-                        entry.category === "fixed" && "bg-amber-500/10 text-amber-600",
-                        entry.category === "improved" && "bg-blue-500/10 text-blue-600",
-                        !["security", "added", "fixed", "improved"].includes(entry.category) &&
-                          "bg-muted text-muted-foreground",
+                        entry.category === "security" &&
+                          "bg-destructive/10 text-destructive",
+                        entry.category === "added" &&
+                          "bg-emerald-500/10 text-emerald-600",
+                        entry.category === "fixed" &&
+                          "bg-amber-500/10 text-amber-600",
+                        entry.category === "improved" &&
+                          "bg-blue-500/10 text-blue-600",
+                        !["security", "added", "fixed", "improved"].includes(
+                          entry.category
+                        ) && "bg-muted text-muted-foreground"
                       )}
                     >
                       {CATEGORY_LABELS[entry.category] ?? entry.category}
                     </span>
-                    <span className="text-muted-foreground">{entry.description}</span>
+                    <span className="text-muted-foreground">
+                      {entry.description}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -146,7 +163,11 @@ export function UpdateAvailableDialog({
               Skip for now
             </Button>
           )}
-          <Button size="sm" disabled={installing || !canInstall} onClick={onInstall}>
+          <Button
+            size="sm"
+            disabled={installing || !canInstall}
+            onClick={onInstall}
+          >
             {installing ? (
               <Loader2 className="mr-2 size-3.5 animate-spin" />
             ) : isGithubFallback ? (

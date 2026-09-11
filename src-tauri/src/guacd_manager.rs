@@ -146,7 +146,7 @@ async fn spawn_guacd_process(exe: &Path) -> Result<(), String> {
     if let Some(stderr) = child.stderr.take() {
         std::thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 warn!("guacd stderr: {line}");
             }
         });
@@ -155,7 +155,7 @@ async fn spawn_guacd_process(exe: &Path) -> Result<(), String> {
     if let Some(stdout) = child.stdout.take() {
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 info!("guacd stdout: {line}");
             }
         });

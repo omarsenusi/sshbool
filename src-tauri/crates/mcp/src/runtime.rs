@@ -32,9 +32,7 @@ impl McpRuntimeState {
     }
 
     pub fn global() -> Arc<Self> {
-        MCP_RUNTIME
-            .get_or_init(|| Arc::new(Self::new()))
-            .clone()
+        MCP_RUNTIME.get_or_init(|| Arc::new(Self::new())).clone()
     }
 
     pub fn set_notifier(&self, notifier: Arc<dyn McpNotifier>) {

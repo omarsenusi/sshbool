@@ -20,10 +20,10 @@ export function ConnectionsSettings() {
   const keepalive = useSetting(SETTINGS.connections.keepaliveSecs)
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="max-w-lg space-y-6">
       <div>
         <h2 className="font-semibold">Connections</h2>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="mt-1 text-xs text-muted-foreground">
           Defaults for new hosts and global SSH behavior.
         </p>
       </div>
@@ -74,8 +74,9 @@ export function ConnectionsSettings() {
             <label className="text-sm font-medium" htmlFor="auto-connect">
               Auto-connect on host select
             </label>
-            <p className="text-muted-foreground text-xs">
-              Start SSH when you click a host in the rail (if not already connected).
+            <p className="text-xs text-muted-foreground">
+              Start SSH when you click a host in the rail (if not already
+              connected).
             </p>
           </div>
           <Switch
@@ -86,9 +87,12 @@ export function ConnectionsSettings() {
         </div>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Keepalive interval (seconds)</span>
-          <p className="text-muted-foreground text-xs mb-1">
-            Send SSH keepalive packets to prevent idle disconnects. Set 0 to disable.
+          <span className="text-sm font-medium">
+            Keepalive interval (seconds)
+          </span>
+          <p className="mb-1 text-xs text-muted-foreground">
+            Send SSH keepalive packets to prevent idle disconnects. Set 0 to
+            disable.
           </p>
           <input
             type="number"
@@ -96,7 +100,9 @@ export function ConnectionsSettings() {
             max={3600}
             className={fieldClass}
             value={Number(keepalive.value)}
-            onChange={(e) => keepalive.setValue(Math.max(0, Number(e.target.value) || 0))}
+            onChange={(e) =>
+              keepalive.setValue(Math.max(0, Number(e.target.value) || 0))
+            }
           />
         </label>
       </div>

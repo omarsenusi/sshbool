@@ -3,9 +3,9 @@
 use crate::pairing::{redeem_pairing_code, PairRequest};
 use crate::protocol::handlers::handle_protocol_request;
 use crate::protocol::jsonrpc::JsonRpcRequest;
+use crate::runtime::McpRuntimeState;
 use crate::transport::auth::authenticate_bearer_token;
 use crate::transport::sse::create_sse_stream;
-use crate::runtime::McpRuntimeState;
 use crate::McpNotifier;
 use axum::extract::{Request, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
@@ -27,17 +27,18 @@ pub struct AppState {
 }
 
 /// Router middleware that verifies Host and Origin headers are strictly loopback.
-async fn verify_loopback_headers(
-    request: Request,
-    next: Next,
-) -> Result<Response, StatusCode> {
+async fn verify_loopback_headers(request: Request, next: Next) -> Result<Response, StatusCode> {
     if let Some(host) = request.headers().get("host").and_then(|v| v.to_str().ok()) {
         if !host.starts_with("127.0.0.1") && !host.starts_with("localhost") {
             return Err(StatusCode::FORBIDDEN);
         }
     }
 
-    if let Some(origin) = request.headers().get("origin").and_then(|v| v.to_str().ok()) {
+    if let Some(origin) = request
+        .headers()
+        .get("origin")
+        .and_then(|v| v.to_str().ok())
+    {
         if !origin.contains("127.0.0.1") && !origin.contains("localhost") {
             return Err(StatusCode::FORBIDDEN);
         }
@@ -56,7 +57,11 @@ async fn handle_pair(
 ) -> Response {
     match redeem_pairing_code(&state.pool, payload).await {
         Ok(res) => (StatusCode::OK, Json(json!(res))).into_response(),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(json!({ "error": e.to_string() }))).into_response(),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
     }
 }
 
@@ -96,7 +101,9 @@ async fn handle_mcp_rpc(
     if state.runtime.is_vault_locked() {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ "jsonrpc": "2.0", "error": { "code": -32603, "message": "Vault locked" } })),
+            Json(
+                json!({ "jsonrpc": "2.0", "error": { "code": -32603, "message": "Vault locked" } }),
+            ),
         )
             .into_response();
     }
@@ -120,7 +127,8 @@ async fn handle_mcp_rpc(
     .await;
 
     let mut resp = Json(response).into_response();
-    resp.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
+    resp.headers_mut()
+        .insert("Content-Type", HeaderValue::from_static("application/json"));
     resp
 }
 

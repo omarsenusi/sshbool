@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from "react"
 
 import type { UpdateCheckResult } from "@/lib/api"
-import { checkForUpdate, resolveUpdatePlatform, UPDATE_SESSION_KEY } from "@/lib/api"
+import {
+  checkForUpdate,
+  resolveUpdatePlatform,
+  UPDATE_SESSION_KEY,
+} from "@/lib/api"
 import { ipc } from "@/lib/ipc/commands"
 import type { useUpdateInstall } from "@/hooks/use-update-install"
-import { isInterruptedSession, type PersistedUpdateSession } from "@/lib/update-engine"
+import {
+  isInterruptedSession,
+  type PersistedUpdateSession,
+} from "@/lib/update-engine"
 
 const SESSION_DISMISS_KEY = "sshbool:skippedUpdateVersion"
 
@@ -28,7 +35,7 @@ type UpdateInstallApi = Pick<
 
 export function useStartupUpdateCheck(
   enabled: boolean,
-  updateInstall: UpdateInstallApi,
+  updateInstall: UpdateInstallApi
 ) {
   const [open, setOpen] = useState(false)
   const [update, setUpdate] = useState<UpdateCheckResult | null>(null)
@@ -56,9 +63,14 @@ export function useStartupUpdateCheck(
         const sessionSkipped = sessionStorage.getItem(SESSION_DISMISS_KEY)
         const interruptedVersion = interrupted?.version
         const sameInterruptedVersion =
-          interruptedVersion != null && interruptedVersion === result.latest_version
+          interruptedVersion != null &&
+          interruptedVersion === result.latest_version
 
-        if (!isForced && sessionSkipped === result.latest_version && !sameInterruptedVersion) {
+        if (
+          !isForced &&
+          sessionSkipped === result.latest_version &&
+          !sameInterruptedVersion
+        ) {
           return
         }
 
@@ -88,7 +100,7 @@ export function useStartupUpdateCheck(
 
   const install = useCallback(
     async (target: UpdateCheckResult) => updateInstall.install(target),
-    [updateInstall],
+    [updateInstall]
   )
 
   return {

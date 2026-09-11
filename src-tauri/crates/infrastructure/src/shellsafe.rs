@@ -49,7 +49,10 @@ pub fn validate_systemd_unit(unit: &str) -> Result<(), DomainError> {
 }
 
 /// Validates a Kubernetes resource name or namespace string.
-pub fn validate_k8s_name<'a>(name: &'a str, field_name: &'static str) -> Result<&'a str, DomainError> {
+pub fn validate_k8s_name<'a>(
+    name: &'a str,
+    field_name: &'static str,
+) -> Result<&'a str, DomainError> {
     let valid = !name.is_empty()
         && name.len() <= 253
         && name

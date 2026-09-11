@@ -12,7 +12,7 @@ pub fn to_instruction(elements: &[impl AsRef<str>]) -> String {
             out.push(',');
         }
         let s = el.as_ref();
-        let len = s.as_bytes().len();
+        let len = s.len();
         out.push_str(&format!("{len}.{s}"));
     }
     out.push(';');
@@ -39,7 +39,10 @@ fn parse_instruction_segment(segment: &str) -> Option<(String, Vec<String>)> {
     while offset < bytes.len() {
         let dot_rel = bytes[offset..].iter().position(|&b| b == b'.')?;
         let dot = offset + dot_rel;
-        let len: usize = std::str::from_utf8(&bytes[offset..dot]).ok()?.parse().ok()?;
+        let len: usize = std::str::from_utf8(&bytes[offset..dot])
+            .ok()?
+            .parse()
+            .ok()?;
         let value_start = dot + 1;
         let value_end = value_start + len;
         if value_end > bytes.len() {

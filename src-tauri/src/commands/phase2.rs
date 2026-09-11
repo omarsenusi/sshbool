@@ -222,16 +222,12 @@ pub async fn port_forwards_stop(
 }
 
 #[tauri::command]
-pub async fn port_check_available(
-    bind_addr: String,
-    bind_port: u16,
-) -> Result<bool, AppError> {
+pub async fn port_check_available(bind_addr: String, bind_port: u16) -> Result<bool, AppError> {
     match tokio::net::TcpListener::bind((bind_addr.as_str(), bind_port)).await {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
     }
 }
-
 
 #[tauri::command]
 pub async fn auth_fido2_status() -> Result<Value, AppError> {
@@ -804,9 +800,9 @@ pub async fn rdp_launch_native(
         .probe_remote_tcp(&hid, &remote_dest, port)
         .await
     {
-        Ok(true) => tracing::info!(
-            "RDP Launch: remote {remote_dest}:{port} is reachable on SSH host {hid}"
-        ),
+        Ok(true) => {
+            tracing::info!("RDP Launch: remote {remote_dest}:{port} is reachable on SSH host {hid}")
+        }
         Ok(false) => {
             return Err(AppError::Internal {
                 message: format!(
@@ -820,7 +816,11 @@ pub async fn rdp_launch_native(
     }
 
     let tunnel_forward_id = format!("rdp-tunnel-{hid}");
-    let local_port = if state.connections.forward_is_active(&tunnel_forward_id).await {
+    let local_port = if state
+        .connections
+        .forward_is_active(&tunnel_forward_id)
+        .await
+    {
         if let Some(existing) = state
             .connections
             .forward_local_port(&tunnel_forward_id)
@@ -831,7 +831,10 @@ pub async fn rdp_launch_native(
             );
             existing
         } else {
-            let _ = state.connections.port_forward_stop(&tunnel_forward_id).await;
+            let _ = state
+                .connections
+                .port_forward_stop(&tunnel_forward_id)
+                .await;
             let picked = pick_local_port().await?;
             state
                 .connections
@@ -847,7 +850,10 @@ pub async fn rdp_launch_native(
             picked
         }
     } else {
-        let _ = state.connections.port_forward_stop(&tunnel_forward_id).await;
+        let _ = state
+            .connections
+            .port_forward_stop(&tunnel_forward_id)
+            .await;
         let picked = pick_local_port().await?;
         state
             .connections
@@ -1289,8 +1295,7 @@ pub async fn desktop_inapp_connect(
         remote_target
     };
 
-    let local_tcp_port =
-        ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
+    let local_tcp_port = ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
 
     let session_id = format!("{host_id}-{remote_port}");
     let proto = protocol.unwrap_or_else(|| "vnc".into());
@@ -1380,8 +1385,7 @@ pub async fn desktop_guacamole_connect(
         .await
         .map_err(|message| AppError::Internal { message })?;
 
-    let local_tcp_port =
-        ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
+    let local_tcp_port = ensure_desktop_tunnel(&state, &host_id, &dest_host, remote_port).await?;
 
     let session_id = format!("{host_id}-{remote_port}");
     let ws_port = crate::desktop_bridge::DESKTOP_BRIDGES
@@ -1448,7 +1452,9 @@ pub async fn desktop_inapp_disconnect(
 ) -> Result<(), AppError> {
     let port = remote_port.unwrap_or(5900);
     let session_id = format!("{host_id}-{port}");
-    crate::desktop_bridge::DESKTOP_BRIDGES.stop(&session_id).await;
+    crate::desktop_bridge::DESKTOP_BRIDGES
+        .stop(&session_id)
+        .await;
 
     let tunnel_id = format!("inapp-desktop-tunnel-{host_id}");
     let _ = state.connections.port_forward_stop(&tunnel_id).await;

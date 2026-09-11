@@ -100,12 +100,8 @@ impl From<domain::DomainError> for McpError {
             domain::DomainError::Conflict(msg) => McpError::Internal(msg),
             domain::DomainError::Crypto(msg) => McpError::Internal(msg),
             domain::DomainError::Canceled => McpError::ApprovalDenied("canceled".into()),
-            domain::DomainError::FingerprintUnknown { host, .. } => {
-                McpError::HostNotInScope(host)
-            }
-            domain::DomainError::HostKeyChanged { host, .. } => {
-                McpError::HostNotInScope(host)
-            }
+            domain::DomainError::FingerprintUnknown { host, .. } => McpError::HostNotInScope(host),
+            domain::DomainError::HostKeyChanged { host, .. } => McpError::HostNotInScope(host),
         }
     }
 }

@@ -29,7 +29,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     set((s) => ({
       byHost: {
         ...s.byHost,
-        [hostId]: { status: "connecting", sessionId: s.byHost[hostId]?.sessionId },
+        [hostId]: {
+          status: "connecting",
+          sessionId: s.byHost[hostId]?.sessionId,
+        },
       },
     })),
   setConnected: (hostId, sessionId) =>

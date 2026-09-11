@@ -24,25 +24,11 @@
     ],
     "security": {
       "csp": {
-        "default-src": [
-          "'self'"
-        ],
-        "script-src": [
-          "'self'"
-        ],
-        "style-src": [
-          "'self'",
-          "'unsafe-inline'"
-        ],
-        "img-src": [
-          "'self'",
-          "data:",
-          "asset:"
-        ],
-        "font-src": [
-          "'self'",
-          "data:"
-        ],
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "asset:"],
+        "font-src": ["'self'", "data:"],
         "connect-src": [
           "'self'",
           "ipc:",
@@ -53,19 +39,10 @@
           "https://github.com",
           "https://*.githubusercontent.com"
         ],
-        "worker-src": [
-          "'self'",
-          "blob:"
-        ],
-        "object-src": [
-          "'none'"
-        ],
-        "base-uri": [
-          "'self'"
-        ],
-        "frame-ancestors": [
-          "'none'"
-        ]
+        "worker-src": ["'self'", "blob:"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "frame-ancestors": ["'none'"]
       },
       "freezePrototype": false
     }
@@ -82,18 +59,14 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": [
-          "sshbool"
-        ]
+        "schemes": ["sshbool"]
       }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "externalBin": [
-      "binaries/wfreerdp"
-    ],
+    "externalBin": ["binaries/wfreerdp"],
     "resources": {
       "binaries/guacd/README.md": "binaries/guacd/README.md",
       "../scripts/download-guacd.ps1": "scripts/download-guacd.ps1"

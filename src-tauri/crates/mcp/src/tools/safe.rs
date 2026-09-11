@@ -392,7 +392,9 @@ pub async fn execute_safe_tool(
             .bind(host_id)
             .fetch_optional(pool)
             .await?;
-            Ok(json!({ "host_id": host_id, "details": row.map(|(label, hostname, port)| json!({ "label": label, "hostname": hostname, "port": port })) }))
+            Ok(
+                json!({ "host_id": host_id, "details": row.map(|(label, hostname, port)| json!({ "label": label, "hostname": hostname, "port": port })) }),
+            )
         }
         "list_dir" => {
             let host_id = args["host_id"]

@@ -25,11 +25,9 @@ pub async fn clipboard_write_text(app: AppHandle, text: String) -> Result<(), Ap
 pub async fn clipboard_read_text(app: AppHandle) -> Result<String, AppError> {
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        app.clipboard()
-            .read_text()
-            .map_err(|e| AppError::Internal {
-                message: e.to_string(),
-            })
+        app.clipboard().read_text().map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })
     })
     .await
     .map_err(|e| AppError::Internal {

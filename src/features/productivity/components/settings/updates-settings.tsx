@@ -1,5 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { AlertTriangle, CheckCircle2, Download, ExternalLink, Loader2, RefreshCw } from "lucide-react"
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+} from "lucide-react"
 import { useState } from "react"
 
 import { MarkdownContent } from "@/components/markdown-content"
@@ -8,7 +15,10 @@ import { Switch } from "@/components/ui/switch"
 import { UpdateProgressPanel } from "@/features/productivity/components/update-progress-panel"
 import { useAutoUpdateInstall } from "@/hooks/use-auto-update-install"
 import { useSetting } from "@/hooks/use-setting"
-import { useUpdateInstall, useUpdateTaskbarProgress } from "@/hooks/use-update-install"
+import {
+  useUpdateInstall,
+  useUpdateTaskbarProgress,
+} from "@/hooks/use-update-install"
 import { checkForUpdate, fetchCmsPage, resolveUpdatePlatform } from "@/lib/api"
 import { ipc } from "@/lib/ipc/commands"
 import { getInstallCompleteMessage } from "@/lib/update-engine"
@@ -29,7 +39,10 @@ export function UpdatesSettings() {
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
   const autoUpdate = useSetting(SETTINGS.updates.autoUpdate)
 
-  const info = useQuery({ queryKey: ["app-info"], queryFn: () => ipc.appInfo() })
+  const info = useQuery({
+    queryKey: ["app-info"],
+    queryFn: () => ipc.appInfo(),
+  })
   const updateInstall = useUpdateInstall(info.data)
   useUpdateTaskbarProgress(updateInstall.progress, updateInstall.isActive)
 
@@ -52,7 +65,8 @@ export function UpdatesSettings() {
 
   const result = checkUpdates.data
   const hasApiUpdate = result?.has_update === true
-  const showUpdateBanner = hasApiUpdate || updateInstall.interruptedSession != null
+  const showUpdateBanner =
+    hasApiUpdate || updateInstall.interruptedSession != null
 
   const installUpdateMutation = useMutation({
     mutationFn: async () => {
@@ -97,13 +111,13 @@ export function UpdatesSettings() {
     <div className="max-w-2xl space-y-4">
       <div>
         <h2 className="font-semibold">Updates</h2>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="mt-1 text-xs text-muted-foreground">
           Current version:{" "}
-          <span className="text-foreground font-medium">
+          <span className="font-medium text-foreground">
             {info.data?.version ?? "0.1.7"}
           </span>
           {" · "}
-          Channel: <span className="text-foreground font-medium">stable</span>
+          Channel: <span className="font-medium text-foreground">stable</span>
         </p>
       </div>
 
@@ -122,7 +136,7 @@ export function UpdatesSettings() {
           Check for updates
         </Button>
         {lastCheckedAt && (
-          <span className="text-muted-foreground text-[11px]">
+          <span className="text-[11px] text-muted-foreground">
             Last checked {lastCheckedAt.toLocaleTimeString()}
           </span>
         )}
@@ -133,9 +147,9 @@ export function UpdatesSettings() {
           <label className="text-sm font-medium" htmlFor="auto-update">
             Auto update
           </label>
-          <p className="text-muted-foreground text-xs">
-            When an update is found, install automatically on startup. If your platform
-            installer is unavailable, GitHub releases opens instead.
+          <p className="text-xs text-muted-foreground">
+            When an update is found, install automatically on startup. If your
+            platform installer is unavailable, GitHub releases opens instead.
           </p>
         </div>
         <Switch
@@ -146,17 +160,20 @@ export function UpdatesSettings() {
       </div>
 
       {checkUpdates.isError && (
-        <div className="border-destructive/30 bg-destructive/5 flex items-start gap-2 rounded-lg border p-3">
-          <AlertTriangle className="text-destructive mt-0.5 size-4 shrink-0" />
-          <p className="text-destructive text-xs">Could not reach the update server.</p>
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+          <p className="text-xs text-destructive">
+            Could not reach the update server.
+          </p>
         </div>
       )}
 
       {updateInstall.interruptedSession && !updateInstall.installing && (
-        <div className="border-amber-500/30 bg-amber-500/5 space-y-2 rounded-lg border p-4">
+        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
           <p className="text-sm font-semibold">Update interrupted</p>
-          <p className="text-muted-foreground text-xs">
-            An update to {updateInstall.interruptedSession.version} did not finish.
+          <p className="text-xs text-muted-foreground">
+            An update to {updateInstall.interruptedSession.version} did not
+            finish.
           </p>
           <div className="flex gap-2">
             {result && (
@@ -182,42 +199,52 @@ export function UpdatesSettings() {
       )}
 
       {result && !showUpdateBanner && (
-        <div className="border-border bg-muted/30 flex items-start gap-2 rounded-lg border p-3">
-          <CheckCircle2 className="text-emerald-500 mt-0.5 size-4 shrink-0" />
+        <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />
           <div>
             <p className="text-sm font-medium">You&apos;re up to date</p>
-            <p className="text-muted-foreground text-xs">
-              SSHBool {result.latest_version ?? result.current_version} is the latest stable release.
+            <p className="text-xs text-muted-foreground">
+              SSHBool {result.latest_version ?? result.current_version} is the
+              latest stable release.
             </p>
           </div>
         </div>
       )}
 
       {showUpdateBanner && result && (
-        <div className="border-primary/30 bg-primary/5 space-y-3 rounded-lg border p-4">
+        <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold">Update available</p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-xs text-muted-foreground">
                 {result.current_version} →{" "}
-                <span className="text-foreground font-medium">{result.latest_version}</span>
+                <span className="font-medium text-foreground">
+                  {result.latest_version}
+                </span>
                 {result.is_critical && (
-                  <span className="text-destructive ml-2 font-medium">Critical</span>
+                  <span className="ml-2 font-medium text-destructive">
+                    Critical
+                  </span>
                 )}
                 {result.is_force && (
-                  <span className="text-destructive ml-2 font-medium">Mandatory</span>
+                  <span className="ml-2 font-medium text-destructive">
+                    Mandatory
+                  </span>
                 )}
               </p>
-              {!updateInstall.installing && updateInstall.platformSummary(result) && (
-                <p className="text-muted-foreground mt-1 text-[11px]">
-                  {updateInstall.platformSummary(result)}
-                </p>
-              )}
+              {!updateInstall.installing &&
+                updateInstall.platformSummary(result) && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {updateInstall.platformSummary(result)}
+                  </p>
+                )}
             </div>
             {updateInstall.canInstall(result) && (
               <Button
                 size="sm"
-                disabled={updateInstall.installing || installUpdateMutation.isPending}
+                disabled={
+                  updateInstall.installing || installUpdateMutation.isPending
+                }
                 onClick={() => installUpdateMutation.mutate()}
               >
                 {updateInstall.installing || installUpdateMutation.isPending ? (
@@ -232,7 +259,8 @@ export function UpdatesSettings() {
             )}
           </div>
 
-          {(updateInstall.installing || updateInstall.progress.phase === "done") && (
+          {(updateInstall.installing ||
+            updateInstall.progress.phase === "done") && (
             <UpdateProgressPanel
               progress={updateInstall.progress}
               currentVersion={result.current_version}
@@ -243,7 +271,7 @@ export function UpdatesSettings() {
           )}
 
           {!updateInstall.installing && result.notes && (
-            <p className="text-muted-foreground whitespace-pre-line text-xs leading-relaxed">
+            <p className="text-xs leading-relaxed whitespace-pre-line text-muted-foreground">
               {result.notes}
             </p>
           )}
@@ -255,17 +283,24 @@ export function UpdatesSettings() {
                   <span
                     className={cn(
                       "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase",
-                      entry.category === "security" && "bg-destructive/10 text-destructive",
-                      entry.category === "added" && "bg-emerald-500/10 text-emerald-600",
-                      entry.category === "fixed" && "bg-amber-500/10 text-amber-600",
-                      entry.category === "improved" && "bg-blue-500/10 text-blue-600",
-                      !["security", "added", "fixed", "improved"].includes(entry.category) &&
-                        "bg-muted text-muted-foreground",
+                      entry.category === "security" &&
+                        "bg-destructive/10 text-destructive",
+                      entry.category === "added" &&
+                        "bg-emerald-500/10 text-emerald-600",
+                      entry.category === "fixed" &&
+                        "bg-amber-500/10 text-amber-600",
+                      entry.category === "improved" &&
+                        "bg-blue-500/10 text-blue-600",
+                      !["security", "added", "fixed", "improved"].includes(
+                        entry.category
+                      ) && "bg-muted text-muted-foreground"
                     )}
                   >
                     {CATEGORY_LABELS[entry.category] ?? entry.category}
                   </span>
-                  <span className="text-muted-foreground">{entry.description}</span>
+                  <span className="text-muted-foreground">
+                    {entry.description}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -274,7 +309,7 @@ export function UpdatesSettings() {
       )}
 
       {updatesPage.data && (
-        <div className="border-border space-y-2 rounded-lg border p-4">
+        <div className="space-y-2 rounded-lg border border-border p-4">
           <MarkdownContent content={updatesPage.data.content} />
         </div>
       )}

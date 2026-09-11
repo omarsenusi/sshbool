@@ -21,7 +21,7 @@ describe("host rail layout state", () => {
   it("clamps widths written through the setter", () => {
     useLayoutStore.getState().setHostRailWidth("label", 10_000)
     expect(useLayoutStore.getState().hostRailWidth.label).toBe(
-      HOST_RAIL_SIZING.label.max,
+      HOST_RAIL_SIZING.label.max
     )
   })
 

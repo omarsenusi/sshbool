@@ -27,21 +27,35 @@ import { ipc, type TraySession } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
 
 /* ── helpers ─────────────────────────────────────────────────────── */
-const COLORS = ["#0EA5E9", "#10B981", "#8B5CF6", "#EC4899", "#F59E0B", "#EF4444"]
+const COLORS = [
+  "#0EA5E9",
+  "#10B981",
+  "#8B5CF6",
+  "#EC4899",
+  "#F59E0B",
+  "#EF4444",
+]
 function wsColor(ws: Workspace, idx: number) {
   return ws.color ?? COLORS[idx % COLORS.length] ?? "#0EA5E9"
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest select-none"
-      style={{ color: "rgba(255,255,255,0.35)" }}>
+    <div
+      className="px-3 pt-3 pb-1 text-[10px] font-semibold tracking-widest uppercase select-none"
+      style={{ color: "rgba(255,255,255,0.35)" }}
+    >
       {children}
     </div>
   )
 }
 function Divider() {
-  return <div className="mx-3 my-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+  return (
+    <div
+      className="mx-3 my-1 h-px"
+      style={{ background: "rgba(255,255,255,0.06)" }}
+    />
+  )
 }
 
 /* ── props ───────────────────────────────────────────────────────── */
@@ -69,7 +83,8 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
   useEffect(() => {
     if (standalone) return
     function onDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose()
+      if (rootRef.current && !rootRef.current.contains(e.target as Node))
+        onClose()
     }
     window.addEventListener("mousedown", onDown)
     return () => window.removeEventListener("mousedown", onDown)
@@ -88,8 +103,11 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
     queryKey: ["settings", "workspaces"],
     queryFn: async () => {
       const stored = await ipc.settingsGet("workspaces")
-      if (Array.isArray(stored) && stored.length > 0) return stored as Workspace[]
-      return [{ id: "default", name: "Infrastructure Workspace", color: "#0EA5E9" }]
+      if (Array.isArray(stored) && stored.length > 0)
+        return stored as Workspace[]
+      return [
+        { id: "default", name: "Infrastructure Workspace", color: "#0EA5E9" },
+      ]
     },
   })
   const workspaces: Workspace[] = workspacesQuery.data ?? [
@@ -101,9 +119,17 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
     const wsId = session.workspaceId || "default"
     const wsName = workspaces.find((w) => w.id === wsId)?.name ?? "Workspace"
     try {
-      await ipc.workspaceWindowOpenWithHost(wsId, session.hostId, `SSHBool — ${wsName}`)
+      await ipc.workspaceWindowOpenWithHost(
+        wsId,
+        session.hostId,
+        `SSHBool — ${wsName}`
+      )
     } catch {
-      window.open(`/?wsId=${wsId}&focusHost=${session.hostId}`, "_blank", "width=1200,height=800")
+      window.open(
+        `/?wsId=${wsId}&focusHost=${session.hostId}`,
+        "_blank",
+        "width=1200,height=800"
+      )
     }
     if (standalone) {
       void ipc.trayClose().catch(() => {})
@@ -152,7 +178,8 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
         ...containerStyle,
         background: "linear-gradient(160deg, #0f1117 0%, #0a0d14 100%)",
         border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+        boxShadow:
+          "0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
         backdropFilter: "blur(24px) saturate(160%)",
         fontFamily: "inherit",
         animation: "tray-in 0.15s cubic-bezier(0.16,1,0.3,1) both",
@@ -161,26 +188,50 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
       aria-label="SSHBool Quick Menu"
     >
       {/* ── Header ────────────────────────────────────── */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "12px 14px 10px",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        background: "rgba(255,255,255,0.02)",
-      }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 14px 10px",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          background: "rgba(255,255,255,0.02)",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: "linear-gradient(135deg, #0e7490 0%, #0369a1 100%)",
-            boxShadow: "0 4px 12px rgba(14,116,144,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              flexShrink: 0,
+              background: "linear-gradient(135deg, #0e7490 0%, #0369a1 100%)",
+              boxShadow: "0 4px 12px rgba(14,116,144,0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <Terminal size={15} style={{ color: "#67e8f9" }} />
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>SSHBool</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginTop: 1 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#fff",
+                lineHeight: 1.2,
+              }}
+            >
+              SSHBool
+            </div>
+            <div
+              style={{
+                fontSize: 10,
+                color: "rgba(255,255,255,0.38)",
+                marginTop: 1,
+              }}
+            >
               {sessions.length > 0
                 ? `${sessions.length} active session${sessions.length > 1 ? "s" : ""}`
                 : "No active sessions"}
@@ -191,11 +242,11 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
         {/* Close / X button */}
         <button
           onClick={(e) => {
-            e.stopPropagation();
+            e.stopPropagation()
             if (standalone) {
-              void ipc.trayClose().catch(() => {});
+              void ipc.trayClose().catch(() => {})
             } else {
-              onClose();
+              onClose()
             }
           }}
           style={{
@@ -227,7 +278,12 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
       </div>
 
       {/* ── Scrollable content ────────────────────────── */}
-      <div style={{ overflowY: "auto", maxHeight: standalone ? "calc(100% - 56px)" : 320 }}>
+      <div
+        style={{
+          overflowY: "auto",
+          maxHeight: standalone ? "calc(100% - 56px)" : 320,
+        }}
+      >
         {/* Active Sessions */}
         {sessions.length > 0 && (
           <>
@@ -242,10 +298,24 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
                 <TrayItem
                   key={s.paneId}
                   onClick={() => void openServer(s)}
-                  icon={<Server size={13} style={{ color: "#34d399", flexShrink: 0 }} />}
+                  icon={
+                    <Server
+                      size={13}
+                      style={{ color: "#34d399", flexShrink: 0 }}
+                    />
+                  }
                   label={s.label ?? s.title}
-                  sub={workspaces.find((w) => w.id === (s.workspaceId || "default"))?.name}
-                  right={<ChevronRight size={12} style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }} />}
+                  sub={
+                    workspaces.find(
+                      (w) => w.id === (s.workspaceId || "default")
+                    )?.name
+                  }
+                  right={
+                    <ChevronRight
+                      size={12}
+                      style={{ color: "rgba(255,255,255,0.25)", flexShrink: 0 }}
+                    />
+                  }
                   dot="green"
                 />
               ))}
@@ -263,22 +333,34 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
         </SectionLabel>
         <div style={{ padding: "2px 6px 6px" }}>
           {workspaces.map((ws, idx) => {
-            const active = sessions.filter((s) => (s.workspaceId || "default") === ws.id).length
+            const active = sessions.filter(
+              (s) => (s.workspaceId || "default") === ws.id
+            ).length
             return (
               <TrayItem
                 key={ws.id}
                 onClick={() => void openWorkspace(ws)}
                 icon={
-                  <span style={{
-                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                    background: wsColor(ws, idx),
-                    boxShadow: `0 0 6px ${wsColor(ws, idx)}88`,
-                  }} />
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      background: wsColor(ws, idx),
+                      boxShadow: `0 0 6px ${wsColor(ws, idx)}88`,
+                    }}
+                  />
                 }
                 label={ws.name}
                 sub={active > 0 ? `${active} connected` : undefined}
                 subColor={active > 0 ? "#34d399" : undefined}
-                right={<FolderOpen size={12} style={{ color: "rgba(255,255,255,0.2)", flexShrink: 0 }} />}
+                right={
+                  <FolderOpen
+                    size={12}
+                    style={{ color: "rgba(255,255,255,0.2)", flexShrink: 0 }}
+                  />
+                }
               />
             )
           })}
@@ -290,7 +372,9 @@ export function TrayPopup({ onClose, standalone = false }: TrayPopupProps) {
         <div style={{ padding: "4px 6px 6px" }}>
           <TrayItem
             onClick={() => void ipc.appQuit().catch(() => {})}
-            icon={<Power size={13} style={{ color: "#f87171", flexShrink: 0 }} />}
+            icon={
+              <Power size={13} style={{ color: "#f87171", flexShrink: 0 }} />
+            }
             label="Quit SSHBool"
             labelColor="rgba(248,113,113,0.8)"
             danger
@@ -338,7 +422,9 @@ function TrayItem({
         borderRadius: 8,
         border: "none",
         background: hovered
-          ? danger ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)"
+          ? danger
+            ? "rgba(239,68,68,0.08)"
+            : "rgba(255,255,255,0.06)"
           : "transparent",
         cursor: "pointer",
         textAlign: "left",
@@ -346,28 +432,50 @@ function TrayItem({
       }}
     >
       {dot === "green" && (
-        <span style={{
-          width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-          background: "#10b981",
-          boxShadow: "0 0 8px rgba(16,185,129,0.7)",
-          animation: "pulse-dot 2s ease-in-out infinite",
-        }} />
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            flexShrink: 0,
+            background: "#10b981",
+            boxShadow: "0 0 8px rgba(16,185,129,0.7)",
+            animation: "pulse-dot 2s ease-in-out infinite",
+          }}
+        />
       )}
       {icon}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-        <span style={{
-          fontSize: 12, fontWeight: 500,
-          color: labelColor ?? "rgba(255,255,255,0.85)",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: labelColor ?? "rgba(255,255,255,0.85)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
           {label}
         </span>
         {sub && (
-          <span style={{
-            fontSize: 10,
-            color: subColor ?? "rgba(255,255,255,0.3)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>
+          <span
+            style={{
+              fontSize: 10,
+              color: subColor ?? "rgba(255,255,255,0.3)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {sub}
           </span>
         )}
@@ -394,8 +502,8 @@ export function TrayTrigger() {
         onClick={() => setOpen((p) => !p)}
         className={cn(
           "relative flex h-7 w-7 items-center justify-center rounded-md border border-transparent transition-all duration-150",
-          "text-foreground/60 hover:text-foreground hover:bg-muted/70",
-          open && "bg-primary/15 text-primary border-primary/20",
+          "text-foreground/60 hover:bg-muted/70 hover:text-foreground",
+          open && "border-primary/20 bg-primary/15 text-primary"
         )}
         title="SSHBool Quick Menu"
         aria-label="Open SSHBool tray menu"
@@ -403,7 +511,7 @@ export function TrayTrigger() {
       >
         <Terminal className="size-[15px]" />
         {count > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[8px] font-bold text-white leading-none">
+          <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[8px] leading-none font-bold text-white">
             {count > 9 ? "9+" : count}
           </span>
         )}

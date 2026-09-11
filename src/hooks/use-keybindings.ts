@@ -46,7 +46,7 @@ export async function resetKeybindingsToDefaults(): Promise<void> {
 export function useKeybinding(
   command: KeybindingCommand,
   handler: () => void,
-  options?: { allowInInput?: boolean },
+  options?: { allowInInput?: boolean }
 ) {
   const { data: map } = useKeybindingsMap()
   const chord = map?.[command] ?? DEFAULT_KEYBINDINGS[command]
@@ -65,13 +65,10 @@ export function useKeybinding(
 
 export function useKeybindingsRegistry(
   handlers: Partial<Record<KeybindingCommand, () => void>>,
-  options?: { allowInInput?: boolean },
+  options?: { allowInInput?: boolean }
 ) {
   const { data: map } = useKeybindingsMap()
-  const merged = useMemo(
-    () => ({ ...DEFAULT_KEYBINDINGS, ...map }),
-    [map],
-  )
+  const merged = useMemo(() => ({ ...DEFAULT_KEYBINDINGS, ...map }), [map])
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

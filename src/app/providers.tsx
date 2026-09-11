@@ -1,4 +1,8 @@
-import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+  MutationCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query"
 import { useState, type ReactNode } from "react"
 
 import { FontProvider } from "@/components/font-provider"
@@ -37,7 +41,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
             toast.error("Action failed", errorMessage(error))
           },
         }),
-      }),
+      })
   )
 
   return (

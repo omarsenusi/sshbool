@@ -21,9 +21,10 @@ export function GlobalKeybindings() {
         setSelectedHostId(null)
         setActivity("connections")
       },
-      "theme.toggle": () => setTheme(resolvedTheme === "dark" ? "light" : "dark"),
+      "theme.toggle": () =>
+        setTheme(resolvedTheme === "dark" ? "light" : "dark"),
     }),
-    [resolvedTheme, setActivity, setSelectedHostId, setTheme],
+    [resolvedTheme, setActivity, setSelectedHostId, setTheme]
   )
 
   useKeybindingsRegistry(handlers)

@@ -29,7 +29,12 @@ pub async fn authenticate_bearer_token(
 
     // Verify token hash match in constant time
     let computed = hash_token(token);
-    if computed.as_bytes().ct_eq(client.token_hash.as_bytes()).unwrap_u8() != 1 {
+    if computed
+        .as_bytes()
+        .ct_eq(client.token_hash.as_bytes())
+        .unwrap_u8()
+        != 1
+    {
         return Err(McpError::Unauthorized("Invalid token".into()));
     }
 
@@ -38,7 +43,9 @@ pub async fn authenticate_bearer_token(
     }
 
     if let Some(reason) = &client.suspended_reason {
-        return Err(McpError::Unauthorized(format!("Client suspended: {reason}")));
+        return Err(McpError::Unauthorized(format!(
+            "Client suspended: {reason}"
+        )));
     }
 
     let now = chrono::Utc::now().timestamp_millis();

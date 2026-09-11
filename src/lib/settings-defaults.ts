@@ -71,6 +71,8 @@ export const SETTINGS_DEFAULTS: SettingsValues = {
   "updates.autoUpdate": false,
 }
 
-export function settingDefault<K extends SettingsKey>(key: K): SettingsValues[K] {
+export function settingDefault<K extends SettingsKey>(
+  key: K
+): SettingsValues[K] {
   return SETTINGS_DEFAULTS[key]
 }

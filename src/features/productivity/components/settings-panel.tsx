@@ -29,7 +29,10 @@ import {
   DEFAULT_TERMINAL_CLIPBOARD_SETTINGS,
   resolveTerminalClipboardSettings,
 } from "@/features/terminal/terminal-clipboard-settings"
-import { formatKeybindingForDisplay, isValidKeybinding } from "@/lib/keybinding-utils"
+import {
+  formatKeybindingForDisplay,
+  isValidKeybinding,
+} from "@/lib/keybinding-utils"
 
 const SECTIONS = [
   "general",
@@ -67,18 +70,22 @@ function SecuritySettings() {
     <div className="space-y-6">
       <div>
         <h2 className="font-semibold">Security & Encryption</h2>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="mt-1 text-xs text-muted-foreground">
           Manage your master vault password and security options.
         </p>
       </div>
-      <div className="space-y-4 pt-4 border-t border-border max-w-lg">
+      <div className="max-w-lg space-y-4 border-t border-border pt-4">
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-0.5">
-            <label className="text-sm font-medium cursor-pointer" htmlFor="lock-on-startup">
+            <label
+              className="cursor-pointer text-sm font-medium"
+              htmlFor="lock-on-startup"
+            >
               Require Master Password on launch
             </label>
-            <p className="text-muted-foreground text-xs">
-              When enabled, SSHBool will lock the vault and ask for your password every time you open the app.
+            <p className="text-xs text-muted-foreground">
+              When enabled, SSHBool will lock the vault and ask for your
+              password every time you open the app.
             </p>
           </div>
           <Switch
@@ -89,7 +96,11 @@ function SecuritySettings() {
         </div>
 
         <div className="pt-2">
-          <Button size="sm" variant="outline" onClick={() => void ipc.vaultLock()}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void ipc.vaultLock()}
+          >
             Lock vault now
           </Button>
         </div>
@@ -97,7 +108,6 @@ function SecuritySettings() {
     </div>
   )
 }
-
 
 export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
   const [section, setSection] = useState<Section>(initial)
@@ -118,13 +128,14 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
 
   return (
     <div className="flex h-full">
-      <aside className="border-border w-48 shrink-0 overflow-y-auto border-r p-2">
+      <aside className="w-48 shrink-0 overflow-y-auto border-r border-border p-2">
         {SECTIONS.map((s) => (
           <button
             key={s}
             type="button"
-            className={`hover:bg-muted/60 w-full rounded-md px-2 py-1.5 text-left text-sm capitalize ${section === s ? "bg-muted" : ""
-              }`}
+            className={`w-full rounded-md px-2 py-1.5 text-left text-sm capitalize hover:bg-muted/60 ${
+              section === s ? "bg-muted" : ""
+            }`}
             onClick={() => setSection(s)}
           >
             {s}
@@ -156,42 +167,44 @@ export function SettingsPanel({ initial = "general" }: { initial?: Section }) {
               Prune old metrics/audit (30d)
             </Button>
             {prune.data && (
-              <pre className="bg-muted rounded-md p-2 text-xs">{JSON.stringify(prune.data, null, 2)}</pre>
+              <pre className="rounded-md bg-muted p-2 text-xs">
+                {JSON.stringify(prune.data, null, 2)}
+              </pre>
             )}
           </div>
         )}
-        {section === "appearance" && (
-          <AppearanceSettings />
-        )}
-        {section === "license" && (
-          <LicenseSettings />
-        )}
-        {section === "about" && (
-          <AboutSettings />
-        )}
-        {section === "updates" && (
-          <UpdatesSettings />
-        )}
-        {section === "security" && (
-          <SecuritySettings />
-        )}
-        {section === "terminal" && (
-          <TerminalSettings />
-        )}
+        {section === "appearance" && <AppearanceSettings />}
+        {section === "license" && <LicenseSettings />}
+        {section === "about" && <AboutSettings />}
+        {section === "updates" && <UpdatesSettings />}
+        {section === "security" && <SecuritySettings />}
+        {section === "terminal" && <TerminalSettings />}
         {section === "connections" && <ConnectionsSettings />}
         {section === "editor" && <EditorSettingsPanel />}
         {section === "sftp" && <SftpSettingsPanel />}
         {(section as string) === "keyboard" && <KeyboardSettingsPanel />}
-        {!["general", "appearance", "terminal", "about", "updates", "security", "license", "team", "connections", "editor", "sftp", "keyboard"].includes(
-          section,
-        ) && (
-            <div>
-              <h2 className="font-semibold capitalize">{section}</h2>
-              <p className="text-muted-foreground mt-2 text-xs">
-                Settings for {section} are available and persisted via settings_get/set.
-              </p>
-            </div>
-          )}
+        {![
+          "general",
+          "appearance",
+          "terminal",
+          "about",
+          "updates",
+          "security",
+          "license",
+          "team",
+          "connections",
+          "editor",
+          "sftp",
+          "keyboard",
+        ].includes(section) && (
+          <div>
+            <h2 className="font-semibold capitalize">{section}</h2>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Settings for {section} are available and persisted via
+              settings_get/set.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -205,10 +218,10 @@ function HostRailSettings() {
   const bounds = HOST_RAIL_SIZING[mode]
 
   return (
-    <div className="space-y-3 max-w-md">
+    <div className="max-w-md space-y-3">
       <div>
         <h3 className="text-sm font-semibold">Host Rail</h3>
-        <p className="text-muted-foreground mt-1 text-xs mb-3">
+        <p className="mt-1 mb-3 text-xs text-muted-foreground">
           Show hosts as compact icons, or as horizontal tabs labelled with the
           server name. Drag the rail's right edge to resize it — each style
           remembers its own width.
@@ -226,7 +239,7 @@ function HostRailSettings() {
               saveHostRailPrefs()
             }}
           >
-            <SelectTrigger className="w-40 h-8 text-xs">
+            <SelectTrigger className="h-8 w-40 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -250,7 +263,7 @@ function HostRailSettings() {
             onPointerUp={() => saveHostRailPrefs()}
             onKeyUp={() => saveHostRailPrefs()}
           />
-          <span className="text-muted-foreground w-10 shrink-0 text-right font-mono text-xs">
+          <span className="w-10 shrink-0 text-right font-mono text-xs text-muted-foreground">
             {width}px
           </span>
         </label>
@@ -283,7 +296,12 @@ function AppearanceSettings() {
     },
   })
   const options = [
-    { id: "system" as const, label: "System", hint: "Follow OS light/dark", icon: Monitor },
+    {
+      id: "system" as const,
+      label: "System",
+      hint: "Follow OS light/dark",
+      icon: Monitor,
+    },
     { id: "light" as const, label: "Light", hint: "Always light", icon: Sun },
     { id: "dark" as const, label: "Dark", hint: "Always dark", icon: Moon },
   ]
@@ -303,9 +321,10 @@ function AppearanceSettings() {
       <div className="space-y-4">
         <div>
           <h2 className="font-semibold">Appearance</h2>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Theme follows your system by default. Change it here or via the title-bar icon.
-            Press <kbd className="bg-muted rounded px-1">d</kbd> to flip light/dark quickly.
+          <p className="mt-1 text-xs text-muted-foreground">
+            Theme follows your system by default. Change it here or via the
+            title-bar icon. Press <kbd className="rounded bg-muted px-1">d</kbd>{" "}
+            to flip light/dark quickly.
           </p>
         </div>
         <div className="grid max-w-lg gap-2 sm:grid-cols-3">
@@ -315,29 +334,32 @@ function AppearanceSettings() {
               type="button"
               onClick={() => choose(id)}
               className={cn(
-                "hover:bg-muted/60 flex flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left transition-colors",
-                current === id ? "border-primary bg-muted/80" : "border-border",
+                "flex flex-col items-start gap-1 rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/60",
+                current === id ? "border-primary bg-muted/80" : "border-border"
               )}
             >
-              <Icon className="text-muted-foreground size-4" />
+              <Icon className="size-4 text-muted-foreground" />
               <span className="text-sm font-medium">{label}</span>
-              <span className="text-muted-foreground text-[11px]">{hint}</span>
+              <span className="text-[11px] text-muted-foreground">{hint}</span>
             </button>
           ))}
         </div>
         {mounted && (
-          <p className="text-muted-foreground text-xs">
-            Active: <span className="text-foreground font-medium">{current}</span>
-            {current === "system" && resolvedTheme ? ` → ${resolvedTheme}` : null}
+          <p className="text-xs text-muted-foreground">
+            Active:{" "}
+            <span className="font-medium text-foreground">{current}</span>
+            {current === "system" && resolvedTheme
+              ? ` → ${resolvedTheme}`
+              : null}
           </p>
         )}
       </div>
 
-      <div className="space-y-4 pt-4 border-t border-border">
+      <div className="space-y-4 border-t border-border pt-4">
         <HostRailSettings />
       </div>
 
-      <div className="space-y-4 pt-4 border-t border-border">
+      <div className="space-y-4 border-t border-border pt-4">
         <FontSelector
           label="App Font (Google Fonts)"
           description="Select a popular UI font or type any Google Font name to apply it to the whole app."
@@ -394,14 +416,23 @@ function TerminalSettings() {
   })
 
   const [terminalFont, setTerminalFont] = useState("")
-  const [copyShortcut, setCopyShortcut] = useState(DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.copyShortcut)
-  const [pasteShortcut, setPasteShortcut] = useState(DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.pasteShortcut)
-  const [altCopyShortcut, setAltCopyShortcut] = useState(DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altCopyShortcut)
-  const [altPasteShortcut, setAltPasteShortcut] = useState(DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altPasteShortcut)
+  const [copyShortcut, setCopyShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.copyShortcut
+  )
+  const [pasteShortcut, setPasteShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.pasteShortcut
+  )
+  const [altCopyShortcut, setAltCopyShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altCopyShortcut
+  )
+  const [altPasteShortcut, setAltPasteShortcut] = useState(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altPasteShortcut
+  )
   const [shortcutError, setShortcutError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (terminalFontQuery.data !== undefined) setTerminalFont(terminalFontQuery.data ?? "")
+    if (terminalFontQuery.data !== undefined)
+      setTerminalFont(terminalFontQuery.data ?? "")
   }, [terminalFontQuery.data])
 
   useEffect(() => {
@@ -428,7 +459,12 @@ function TerminalSettings() {
   })
   const saveShortcuts = useMutation({
     mutationFn: async () => {
-      const next = [copyShortcut, pasteShortcut, altCopyShortcut, altPasteShortcut]
+      const next = [
+        copyShortcut,
+        pasteShortcut,
+        altCopyShortcut,
+        altPasteShortcut,
+      ]
       if (next.some((value) => !isValidKeybinding(value.trim()))) {
         throw new Error("Invalid shortcut. Example: Ctrl+Shift+C")
       }
@@ -446,7 +482,13 @@ function TerminalSettings() {
     },
   })
 
-  const POPULAR_FONTS = ["JetBrains Mono", "Fira Code", "Source Code Pro", "Ubuntu Mono", "Inconsolata"]
+  const POPULAR_FONTS = [
+    "JetBrains Mono",
+    "Fira Code",
+    "Source Code Pro",
+    "Ubuntu Mono",
+    "Inconsolata",
+  ]
   const clipboard = clipboardQuery.data ?? DEFAULT_TERMINAL_CLIPBOARD_SETTINGS
 
   return (
@@ -454,19 +496,24 @@ function TerminalSettings() {
       <div className="space-y-4">
         <div>
           <h2 className="font-semibold">Terminal</h2>
-          <p className="text-muted-foreground mt-1 text-xs">
-            PuTTY-style mouse: left-click selects and keeps the highlight; right-click copies the selection or pastes when nothing is selected.
+          <p className="mt-1 text-xs text-muted-foreground">
+            PuTTY-style mouse: left-click selects and keeps the highlight;
+            right-click copies the selection or pastes when nothing is selected.
           </p>
         </div>
       </div>
-      <div className="space-y-4 pt-4 border-t border-border max-w-lg">
+      <div className="max-w-lg space-y-4 border-t border-border pt-4">
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-0.5">
-            <label className="text-sm font-medium cursor-pointer" htmlFor="terminal-context-menu">
+            <label
+              className="cursor-pointer text-sm font-medium"
+              htmlFor="terminal-context-menu"
+            >
               Right-click menu (instead of PuTTY mode)
             </label>
-            <p className="text-muted-foreground text-xs">
-              When enabled, right-click opens a Copy / Paste menu instead of copying or pasting immediately.
+            <p className="text-xs text-muted-foreground">
+              When enabled, right-click opens a Copy / Paste menu instead of
+              copying or pasting immediately.
             </p>
           </div>
           <Switch
@@ -479,8 +526,10 @@ function TerminalSettings() {
         <div className="space-y-3 rounded-lg border p-4">
           <div>
             <h3 className="text-sm font-medium">Keyboard shortcuts</h3>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Defaults follow common terminal tools. {formatKeybindingForDisplay(clipboard.altCopyShortcut)} copies only when text is selected; otherwise it sends interrupt (SIGINT).
+            <p className="mt-1 text-xs text-muted-foreground">
+              Defaults follow common terminal tools.{" "}
+              {formatKeybindingForDisplay(clipboard.altCopyShortcut)} copies
+              only when text is selected; otherwise it sends interrupt (SIGINT).
             </p>
           </div>
           <label className="block space-y-1.5 text-sm">
@@ -488,7 +537,7 @@ function TerminalSettings() {
             <input
               value={copyShortcut}
               onChange={(e) => setCopyShortcut(e.target.value)}
-              className="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="Ctrl+Shift+C"
             />
           </label>
@@ -497,7 +546,7 @@ function TerminalSettings() {
             <input
               value={pasteShortcut}
               onChange={(e) => setPasteShortcut(e.target.value)}
-              className="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="Ctrl+Shift+V"
             />
           </label>
@@ -506,7 +555,7 @@ function TerminalSettings() {
             <input
               value={altCopyShortcut}
               onChange={(e) => setAltCopyShortcut(e.target.value)}
-              className="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="Ctrl+C"
             />
           </label>
@@ -515,12 +564,18 @@ function TerminalSettings() {
             <input
               value={altPasteShortcut}
               onChange={(e) => setAltPasteShortcut(e.target.value)}
-              className="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="Ctrl+V"
             />
           </label>
-          {shortcutError && <p className="text-destructive text-xs">{shortcutError}</p>}
-          <Button size="sm" onClick={() => saveShortcuts.mutate()} disabled={saveShortcuts.isPending}>
+          {shortcutError && (
+            <p className="text-xs text-destructive">{shortcutError}</p>
+          )}
+          <Button
+            size="sm"
+            onClick={() => saveShortcuts.mutate()}
+            disabled={saveShortcuts.isPending}
+          >
             Save shortcuts
           </Button>
         </div>

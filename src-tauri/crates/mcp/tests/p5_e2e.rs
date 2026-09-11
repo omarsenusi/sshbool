@@ -112,8 +112,15 @@ async fn test_full_mcp_e2e_lifecycle() {
     )
     .await;
 
-    let tools = list_resp.result.unwrap()["tools"].as_array().unwrap().clone();
-    assert_eq!(tools.len(), 28, "Must contain exactly 28 SAFE tools in read_only mode");
+    let tools = list_resp.result.unwrap()["tools"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert_eq!(
+        tools.len(),
+        28,
+        "Must contain exactly 28 SAFE tools in read_only mode"
+    );
 
     // 6. Verify calls ledger dual-write
     let call_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mcp_calls")

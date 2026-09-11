@@ -1,7 +1,7 @@
 //! Shared redaction layer for outputs, previews, metadata, and logs.
 
-use std::sync::OnceLock;
 use regex::Regex;
+use std::sync::OnceLock;
 
 static REDACT_REGEXES: OnceLock<Vec<Regex>> = OnceLock::new();
 

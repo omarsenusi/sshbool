@@ -20,7 +20,9 @@ interface GuacamoleDesktopCanvasProps {
   width?: number
   height?: number
   onDisconnect: () => void
-  onStatusChange?: (status: "connecting" | "connected" | "disconnected" | "error") => void
+  onStatusChange?: (
+    status: "connecting" | "connected" | "disconnected" | "error"
+  ) => void
 }
 
 export function GuacamoleDesktopCanvas({
@@ -36,7 +38,9 @@ export function GuacamoleDesktopCanvas({
   const clientRef = useRef<InstanceType<typeof Client> | null>(null)
   const tunnelRef = useRef<InstanceType<typeof WebSocketTunnel> | null>(null)
 
-  const [connState, setConnState] = useState<"connecting" | "connected" | "disconnected" | "error">("connecting")
+  const [connState, setConnState] = useState<
+    "connecting" | "connected" | "disconnected" | "error"
+  >("connecting")
   const [scaleViewport, setScaleViewport] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -45,7 +49,8 @@ export function GuacamoleDesktopCanvas({
   useEffect(() => {
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement)
     document.addEventListener("fullscreenchange", handleFsChange)
-    return () => document.removeEventListener("fullscreenchange", handleFsChange)
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFsChange)
   }, [])
 
   useEffect(() => {
@@ -123,7 +128,9 @@ export function GuacamoleDesktopCanvas({
       mouse.onmousedown = mouse.onmouseup = mouse.onmousemove = null
       try {
         client.disconnect()
-      } catch {}
+      } catch {
+        // Ignore disconnect error
+      }
       clientRef.current = null
       tunnelRef.current = null
     }
@@ -144,35 +151,44 @@ export function GuacamoleDesktopCanvas({
     const el = rootRef.current
     if (!el) return
     if (!document.fullscreenElement) {
-      el.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {})
+      el.requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => {})
     } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {})
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => {})
     }
   }
 
   return (
     <div
       ref={rootRef}
-      className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 rounded-xl border border-border/70 shadow-2xs"
+      className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border/70 bg-zinc-950 shadow-2xs"
     >
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-900/90 px-3 py-1.5 backdrop-blur-xs">
         <div className="flex items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border",
-              connState === "connected" && "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
-              connState === "connecting" && "bg-sky-500/10 border-sky-500/30 text-sky-400",
-              connState === "disconnected" && "bg-zinc-500/10 border-zinc-700 text-zinc-400",
-              connState === "error" && "bg-red-500/10 border-red-500/30 text-red-400",
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+              connState === "connected" &&
+                "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+              connState === "connecting" &&
+                "border-sky-500/30 bg-sky-500/10 text-sky-400",
+              connState === "disconnected" &&
+                "border-zinc-700 bg-zinc-500/10 text-zinc-400",
+              connState === "error" &&
+                "border-red-500/30 bg-red-500/10 text-red-400"
             )}
           >
             <span
               className={cn(
                 "size-1.5 rounded-full",
-                connState === "connected" && "bg-emerald-500 animate-pulse",
-                connState === "connecting" && "bg-sky-500 animate-ping",
+                connState === "connected" && "animate-pulse bg-emerald-500",
+                connState === "connecting" && "animate-ping bg-sky-500",
                 connState === "disconnected" && "bg-zinc-500",
-                connState === "error" && "bg-red-500",
+                connState === "error" && "bg-red-500"
               )}
             />
             {connState === "connected"
@@ -190,7 +206,7 @@ export function GuacamoleDesktopCanvas({
             size="icon-xs"
             variant="ghost"
             title="Send Ctrl+Alt+Del"
-            className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 size-7"
+            className="size-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
             onClick={handleCtrlAltDel}
           >
             <KeyboardIcon className="size-3.5" />
@@ -198,10 +214,16 @@ export function GuacamoleDesktopCanvas({
           <Button
             size="icon-xs"
             variant="ghost"
-            title={scaleViewport ? "Disable Smart Sizing (1:1)" : "Enable Smart Sizing (Fit)"}
+            title={
+              scaleViewport
+                ? "Disable Smart Sizing (1:1)"
+                : "Enable Smart Sizing (Fit)"
+            }
             className={cn(
               "size-7 transition-colors",
-              scaleViewport ? "text-primary hover:text-primary/90 bg-primary/10" : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800",
+              scaleViewport
+                ? "bg-primary/10 text-primary hover:text-primary/90"
+                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
             )}
             onClick={toggleScaling}
           >
@@ -211,34 +233,56 @@ export function GuacamoleDesktopCanvas({
             size="icon-xs"
             variant="ghost"
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-            className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 size-7"
+            className="size-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
             onClick={toggleFullscreen}
           >
-            {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+            {isFullscreen ? (
+              <Minimize2 className="size-3.5" />
+            ) : (
+              <Maximize2 className="size-3.5" />
+            )}
           </Button>
-          <div className="h-4 w-px bg-zinc-800 mx-1" />
-          <Button size="xs" variant="destructive" className="h-7 text-xs gap-1.5 font-medium px-2.5" onClick={onDisconnect}>
+          <div className="mx-1 h-4 w-px bg-zinc-800" />
+          <Button
+            size="xs"
+            variant="destructive"
+            className="h-7 gap-1.5 px-2.5 text-xs font-medium"
+            onClick={onDisconnect}
+          >
             <PowerOff className="size-3" />
             Disconnect
           </Button>
         </div>
       </div>
 
-      <div className="relative flex-1 overflow-hidden flex items-center justify-center bg-black">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-black">
         {connState === "connecting" && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/80 gap-3 backdrop-blur-xs text-center p-4">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-zinc-950/80 p-4 text-center backdrop-blur-xs">
             <RefreshCw className="size-6 animate-spin text-primary" />
-            <p className="text-xs text-zinc-300 font-medium">Connecting to RDP via guacd…</p>
-            <p className="text-[11px] text-zinc-500">Credentials handled securely in Rust — never exposed to the UI</p>
+            <p className="text-xs font-medium text-zinc-300">
+              Connecting to RDP via guacd…
+            </p>
+            <p className="text-[11px] text-zinc-500">
+              Credentials handled securely in Rust — never exposed to the UI
+            </p>
           </div>
         )}
 
         {connState === "error" && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/90 gap-3 text-center p-6">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-zinc-950/90 p-6 text-center">
             <ShieldAlert className="size-8 text-red-400" />
-            <p className="text-sm font-semibold text-red-300">Desktop Connection Error</p>
-            <p className="text-xs text-zinc-400 max-w-md">{errorMessage ?? "Failed to connect to the desktop service."}</p>
-            <Button size="sm" variant="outline" className="mt-2 text-xs" onClick={onDisconnect}>
+            <p className="text-sm font-semibold text-red-300">
+              Desktop Connection Error
+            </p>
+            <p className="max-w-md text-xs text-zinc-400">
+              {errorMessage ?? "Failed to connect to the desktop service."}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-2 text-xs"
+              onClick={onDisconnect}
+            >
               Close Viewer
             </Button>
           </div>
@@ -247,8 +291,9 @@ export function GuacamoleDesktopCanvas({
         <div
           ref={displayRef}
           className={cn(
-            "h-full w-full flex items-center justify-center overflow-auto select-none p-1 bg-black",
-            scaleViewport && "[&_canvas]:max-h-full [&_canvas]:max-w-full [&_canvas]:object-contain",
+            "flex h-full w-full items-center justify-center overflow-auto bg-black p-1 select-none",
+            scaleViewport &&
+              "[&_canvas]:max-h-full [&_canvas]:max-w-full [&_canvas]:object-contain"
           )}
         />
       </div>

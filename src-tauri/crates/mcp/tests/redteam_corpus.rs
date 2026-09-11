@@ -75,7 +75,10 @@ fn run_corpus_file(file_path: &Path) {
 
         count += 1;
     }
-    println!("Processed {count} corpus items from {}", file_path.display());
+    println!(
+        "Processed {count} corpus items from {}",
+        file_path.display()
+    );
 }
 
 #[test]

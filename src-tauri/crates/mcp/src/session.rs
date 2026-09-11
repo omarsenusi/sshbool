@@ -68,13 +68,17 @@ impl SessionRegistry {
 
         // 1. Ownership check (SESSION_NOT_OWNED)
         if entry.client_id != client_id {
-            return Err(McpError::Forbidden(format!("SESSION_NOT_OWNED: Handle {session_handle} owned by another client")));
+            return Err(McpError::Forbidden(format!(
+                "SESSION_NOT_OWNED: Handle {session_handle} owned by another client"
+            )));
         }
 
         // 2. Max TTL check
         if now - entry.created_at >= entry.max_ttl_ms as i64 {
             map.remove(session_handle);
-            return Err(McpError::SessionExpired("Session exceeded max lifetime".into()));
+            return Err(McpError::SessionExpired(
+                "Session exceeded max lifetime".into(),
+            ));
         }
 
         // 3. Idle TTL check

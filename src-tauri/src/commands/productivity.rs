@@ -432,9 +432,13 @@ pub async fn update_download_and_install(
             message: format!("Failed to create download client: {error}"),
         })?;
 
-    let response = client.get(&url).send().await.map_err(|error| AppError::Internal {
-        message: format!("Failed to download update: {error}"),
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|error| AppError::Internal {
+            message: format!("Failed to download update: {error}"),
+        })?;
 
     if !response.status().is_success() {
         return Err(AppError::Internal {
@@ -444,9 +448,11 @@ pub async fn update_download_and_install(
 
     let total_bytes = response.content_length().unwrap_or(0);
     let path = std::env::temp_dir().join(&file_name);
-    let mut file = tokio::fs::File::create(&path).await.map_err(|error| AppError::Internal {
-        message: format!("Failed to create installer file: {error}"),
-    })?;
+    let mut file = tokio::fs::File::create(&path)
+        .await
+        .map_err(|error| AppError::Internal {
+            message: format!("Failed to create installer file: {error}"),
+        })?;
 
     emit_update_progress(&app, "downloading", 0, total_bytes);
 
@@ -457,9 +463,11 @@ pub async fn update_download_and_install(
         let chunk = chunk.map_err(|error| AppError::Internal {
             message: format!("Failed while downloading update: {error}"),
         })?;
-        file.write_all(&chunk).await.map_err(|error| AppError::Internal {
-            message: format!("Failed to write installer file: {error}"),
-        })?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|error| AppError::Internal {
+                message: format!("Failed to write installer file: {error}"),
+            })?;
         downloaded_bytes += chunk.len() as u64;
         emit_update_progress(&app, "downloading", downloaded_bytes, total_bytes);
     }

@@ -5,12 +5,12 @@ mod commands;
 mod container;
 pub mod desktop_bridge;
 mod error;
+mod events;
 mod guacamole_protocol;
 mod guacamole_token;
 mod guacd_manager;
-mod rdp_credentials;
-mod events;
 mod mcp_executor;
+mod rdp_credentials;
 #[cfg(target_os = "windows")]
 mod rdp_windows;
 

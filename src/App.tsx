@@ -45,7 +45,7 @@ import { Button } from "@/components/ui/button"
 const EditorWorkspace = lazy(() =>
   import("@/features/editor/components/editor-workspace").then((m) => ({
     default: m.EditorWorkspace,
-  })),
+  }))
 )
 
 export function App() {
@@ -55,7 +55,7 @@ export function App() {
   const selectedHostId = useLayoutStore((s) => s.selectedHostId)
   const byHost = useConnectionStore((s) => s.byHost)
   const connected = useConnectionStore((s) =>
-    selectedHostId ? s.byHost[selectedHostId]?.status === "connected" : false,
+    selectedHostId ? s.byHost[selectedHostId]?.status === "connected" : false
   )
   const unlocked = !!status?.initialized && !status.locked
 
@@ -64,7 +64,10 @@ export function App() {
   // Activation & Licensing States
   const [isActivated, setIsActivated] = useState<boolean | null>(null)
   const [activationUrl, setActivationUrl] = useState<string | null>(null)
-  const [appInfo, setAppInfo] = useState<{ version: string;[key: string]: unknown } | null>(null)
+  const [appInfo, setAppInfo] = useState<{
+    version: string
+    [key: string]: unknown
+  } | null>(null)
 
   // One SFTP explorer per host so remote listings never mix across servers.
   const sftpHostIds = useMemo(() => {
@@ -90,21 +93,31 @@ export function App() {
         }
 
         if (!statusData.activated && active) {
-          const deviceId = (statusData.licenseKey as string) || (statusData.deviceId as string) || "device-uuid"
+          const deviceId =
+            (statusData.licenseKey as string) ||
+            (statusData.deviceId as string) ||
+            "device-uuid"
           const appVersion = appInfoData.version || "0.1.3"
-          const osName = navigator.userAgent.includes("Windows") ? "Windows" : navigator.userAgent.includes("Mac") ? "macOS" : "Linux"
+          const osName = navigator.userAgent.includes("Windows")
+            ? "Windows"
+            : navigator.userAgent.includes("Mac")
+              ? "macOS"
+              : "Linux"
 
-          const response = await fetch("https://ssh.devbool.com/api/v1/devices/authorize-link", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              device_uuid: deviceId,
-              device_name: `${osName} Desktop App`,
-              os_name: osName,
-              os_version: "Desktop",
-              app_version: appVersion,
-            })
-          })
+          const response = await fetch(
+            "https://ssh.devbool.com/api/v1/devices/authorize-link",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                device_uuid: deviceId,
+                device_name: `${osName} Desktop App`,
+                os_name: osName,
+                os_version: "Desktop",
+                app_version: appVersion,
+              }),
+            }
+          )
 
           if (response.ok) {
             const resData = await response.json()
@@ -179,7 +192,11 @@ export function App() {
             const url = new URL(cleanUrl)
             const token = url.searchParams.get("token")
             const signature = url.searchParams.get("signature")
-            console.log("[DEBUG] Extracted token & signature:", token, signature)
+            console.log(
+              "[DEBUG] Extracted token & signature:",
+              token,
+              signature
+            )
             let combinedToken = ""
             if (token && signature) {
               combinedToken = `${token}.${signature}`
@@ -187,13 +204,20 @@ export function App() {
               combinedToken = token
             }
             if (combinedToken) {
-              ipc.licenseActivate(combinedToken)
+              ipc
+                .licenseActivate(combinedToken)
                 .then(() => {
-                  toast.success("License Activated", "Your SSHBool license is now active on this device.")
+                  toast.success(
+                    "License Activated",
+                    "Your SSHBool license is now active on this device."
+                  )
                   setIsActivated(true)
                 })
                 .catch((err: Error) => {
-                  const msg = err.message || (typeof err === "string" ? err : JSON.stringify(err)) || "Failed to activate license."
+                  const msg =
+                    err.message ||
+                    (typeof err === "string" ? err : JSON.stringify(err)) ||
+                    "Failed to activate license."
                   toast.error("Activation Failed", msg)
                 })
             }
@@ -219,16 +243,22 @@ export function App() {
     })
 
     // single-instance plugin forwarding (fallback)
-    const unlistenSingleInstancePromise = listen<string[]>("single-instance-deep-link", (event) => {
-      console.log("[DEBUG] single-instance-deep-link event:", event.payload)
-      handleDeepLinks(event.payload)
-    })
+    const unlistenSingleInstancePromise = listen<string[]>(
+      "single-instance-deep-link",
+      (event) => {
+        console.log("[DEBUG] single-instance-deep-link event:", event.payload)
+        handleDeepLinks(event.payload)
+      }
+    )
 
     // Also listen to raw deep-link event emitted by tauri-plugin-deep-link internally
-    const unlistenDeepLinkNewUrl = listen<string[]>("deep-link://new-url", (event) => {
-      console.log("[DEBUG] deep-link://new-url event:", event.payload)
-      handleDeepLinks(event.payload)
-    })
+    const unlistenDeepLinkNewUrl = listen<string[]>(
+      "deep-link://new-url",
+      (event) => {
+        console.log("[DEBUG] deep-link://new-url event:", event.payload)
+        handleDeepLinks(event.payload)
+      }
+    )
 
     // Catch-all: listen to any event to debug what's coming through
     const unlistenAny = listen<unknown>("tauri://deep-link", (event) => {
@@ -239,12 +269,16 @@ export function App() {
     })
 
     return () => {
-      promise.then((unlisten) => {
-        if (typeof unlisten === "function") {
-          unlisten()
-        }
-      }).catch(console.error)
-      unlistenSingleInstancePromise.then((unlisten) => unlisten()).catch(console.error)
+      promise
+        .then((unlisten) => {
+          if (typeof unlisten === "function") {
+            unlisten()
+          }
+        })
+        .catch(console.error)
+      unlistenSingleInstancePromise
+        .then((unlisten) => unlisten())
+        .catch(console.error)
       unlistenDeepLinkNewUrl.then((unlisten) => unlisten()).catch(console.error)
       unlistenAny.then((unlisten) => unlisten()).catch(console.error)
     }
@@ -255,7 +289,9 @@ export function App() {
       <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center gap-3">
           <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-xs text-muted-foreground">Checking license status...</p>
+          <p className="text-xs text-muted-foreground">
+            Checking license status...
+          </p>
         </div>
       </div>
     )
@@ -263,33 +299,34 @@ export function App() {
 
   if (!isActivated) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center bg-background text-foreground p-6 font-sans select-none">
-        <div className="max-w-md w-full space-y-6">
-
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-background p-6 font-sans text-foreground select-none">
+        <div className="w-full max-w-md space-y-6">
           {/* Header section */}
           <div className="space-y-2 text-center">
-            <div className="mx-auto size-12 rounded-xl bg-muted/50 border border-border flex items-center justify-center shadow-sm">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-border bg-muted/50 shadow-sm">
               <KeyRound className="size-5 text-muted-foreground" />
             </div>
 
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Activate SSHBool
             </h1>
-            <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              Verify your device license to unlock all features of the SSH client workspace.
+            <p className="mx-auto max-w-xs text-xs leading-relaxed text-muted-foreground">
+              Verify your device license to unlock all features of the SSH
+              client workspace.
             </p>
           </div>
 
           {/* Main Shadcn Card */}
-          <div className="rounded-xl border border-border bg-card/40 p-6 space-y-5 backdrop-blur-md">
-
+          <div className="space-y-5 rounded-xl border border-border bg-card/40 p-6 backdrop-blur-md">
             {/* Status indicators */}
             <div className="flex items-center justify-between border-b border-border/80 pb-4">
               <div className="flex items-center gap-2">
-                <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-xs font-medium text-muted-foreground">Awaiting Activation</span>
+                <div className="size-2 animate-pulse rounded-full bg-amber-500" />
+                <span className="text-xs font-medium text-muted-foreground">
+                  Awaiting Activation
+                </span>
               </div>
-              <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border">
+              <span className="rounded border border-border bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                 {appInfo?.version ? `v${appInfo.version}` : "v0.1.7"}
               </span>
             </div>
@@ -299,7 +336,7 @@ export function App() {
               <Button
                 variant="default"
                 size="default"
-                className="w-full h-10 font-medium text-xs bg-primary hover:bg-primary/90 text-primary-foreground transition-all gap-2"
+                className="h-10 w-full gap-2 bg-primary text-xs font-medium text-primary-foreground transition-all hover:bg-primary/90"
                 onClick={async () => {
                   const { openUrl } = await import("@tauri-apps/plugin-opener")
                   openUrl(activationUrl)
@@ -374,7 +411,6 @@ export function App() {
               )}
             </div>
             */}
-
           </div>
 
           {/* Secure indicator footer */}
@@ -382,7 +418,6 @@ export function App() {
             <ShieldCheck className="size-3.5" />
             <span>Secure Device Binding Enabled</span>
           </div>
-
         </div>
       </div>
     )
@@ -402,12 +437,17 @@ export function App() {
 
         {/* Keep one SFTP explorer per host — listings/uploads stay host-scoped. */}
         {sftpHostIds.map((id) => (
-          <KeepAlive key={`sftp-${id}`} active={activity === "sftp" && selectedHostId === id}>
+          <KeepAlive
+            key={`sftp-${id}`}
+            active={activity === "sftp" && selectedHostId === id}
+          >
             <SftpExplorer hostId={id} />
           </KeepAlive>
         ))}
 
-        {(activity === "home" || activity === "connections") && <HomeOverview />}
+        {(activity === "home" || activity === "connections") && (
+          <HomeOverview />
+        )}
         {activity === "sftp" && !selectedHostId && (
           <Empty>Pick a server from the rail.</Empty>
         )}
@@ -416,7 +456,7 @@ export function App() {
             <NeedConnection connected={connected}>
               <Suspense
                 fallback={
-                  <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                     Loading editor…
                   </div>
                 }
@@ -467,9 +507,7 @@ export function App() {
           ) : (
             <Empty>Pick a server.</Empty>
           ))}
-        {activity === "tunnels" && (
-          <TunnelsPanel hostId={selectedHostId} />
-        )}
+        {activity === "tunnels" && <TunnelsPanel hostId={selectedHostId} />}
         {activity === "desktop" &&
           (selectedHostId ? (
             <RemoteDesktopView hostId={selectedHostId} />
@@ -500,7 +538,13 @@ export function App() {
 }
 
 /** Hide without unmounting — preserves terminal / heavy UI state. */
-function KeepAlive({ active, children }: { active: boolean; children: ReactNode }) {
+function KeepAlive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: ReactNode
+}) {
   return (
     <div
       className={cn(
@@ -508,8 +552,8 @@ function KeepAlive({ active, children }: { active: boolean; children: ReactNode 
         // Use visibility (not display:none) so xterm keeps layout size;
         // only the active panel should call pane_resize.
         !active &&
-          "invisible pointer-events-none absolute inset-0 z-0 opacity-0 [&_*]:pointer-events-none",
-        active && "relative z-10",
+          "pointer-events-none invisible absolute inset-0 z-0 opacity-0 [&_*]:pointer-events-none",
+        active && "relative z-10"
       )}
       aria-hidden={!active}
     >
@@ -527,7 +571,10 @@ function NeedConnection({
 }) {
   if (!connected) {
     return (
-      <Empty>Connect to this server first — then Terminal, SFTP, and tools share the session.</Empty>
+      <Empty>
+        Connect to this server first — then Terminal, SFTP, and tools share the
+        session.
+      </Empty>
     )
   }
   return children
@@ -535,7 +582,7 @@ function NeedConnection({
 
 function Empty({ children }: { children: string }) {
   return (
-    <div className="text-muted-foreground flex h-full items-center justify-center px-6 text-center text-sm">
+    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
       {children}
     </div>
   )

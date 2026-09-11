@@ -112,20 +112,20 @@ pub async fn handle_protocol_request(
             if let Err(e) = crate::policy::enforce::enforce_call_budget(pool, client_id).await {
                 Err(e)
             } else {
-            let ctx = ToolCallContext {
-                pool: pool.clone(),
-                client_id: client_id.to_string(),
-                client_name: client_name.to_string(),
-                mode: mode.to_string(),
-                session_handle: req.params["sessionHandle"]
-                    .as_str()
-                    .or_else(|| args.get("session_handle").and_then(|v| v.as_str()))
-                    .map(str::to_string),
-                notifier: Some(notifier.clone()),
-                approval_timeout_ms,
-                runtime: runtime.clone(),
-            };
-            dispatch_tool_call(&ctx, &name, args).await
+                let ctx = ToolCallContext {
+                    pool: pool.clone(),
+                    client_id: client_id.to_string(),
+                    client_name: client_name.to_string(),
+                    mode: mode.to_string(),
+                    session_handle: req.params["sessionHandle"]
+                        .as_str()
+                        .or_else(|| args.get("session_handle").and_then(|v| v.as_str()))
+                        .map(str::to_string),
+                    notifier: Some(notifier.clone()),
+                    approval_timeout_ms,
+                    runtime: runtime.clone(),
+                };
+                dispatch_tool_call(&ctx, &name, args).await
             }
         }
         "resources/list" => Ok(json!({
@@ -206,9 +206,7 @@ pub async fn handle_protocol_request(
         client_name: Some(client_name.to_string()),
         host_id: host_id.clone(),
         host_label: host_label.clone(),
-        session_handle: req.params["sessionHandle"]
-            .as_str()
-            .map(str::to_string),
+        session_handle: req.params["sessionHandle"].as_str().map(str::to_string),
         tool: tool_name.clone().unwrap_or_else(|| req.method.clone()),
         args_hash,
         command_preview,

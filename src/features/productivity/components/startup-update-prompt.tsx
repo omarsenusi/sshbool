@@ -5,13 +5,20 @@ import { useAutoUpdateInstall } from "@/hooks/use-auto-update-install"
 import { useSetting } from "@/hooks/use-setting"
 import { useStartupUpdateCheck } from "@/hooks/use-startup-update-check"
 import { useUpdateCloseGuard } from "@/hooks/use-update-close-guard"
-import { useUpdateInstall, useUpdateTaskbarProgress } from "@/hooks/use-update-install"
+import {
+  useUpdateInstall,
+  useUpdateTaskbarProgress,
+} from "@/hooks/use-update-install"
 import { ipc } from "@/lib/ipc/commands"
 import { SETTINGS } from "@/lib/settings-defaults"
 import { getInstallCompleteMessage } from "@/lib/update-engine"
 import { toast } from "@/stores/toast.store"
 
-export function StartupUpdatePrompt({ unlocked = true }: { unlocked?: boolean }) {
+export function StartupUpdatePrompt({
+  unlocked = true,
+}: {
+  unlocked?: boolean
+}) {
   const appInfo = useQuery({
     queryKey: ["app-info"],
     queryFn: () => ipc.appInfo(),
@@ -22,14 +29,11 @@ export function StartupUpdatePrompt({ unlocked = true }: { unlocked?: boolean })
   const updateInstall = useUpdateInstall(appInfo.data)
   const autoUpdate = useSetting(SETTINGS.updates.autoUpdate)
 
-  const {
-    open,
-    update,
-    isForced,
-    dismiss,
-    install,
-    interruptedSession,
-  } = useStartupUpdateCheck(unlocked && Boolean(appInfo.data?.version), updateInstall)
+  const { open, update, isForced, dismiss, install, interruptedSession } =
+    useStartupUpdateCheck(
+      unlocked && Boolean(appInfo.data?.version),
+      updateInstall
+    )
 
   useAutoUpdateInstall({
     enabled: open && Boolean(update),
@@ -63,7 +67,8 @@ export function StartupUpdatePrompt({ unlocked = true }: { unlocked?: boolean })
 
   const interruptedNote =
     interruptedSession &&
-    interruptedSession.version === (update.latest_version ?? update.current_version)
+    interruptedSession.version ===
+      (update.latest_version ?? update.current_version)
       ? `Previous install to ${interruptedSession.version} was interrupted.`
       : null
 

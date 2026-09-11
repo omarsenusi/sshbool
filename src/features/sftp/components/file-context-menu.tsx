@@ -4,7 +4,13 @@ import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 
 export type MenuItem =
-  | { type: "item"; label: string; danger?: boolean; disabled?: boolean; onClick: () => void }
+  | {
+      type: "item"
+      label: string
+      danger?: boolean
+      disabled?: boolean
+      onClick: () => void
+    }
   | { type: "sep" }
 
 export function FileContextMenu({
@@ -58,13 +64,13 @@ export function FileContextMenu({
       />
       <div
         ref={ref}
-        className="border-border bg-popover text-popover-foreground fixed z-[210] max-h-[min(420px,calc(100vh-16px))] min-w-[200px] overflow-y-auto rounded-md border py-1 shadow-lg"
+        className="fixed z-[210] max-h-[min(420px,calc(100vh-16px))] min-w-[200px] overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg"
         style={{ left: pos.left, top: pos.top }}
         role="menu"
       >
         {items.map((item, i) =>
           item.type === "sep" ? (
-            <div key={`sep-${i}`} className="border-border my-1 border-t" />
+            <div key={`sep-${i}`} className="my-1 border-t border-border" />
           ) : (
             <button
               key={`${item.label}-${i}`}
@@ -72,8 +78,8 @@ export function FileContextMenu({
               role="menuitem"
               disabled={item.disabled}
               className={cn(
-                "hover:bg-muted flex w-full px-3 py-1.5 text-left text-sm disabled:opacity-40",
-                item.danger && "text-destructive",
+                "flex w-full px-3 py-1.5 text-left text-sm hover:bg-muted disabled:opacity-40",
+                item.danger && "text-destructive"
               )}
               onClick={() => {
                 item.onClick()
@@ -82,10 +88,10 @@ export function FileContextMenu({
             >
               {item.label}
             </button>
-          ),
+          )
         )}
       </div>
     </>,
-    document.body,
+    document.body
   )
 }

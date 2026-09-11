@@ -81,7 +81,7 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
         rafId.current = requestAnimationFrame(flush)
       }
     },
-    [flush],
+    [flush]
   )
 
   useEffect(() => {
@@ -160,7 +160,9 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
       ipc.serviceControl(hostId, unit, action),
     onSuccess: async () => {
       setConfirm(null)
-      const services = (await ipc.servicesList(hostId)) as MonitoringServiceDto[]
+      const services = (await ipc.servicesList(
+        hostId
+      )) as MonitoringServiceDto[]
       setSnap((s) => (s ? { ...s, services } : s))
     },
   })
@@ -196,7 +198,7 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
             <LiveBadge live={live} />
           </div>
           {d?.os && (
-            <p className="text-muted-foreground mt-0.5 truncate font-mono text-[11px]">
+            <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
               {d.os}
             </p>
           )}
@@ -215,7 +217,7 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
       </header>
 
       {error && (
-        <p className="border-destructive/30 bg-destructive/10 text-destructive rounded-lg border px-3 py-2 text-xs">
+        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}
         </p>
       )}
@@ -263,24 +265,23 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
       )}
 
       {Array.isArray(d?.disks) && d.disks.length > 0 && (
-        <section className="border-border bg-card/40 rounded-xl border p-3">
+        <section className="rounded-xl border border-border bg-card/40 p-3">
           <div className="mb-3 flex items-center gap-2">
-            <HardDrive className="text-muted-foreground size-4" />
+            <HardDrive className="size-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold">Disks</h3>
           </div>
           <ul className="space-y-3">
             {d.disks.map((disk) => {
               const pct =
-                disk.sizeBytes > 0
-                  ? (disk.usedBytes / disk.sizeBytes) * 100
-                  : 0
+                disk.sizeBytes > 0 ? (disk.usedBytes / disk.sizeBytes) * 100 : 0
               const tone = levelTone(pct)
               return (
                 <li key={disk.mount}>
                   <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
                     <span className="font-mono font-medium">{disk.mount}</span>
                     <span className="text-muted-foreground tabular-nums">
-                      {formatBytes(disk.usedBytes)} / {formatBytes(disk.sizeBytes)}{" "}
+                      {formatBytes(disk.usedBytes)} /{" "}
+                      {formatBytes(disk.sizeBytes)}{" "}
                       <span className={cn("font-medium", toneText(tone))}>
                         ({pct.toFixed(0)}%)
                       </span>
@@ -295,15 +296,15 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
       )}
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-        <section className="border-border bg-card/40 flex min-h-0 flex-col rounded-xl border">
-          <div className="border-border flex items-center justify-between border-b px-3 py-2">
+        <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card/40">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <h3 className="text-sm font-semibold">Top processes</h3>
-            <span className="text-muted-foreground text-[11px]">
+            <span className="text-[11px] text-muted-foreground">
               {procs.length} shown
             </span>
           </div>
           <div className="max-h-64 overflow-auto lg:max-h-none lg:flex-1">
-            <div className="text-muted-foreground sticky top-0 grid grid-cols-[56px_56px_minmax(0,1fr)_auto] gap-2 border-b border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide backdrop-blur">
+            <div className="sticky top-0 grid grid-cols-[56px_56px_minmax(0,1fr)_auto] gap-2 border-b border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur">
               <span>PID</span>
               <span>CPU</span>
               <span>Command</span>
@@ -314,19 +315,19 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
               return (
                 <div
                   key={String(p.pid)}
-                  className="hover:bg-muted/40 grid grid-cols-[56px_56px_minmax(0,1fr)_auto] items-center gap-2 border-b border-border/30 px-3 py-1.5 font-mono text-xs"
+                  className="grid grid-cols-[56px_56px_minmax(0,1fr)_auto] items-center gap-2 border-b border-border/30 px-3 py-1.5 font-mono text-xs hover:bg-muted/40"
                 >
                   <span className="text-muted-foreground tabular-nums">
                     {p.pid}
                   </span>
                   <span
                     className={cn(
-                      "tabular-nums font-medium",
+                      "font-medium tabular-nums",
                       cpu >= 50
                         ? "text-destructive"
                         : cpu >= 20
                           ? "text-amber-500"
-                          : "text-foreground",
+                          : "text-foreground"
                     )}
                   >
                     {cpu.toFixed(1)}%
@@ -351,20 +352,20 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
               )
             })}
             {procs.length === 0 && (
-              <p className="text-muted-foreground px-3 py-6 text-center text-xs">
+              <p className="px-3 py-6 text-center text-xs text-muted-foreground">
                 Waiting for process sample…
               </p>
             )}
           </div>
         </section>
 
-        <section className="border-border bg-card/40 flex min-h-0 flex-col rounded-xl border">
-          <div className="border-border flex items-center justify-between border-b px-3 py-2">
+        <section className="flex min-h-0 flex-col rounded-xl border border-border bg-card/40">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <div className="flex items-center gap-2">
-              <Server className="text-muted-foreground size-4" />
+              <Server className="size-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold">Services</h3>
             </div>
-            <span className="text-muted-foreground text-[11px]">
+            <span className="text-[11px] text-muted-foreground">
               {services.length} shown
             </span>
           </div>
@@ -372,9 +373,12 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
             {services.slice(0, 25).map((s) => (
               <div
                 key={String(s.unit)}
-                className="hover:bg-muted/40 flex items-center gap-2 border-b border-border/30 px-3 py-1.5 text-xs"
+                className="flex items-center gap-2 border-b border-border/30 px-3 py-1.5 text-xs hover:bg-muted/40"
               >
-                <span className="min-w-0 flex-1 truncate font-mono" title={s.unit}>
+                <span
+                  className="min-w-0 flex-1 truncate font-mono"
+                  title={s.unit}
+                >
                   {s.unit}
                 </span>
                 <ServiceBadge active={String(s.active)} sub={String(s.sub)} />
@@ -390,7 +394,7 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
               </div>
             ))}
             {services.length === 0 && (
-              <p className="text-muted-foreground px-3 py-6 text-center text-xs">
+              <p className="px-3 py-6 text-center text-xs text-muted-foreground">
                 Waiting for services sample…
               </p>
             )}
@@ -417,7 +421,7 @@ export function DashboardPanel({ hostId }: { hostId: string }) {
 
 function mergeSnap(
   prev: MonitoringSnapshot | null,
-  next: MonitoringSnapshot,
+  next: MonitoringSnapshot
 ): MonitoringSnapshot {
   return {
     ...next,
@@ -464,16 +468,16 @@ function LiveBadge({ live }: { live: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
         live
           ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
-          : "border-border bg-muted text-muted-foreground",
+          : "border-border bg-muted text-muted-foreground"
       )}
     >
       <span
         className={cn(
           "size-1.5 rounded-full",
-          live ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground",
+          live ? "animate-pulse bg-emerald-500" : "bg-muted-foreground"
         )}
       />
       {live ? "Live" : "Paused"}
@@ -506,8 +510,8 @@ function MetricCard({
         : toneText(tone === "neutral" ? "ok" : tone)
 
   return (
-    <div className="border-border bg-card/50 rounded-xl border p-3 shadow-sm">
-      <div className="text-muted-foreground mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide">
+    <div className="rounded-xl border border-border bg-card/50 p-3 shadow-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
         <Icon className={cn("size-3.5", accentIcon)} />
         {label}
       </div>
@@ -515,7 +519,7 @@ function MetricCard({
         {value}
       </div>
       {hint && (
-        <div className="text-muted-foreground mt-0.5 text-[10px]">{hint}</div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground">{hint}</div>
       )}
       {pct != null && (
         <div className="mt-2">
@@ -529,9 +533,12 @@ function MetricCard({
 function ProgressBar({ pct, tone }: { pct: number; tone: Tone }) {
   const w = Math.min(100, Math.max(0, pct))
   return (
-    <div className="bg-muted h-1.5 overflow-hidden rounded-full">
+    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
       <div
-        className={cn("h-full rounded-full transition-[width] duration-300", toneBar(tone))}
+        className={cn(
+          "h-full rounded-full transition-[width] duration-300",
+          toneBar(tone)
+        )}
         style={{ width: `${w}%` }}
       />
     </div>
@@ -545,12 +552,10 @@ function ServiceBadge({ active, sub }: { active: string; sub: string }) {
   return (
     <span
       className={cn(
-        "shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        "shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
         ok && "border-emerald-500/35 bg-emerald-500/10 text-emerald-500",
         bad && "border-destructive/35 bg-destructive/10 text-destructive",
-        !ok &&
-          !bad &&
-          "border-border bg-muted text-muted-foreground",
+        !ok && !bad && "border-border bg-muted text-muted-foreground"
       )}
       title={sub}
     >
@@ -584,16 +589,16 @@ function ConfirmActionDialog({
       <div
         role="dialog"
         aria-modal="true"
-        className="border-border bg-background w-full max-w-md rounded-xl border p-4 shadow-lg"
+        className="w-full max-w-md rounded-xl border border-border bg-background p-4 shadow-lg"
       >
         <h3 className="text-sm font-semibold">{title}</h3>
-        <p className="text-muted-foreground mt-2 text-xs">{body}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{body}</p>
         {detail && (
-          <p className="bg-muted mt-3 max-h-20 overflow-auto rounded-md px-2 py-1.5 font-mono text-[11px] break-all">
+          <p className="mt-3 max-h-20 overflow-auto rounded-md bg-muted px-2 py-1.5 font-mono text-[11px] break-all">
             {detail}
           </p>
         )}
-        <p className="text-muted-foreground mt-2 text-[11px]">
+        <p className="mt-2 text-[11px] text-muted-foreground">
           This cannot be undone from the dashboard.
         </p>
         <div className="mt-4 flex justify-end gap-2">

@@ -28,7 +28,11 @@ function formatBytes(bytes: number): string {
 
 function statusDetail(progress: UpdaterProgress): string {
   if (progress.phase === "downloading") {
-    if (progress.downloadedBytes != null && progress.totalBytes != null && progress.totalBytes > 0) {
+    if (
+      progress.downloadedBytes != null &&
+      progress.totalBytes != null &&
+      progress.totalBytes > 0
+    ) {
       return `${formatBytes(progress.downloadedBytes)} / ${formatBytes(progress.totalBytes)}`
     }
     return "Downloading update package…"
@@ -67,7 +71,9 @@ export function UpdateProgressPanel({
 
   const percent =
     progress.percent ??
-    (progress.totalBytes && progress.totalBytes > 0 && progress.downloadedBytes != null
+    (progress.totalBytes &&
+    progress.totalBytes > 0 &&
+    progress.downloadedBytes != null
       ? Math.round((progress.downloadedBytes / progress.totalBytes) * 100)
       : null)
 
@@ -80,17 +86,20 @@ export function UpdateProgressPanel({
     <div className={cn("space-y-3", className)}>
       <div className="flex items-start gap-2">
         {progress.phase === "error" ? (
-          <AlertTriangle className="text-destructive mt-0.5 size-4 shrink-0" />
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
         ) : progress.phase === "done" ? (
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />
         ) : (
-          <Loader2 className="text-primary mt-0.5 size-4 shrink-0 animate-spin" />
+          <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
         )}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{title}</p>
           {currentVersion && latestVersion && (
-            <p className="text-muted-foreground text-xs">
-              {currentVersion} → <span className="text-foreground font-medium">{latestVersion}</span>
+            <p className="text-xs text-muted-foreground">
+              {currentVersion} →{" "}
+              <span className="font-medium text-foreground">
+                {latestVersion}
+              </span>
               {platform ? (
                 <>
                   {" · "}
@@ -100,27 +109,32 @@ export function UpdateProgressPanel({
             </p>
           )}
           {installDir && progress.phase === "downloading" && (
-            <p className="text-muted-foreground mt-1 truncate text-[11px]">
-              Target install path: <span className="font-medium">{installDir}</span>
+            <p className="mt-1 truncate text-[11px] text-muted-foreground">
+              Target install path:{" "}
+              <span className="font-medium">{installDir}</span>
             </p>
           )}
           {progress.phase === "error" && progress.message && (
-            <p className="text-destructive mt-1 text-xs">{progress.message}</p>
+            <p className="mt-1 text-xs text-destructive">{progress.message}</p>
           )}
           {progress.phase === "done" && progress.message && (
-            <p className="text-muted-foreground mt-1 text-[11px] leading-relaxed">{progress.message}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              {progress.message}
+            </p>
           )}
         </div>
       </div>
 
       {showBar && progress.phase !== "done" && (
         <div className="space-y-1.5">
-          <div className="bg-muted h-2 overflow-hidden rounded-full">
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
               className={cn(
-                "bg-primary h-full transition-[width] duration-200",
-                percent == null && progress.phase !== "installing" && "w-1/3 animate-pulse",
-                progress.phase === "installing" && "w-full animate-pulse",
+                "h-full bg-primary transition-[width] duration-200",
+                percent == null &&
+                  progress.phase !== "installing" &&
+                  "w-1/3 animate-pulse",
+                progress.phase === "installing" && "w-full animate-pulse"
               )}
               style={
                 percent != null && progress.phase === "downloading"
@@ -129,9 +143,11 @@ export function UpdateProgressPanel({
               }
             />
           </div>
-          <div className="text-muted-foreground flex items-center justify-between text-[11px]">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{statusDetail(progress)}</span>
-            {percent != null && progress.phase === "downloading" ? <span>{percent}%</span> : null}
+            {percent != null && progress.phase === "downloading" ? (
+              <span>{percent}%</span>
+            ) : null}
           </div>
         </div>
       )}

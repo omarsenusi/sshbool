@@ -64,20 +64,26 @@ export function MarkdownContent({ content }: { content: string }) {
         }
         if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
           return (
-            <li key={index} className="text-muted-foreground ml-4 list-disc text-xs leading-relaxed">
+            <li
+              key={index}
+              className="ml-4 list-disc text-xs leading-relaxed text-muted-foreground"
+            >
               {renderInlineLinks(trimmed.slice(2))}
             </li>
           )
         }
         if (trimmed === "---") {
-          return <hr key={index} className="border-border my-3" />
+          return <hr key={index} className="my-3 border-border" />
         }
         if (trimmed === "") {
           return <div key={index} className="h-1" />
         }
 
         return (
-          <p key={index} className="text-muted-foreground text-xs leading-relaxed">
+          <p
+            key={index}
+            className="text-xs leading-relaxed text-muted-foreground"
+          >
             {renderInlineLinks(trimmed)}
           </p>
         )

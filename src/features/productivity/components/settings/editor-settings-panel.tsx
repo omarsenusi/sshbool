@@ -26,12 +26,12 @@ export function EditorSettingsPanel() {
     <div className="space-y-6">
       <div>
         <h2 className="font-semibold">Editor</h2>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="mt-1 text-xs text-muted-foreground">
           Remote file editor (Monaco) appearance and save behavior.
         </p>
       </div>
 
-      <div className="space-y-4 border-t border-border pt-4 max-w-lg">
+      <div className="max-w-lg space-y-4 border-t border-border pt-4">
         <label className="block space-y-1">
           <span className="text-sm font-medium">Font size</span>
           <input
@@ -79,7 +79,9 @@ export function EditorSettingsPanel() {
             <label className="text-sm font-medium" htmlFor="editor-minimap">
               Minimap
             </label>
-            <p className="text-muted-foreground text-xs">Show code minimap on the right.</p>
+            <p className="text-xs text-muted-foreground">
+              Show code minimap on the right.
+            </p>
           </div>
           <Switch
             id="editor-minimap"
@@ -93,7 +95,7 @@ export function EditorSettingsPanel() {
             <label className="text-sm font-medium" htmlFor="editor-autosave">
               Auto-save
             </label>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               Save changes automatically after you stop typing (~1.5s).
             </p>
           </div>
@@ -113,7 +115,13 @@ export function EditorSettingsPanel() {
           onChange={(v) => font.setValue(v || null)}
           onSave={() => font.setValue(font.value ?? null)}
           isSaving={font.isSaving}
-          popularFonts={["JetBrains Mono", "Fira Code", "Source Code Pro", "Ubuntu Mono", "Inconsolata"]}
+          popularFonts={[
+            "JetBrains Mono",
+            "Fira Code",
+            "Source Code Pro",
+            "Ubuntu Mono",
+            "Inconsolata",
+          ]}
         />
       </div>
     </div>

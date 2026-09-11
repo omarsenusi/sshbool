@@ -21,7 +21,7 @@ describe("HostRow", () => {
         accent="#2563eb"
         icon="data:image/png;base64,iVBORw0KGgo="
         status="idle"
-      />,
+      />
     )
     expect(container.querySelector("img")).not.toBeNull()
     expect(screen.queryByText("N")).toBeNull()
@@ -29,7 +29,7 @@ describe("HostRow", () => {
 
   it("marks the selected row via aria-current", () => {
     render(
-      <HostRow label="core-1" accent="#2563eb" status="connected" selected />,
+      <HostRow label="core-1" accent="#2563eb" status="connected" selected />
     )
     expect(screen.getByRole("button")).toHaveAttribute("aria-current", "true")
   })
@@ -46,11 +46,11 @@ describe("HostRow", () => {
         accent="#2563eb"
         status="error"
         title="core-1 — Connection refused"
-      />,
+      />
     )
     expect(screen.getByRole("button")).toHaveAttribute(
       "title",
-      "core-1 — Connection refused",
+      "core-1 — Connection refused"
     )
   })
 
@@ -62,7 +62,7 @@ describe("HostRow", () => {
         accent="#2563eb"
         status="idle"
         onClick={onClick}
-      />,
+      />
     )
     screen.getByRole("button").click()
     expect(onClick).toHaveBeenCalledOnce()

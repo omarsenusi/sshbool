@@ -21,7 +21,10 @@ export const DEFAULT_TERMINAL_CLIPBOARD_SETTINGS: TerminalClipboardSettings = {
 const BUILTIN_COPY_SHORTCUTS = ["Ctrl+Insert"] as const
 const BUILTIN_PASTE_SHORTCUTS = ["Shift+Insert"] as const
 
-export function isTerminalSettingEnabled(value: unknown, defaultEnabled = true): boolean {
+export function isTerminalSettingEnabled(
+  value: unknown,
+  defaultEnabled = true
+): boolean {
   if (value === false) return false
   if (value === true) return true
   return defaultEnabled
@@ -47,7 +50,10 @@ export function resolveTerminalClipboardSettings(raw: {
   let selectToCopy = false
   if (raw.selectToCopy !== null && raw.selectToCopy !== undefined) {
     selectToCopy = raw.selectToCopy === true
-  } else if (raw.legacySelectToCopy !== null && raw.legacySelectToCopy !== undefined) {
+  } else if (
+    raw.legacySelectToCopy !== null &&
+    raw.legacySelectToCopy !== undefined
+  ) {
     selectToCopy = raw.legacySelectToCopy === true
   }
 
@@ -59,20 +65,28 @@ export function resolveTerminalClipboardSettings(raw: {
   return {
     selectToCopy,
     contextMenu,
-    copyShortcut: readShortcut(raw.copyShortcut, DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.copyShortcut),
-    pasteShortcut: readShortcut(raw.pasteShortcut, DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.pasteShortcut),
+    copyShortcut: readShortcut(
+      raw.copyShortcut,
+      DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.copyShortcut
+    ),
+    pasteShortcut: readShortcut(
+      raw.pasteShortcut,
+      DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.pasteShortcut
+    ),
     altCopyShortcut: readShortcut(
       raw.altCopyShortcut,
-      DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altCopyShortcut,
+      DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altCopyShortcut
     ),
     altPasteShortcut: readShortcut(
       raw.altPasteShortcut,
-      DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altPasteShortcut,
+      DEFAULT_TERMINAL_CLIPBOARD_SETTINGS.altPasteShortcut
     ),
   }
 }
 
-export function getTerminalCopyShortcuts(settings: TerminalClipboardSettings): string[] {
+export function getTerminalCopyShortcuts(
+  settings: TerminalClipboardSettings
+): string[] {
   return [
     settings.copyShortcut,
     settings.altCopyShortcut,
@@ -80,7 +94,9 @@ export function getTerminalCopyShortcuts(settings: TerminalClipboardSettings): s
   ].filter(Boolean)
 }
 
-export function getTerminalPasteShortcuts(settings: TerminalClipboardSettings): string[] {
+export function getTerminalPasteShortcuts(
+  settings: TerminalClipboardSettings
+): string[] {
   return [
     settings.pasteShortcut,
     settings.altPasteShortcut,
@@ -89,13 +105,23 @@ export function getTerminalPasteShortcuts(settings: TerminalClipboardSettings): 
 }
 
 /** True when the pressed chord should copy the current selection. */
-export function isTerminalCopyShortcut(event: KeyboardEvent, settings: TerminalClipboardSettings): boolean {
-  return getTerminalCopyShortcuts(settings).some((chord) => matchesKeybinding(event, chord))
+export function isTerminalCopyShortcut(
+  event: KeyboardEvent,
+  settings: TerminalClipboardSettings
+): boolean {
+  return getTerminalCopyShortcuts(settings).some((chord) =>
+    matchesKeybinding(event, chord)
+  )
 }
 
 /** True when the pressed chord should paste from the clipboard. */
-export function isTerminalPasteShortcut(event: KeyboardEvent, settings: TerminalClipboardSettings): boolean {
-  return getTerminalPasteShortcuts(settings).some((chord) => matchesKeybinding(event, chord))
+export function isTerminalPasteShortcut(
+  event: KeyboardEvent,
+  settings: TerminalClipboardSettings
+): boolean {
+  return getTerminalPasteShortcuts(settings).some((chord) =>
+    matchesKeybinding(event, chord)
+  )
 }
 
 /**
@@ -104,7 +130,7 @@ export function isTerminalPasteShortcut(event: KeyboardEvent, settings: Terminal
  */
 export function shouldSendInterruptForCopyShortcut(
   event: KeyboardEvent,
-  settings: TerminalClipboardSettings,
+  settings: TerminalClipboardSettings
 ): boolean {
   if (!matchesKeybinding(event, settings.altCopyShortcut)) return false
   return !event.shiftKey

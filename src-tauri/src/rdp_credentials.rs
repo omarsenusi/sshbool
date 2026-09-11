@@ -43,9 +43,6 @@ mod tests {
 
     #[test]
     fn empty_when_placeholder_without_vault() {
-        assert_eq!(
-            resolve_rdp_password(PASSWORD_PLACEHOLDER, true, None),
-            ""
-        );
+        assert_eq!(resolve_rdp_password(PASSWORD_PLACEHOLDER, true, None), "");
     }
 }

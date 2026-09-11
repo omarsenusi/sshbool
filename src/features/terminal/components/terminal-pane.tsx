@@ -109,8 +109,11 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
     queryFn: loadTerminalClipboardSettings,
   })
 
-  const clipboardSettingsRef = useRef<TerminalClipboardSettings>(DEFAULT_TERMINAL_CLIPBOARD_SETTINGS)
-  clipboardSettingsRef.current = clipboardSettingsQuery.data ?? DEFAULT_TERMINAL_CLIPBOARD_SETTINGS
+  const clipboardSettingsRef = useRef<TerminalClipboardSettings>(
+    DEFAULT_TERMINAL_CLIPBOARD_SETTINGS
+  )
+  clipboardSettingsRef.current =
+    clipboardSettingsQuery.data ?? DEFAULT_TERMINAL_CLIPBOARD_SETTINGS
 
   const customFont = terminalFontQuery.data?.trim()
   const font = useMemo(() => {
@@ -121,7 +124,9 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
 
   useEffect(() => {
     if (visible) return
-    const helper = containerRef.current?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
+    const helper = containerRef.current?.querySelector<HTMLTextAreaElement>(
+      ".xterm-helper-textarea"
+    )
     helper?.blur()
   }, [visible])
 
@@ -151,18 +156,19 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
     term.unicode.activeVersion = "11"
     term.open(el)
 
-    const { cleanup: detachClipboard, actions } = attachTerminalClipboardHandlers({
-      term,
-      container: el,
-      getSettings: () => clipboardSettingsRef.current,
-      getIsActive: () => visibleRef.current,
-      onOpenContextMenu: (point) => {
-        setContextMenu(point)
-      },
-      onPaste: (text) => {
-        void ipc.paneWrite(paneId, text)
-      },
-    })
+    const { cleanup: detachClipboard, actions } =
+      attachTerminalClipboardHandlers({
+        term,
+        container: el,
+        getSettings: () => clipboardSettingsRef.current,
+        getIsActive: () => visibleRef.current,
+        onOpenContextMenu: (point) => {
+          setContextMenu(point)
+        },
+        onPaste: (text) => {
+          void ipc.paneWrite(paneId, text)
+        },
+      })
     clipboardActionsRef.current = actions
 
     let lastData = ""
@@ -180,7 +186,9 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
 
       lastData = data
 
-      const helperArea = el.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
+      const helperArea = el.querySelector<HTMLTextAreaElement>(
+        ".xterm-helper-textarea"
+      )
       if (helperArea) {
         helperArea.value = ""
       }
@@ -217,18 +225,21 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
 
       if (disposed) return
 
-      unlisten = await listen<{ bytes: number[] }>(`terminal://data/${paneId}`, (event) => {
-        if (disposed) return
-        const data = Uint8Array.from(event.payload.bytes)
-        if (isWindows) {
-          const chunk = decoder.decode(data, { stream: true })
-          if ([...chunk].some(isArabicLetter)) {
-            term.write(prepareTextForXterm(chunk))
-            return
+      unlisten = await listen<{ bytes: number[] }>(
+        `terminal://data/${paneId}`,
+        (event) => {
+          if (disposed) return
+          const data = Uint8Array.from(event.payload.bytes)
+          if (isWindows) {
+            const chunk = decoder.decode(data, { stream: true })
+            if ([...chunk].some(isArabicLetter)) {
+              term.write(prepareTextForXterm(chunk))
+              return
+            }
           }
+          term.write(data)
         }
-        term.write(data)
-      })
+      )
 
       if (disposed) {
         unlisten()
@@ -301,7 +312,9 @@ export function TerminalPane({ paneId, fontSize = 14, visible = true }: Props) {
 
       void document.fonts.load(`${fontSize}px ${font}`).then(() => {
         if (termRef.current && fitRef.current) {
-          const termPrivate = termRef.current as unknown as { clearTextureAtlas?: () => void }
+          const termPrivate = termRef.current as unknown as {
+            clearTextureAtlas?: () => void
+          }
           if (typeof termPrivate.clearTextureAtlas === "function") {
             termPrivate.clearTextureAtlas()
           }

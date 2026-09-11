@@ -1,5 +1,6 @@
 export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "https://ssh.devbool.com"
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  "https://ssh.devbool.com"
 
 export const RELEASES_FALLBACK_URL =
   (import.meta.env.VITE_RELEASES_PAGE_URL as string | undefined) ??
@@ -19,7 +20,9 @@ export interface CmsPage {
 }
 
 export async function fetchCmsPage(slug: string): Promise<CmsPage> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/pages/${encodeURIComponent(slug)}`)
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/pages/${encodeURIComponent(slug)}`
+  )
   if (!response.ok) {
     throw new Error(`Failed to load page "${slug}" (${response.status})`)
   }
@@ -53,7 +56,7 @@ export interface UpdateCheckResult {
 export async function checkForUpdate(
   platform: string,
   version: string,
-  channel = "stable",
+  channel = "stable"
 ): Promise<UpdateCheckResult> {
   const params = new URLSearchParams({ platform, version, channel })
   const response = await fetch(`${API_BASE_URL}/api/v1/update/check?${params}`)
@@ -64,7 +67,9 @@ export async function checkForUpdate(
 }
 
 /** Prefer native platform from app_info; fall back to UA heuristic. */
-export function resolveUpdatePlatform(appInfo?: { updatePlatform?: string | null }): string {
+export function resolveUpdatePlatform(appInfo?: {
+  updatePlatform?: string | null
+}): string {
   if (appInfo?.updatePlatform) {
     return appInfo.updatePlatform
   }

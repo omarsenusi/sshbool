@@ -57,7 +57,11 @@ async fn test_audit_write_atomic_ledger_recording() {
     )
     .await;
 
-    assert!(resp.error.is_none(), "Response must succeed, got error: {:?}", resp.error);
+    assert!(
+        resp.error.is_none(),
+        "Response must succeed, got error: {:?}",
+        resp.error
+    );
 
     // Verify call was recorded in mcp_calls table
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mcp_calls")
@@ -65,12 +69,16 @@ async fn test_audit_write_atomic_ledger_recording() {
         .await
         .unwrap();
 
-    assert_eq!(count, 1, "Call ledger must contain exactly 1 recorded entry");
+    assert_eq!(
+        count, 1,
+        "Call ledger must contain exactly 1 recorded entry"
+    );
 
-    let audit_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE action = 'mcp.tool_call'")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let audit_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE action = 'mcp.tool_call'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(audit_count, 1, "audit_log must contain matching MCP entry");
 }
 
@@ -103,10 +111,16 @@ async fn test_failed_audit_fails_call() {
     )
     .await;
 
-    assert!(resp.error.is_some(), "Call must fail when audit write fails");
+    assert!(
+        resp.error.is_some(),
+        "Call must fail when audit write fails"
+    );
     let call_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mcp_calls")
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(call_count, 0, "Failed audit must not leave orphan mcp_calls row");
+    assert_eq!(
+        call_count, 0,
+        "Failed audit must not leave orphan mcp_calls row"
+    );
 }

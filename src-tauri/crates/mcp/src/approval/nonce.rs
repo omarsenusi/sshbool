@@ -25,7 +25,13 @@ fn to_canonical_json_string(val: &serde_json::Value) -> String {
             keys.sort();
             let entries: Vec<String> = keys
                 .into_iter()
-                .map(|k| format!("{}:{}", serde_json::to_string(k).unwrap(), to_canonical_json_string(&map[k])))
+                .map(|k| {
+                    format!(
+                        "{}:{}",
+                        serde_json::to_string(k).unwrap(),
+                        to_canonical_json_string(&map[k])
+                    )
+                })
                 .collect();
             format!("{{{}}}", entries.join(","))
         }
@@ -147,9 +153,13 @@ mod tests {
         );
 
         let now = chrono::Utc::now().timestamp_millis();
-        assert!(nonce.verify_and_consume("client1", "host1", "exec_command", &args, Some(cmd), now).is_ok());
+        assert!(nonce
+            .verify_and_consume("client1", "host1", "exec_command", &args, Some(cmd), now)
+            .is_ok());
 
         // Replay attempt must fail
-        assert!(nonce.verify_and_consume("client1", "host1", "exec_command", &args, Some(cmd), now).is_err());
+        assert!(nonce
+            .verify_and_consume("client1", "host1", "exec_command", &args, Some(cmd), now)
+            .is_err());
     }
 }

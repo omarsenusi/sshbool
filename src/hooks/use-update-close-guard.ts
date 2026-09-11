@@ -22,11 +22,13 @@ export function useUpdateCloseGuard(active: boolean, isForced = false) {
             ? "A mandatory update is still installing. Closing SSHBool may leave the app in an inconsistent state. Close anyway?"
             : "An update is still downloading or installing. Close SSHBool anyway?",
           {
-            title: isForced ? "Mandatory update in progress" : "Update in progress",
+            title: isForced
+              ? "Mandatory update in progress"
+              : "Update in progress",
             kind: "warning",
             okLabel: "Close anyway",
             cancelLabel: "Keep open",
-          },
+          }
         )
 
         if (ok && !cancelled) {

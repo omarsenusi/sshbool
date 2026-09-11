@@ -2,12 +2,14 @@
 
 use infrastructure::db::migrate;
 use mcp::approval::ToolCallContext;
-use mcp::runtime::McpRuntimeState;
-use mcp::pairing::{hash_pairing_code, pair_client_from_app, redeem_pairing_code, LocalPairRequest, PairRequest};
+use mcp::pairing::{
+    hash_pairing_code, pair_client_from_app, redeem_pairing_code, LocalPairRequest, PairRequest,
+};
 use mcp::policy::paths::is_sensitive_read_path;
 use mcp::protocol::handlers::handle_protocol_request;
 use mcp::protocol::jsonrpc::{JsonRpcRequest, RequestId};
 use mcp::repo::clients::create_pairing_code;
+use mcp::runtime::McpRuntimeState;
 use mcp::scope::resolve_host_in_scope;
 use mcp::session::SessionRegistry;
 use mcp::tools::dispatch_tool_call;
@@ -71,9 +73,19 @@ async fn test_tools_list_in_read_only_mode_contains_only_safe_tools() {
     let result = resp.result.unwrap();
     let tools = result["tools"].as_array().unwrap();
 
-    assert_eq!(tools.len(), 28, "Expected exactly 28 safe tools in read_only mode");
+    assert_eq!(
+        tools.len(),
+        28,
+        "Expected exactly 28 safe tools in read_only mode"
+    );
 
-    let dangerous_names = ["exec_command", "rm_path", "write_file", "kill_process", "sudo"];
+    let dangerous_names = [
+        "exec_command",
+        "rm_path",
+        "write_file",
+        "kill_process",
+        "sudo",
+    ];
     for tool in tools {
         let name = tool["name"].as_str().unwrap();
         assert!(
@@ -88,12 +100,7 @@ async fn test_calling_hidden_tool_returns_tool_not_available() {
     let pool = setup_test_db().await;
 
     let ctx = test_ctx(&pool, "read_only");
-    let res = dispatch_tool_call(
-        &ctx,
-        "exec_command",
-        &json!({ "command": "rm -rf /" }),
-    )
-    .await;
+    let res = dispatch_tool_call(&ctx, "exec_command", &json!({ "command": "rm -rf /" })).await;
 
     assert!(res.is_err());
     let err_str = res.unwrap_err().to_string();
@@ -198,18 +205,16 @@ async fn test_pair_client_from_app_mints_read_only_token() {
     .await
     .unwrap();
 
-    assert!(resp.client_id.len() > 0);
+    assert!(!resp.client_id.is_empty());
     assert!(resp.access_token.starts_with("sbmcp_"));
     assert_eq!(resp.mode, "read_only");
     assert!(resp.expires_at > chrono::Utc::now().timestamp_millis());
 
-    let row: (String, String) = sqlx::query_as(
-        "SELECT name, mode FROM mcp_clients WHERE id = ?",
-    )
-    .bind(&resp.client_id)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let row: (String, String) = sqlx::query_as("SELECT name, mode FROM mcp_clients WHERE id = ?")
+        .bind(&resp.client_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
     assert_eq!(row.0, "Cursor");
     assert_eq!(row.1, "read_only");

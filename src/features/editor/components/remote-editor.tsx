@@ -67,7 +67,7 @@ export function RemoteEditor({
           side: "remote",
           bytesTotal,
         },
-        () => ipc.sftpWrite(hostId, path, value, mtime),
+        () => ipc.sftpWrite(hostId, path, value, mtime)
       )
     },
     onSuccess: (res) => {
@@ -98,7 +98,7 @@ export function RemoteEditor({
 
   if (!path) {
     return (
-      <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         Open a remote file from SFTP to edit.
       </div>
     )
@@ -112,9 +112,11 @@ export function RemoteEditor({
           ? file.error.message
           : "Failed to load file."
     return (
-      <div className="text-destructive flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm">
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-destructive">
         <p>Failed to load file.</p>
-        <p className="text-muted-foreground max-w-md font-mono text-xs">{message}</p>
+        <p className="max-w-md font-mono text-xs text-muted-foreground">
+          {message}
+        </p>
         <Button size="xs" variant="outline" onClick={() => void file.refetch()}>
           Retry
         </Button>
@@ -133,7 +135,7 @@ export function RemoteEditor({
       {renderToolbar ? (
         renderToolbar(toolbarApi)
       ) : !compact ? (
-        <div className="border-border flex items-center justify-between border-b px-2 py-1 text-xs">
+        <div className="flex items-center justify-between border-b border-border px-2 py-1 text-xs">
           <span className="font-mono">
             {path}
             {dirty ? " •" : ""}
@@ -148,7 +150,7 @@ export function RemoteEditor({
           </Button>
         </div>
       ) : (
-        <div className="border-border flex items-center justify-end border-b px-2 py-1">
+        <div className="flex items-center justify-end border-b border-border px-2 py-1">
           <Button
             size="xs"
             disabled={!dirty || save.isPending}
@@ -161,13 +163,13 @@ export function RemoteEditor({
       )}
       <div className="min-h-0 flex-1">
         {file.isLoading && !file.data ? (
-          <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Loading file…
           </div>
         ) : (
           <Suspense
             fallback={
-              <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Loading editor…
               </div>
             }
@@ -178,7 +180,7 @@ export function RemoteEditor({
               path={path}
               value={value}
               loading={
-                <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                   Loading editor…
                 </div>
               }

@@ -50,12 +50,11 @@ pub async fn list_hosts_in_scope(
     pool: &SqlitePool,
     client_id: &str,
 ) -> Result<Vec<String>, McpError> {
-    let rows = sqlx::query_scalar::<_, String>(
-        "SELECT host_id FROM mcp_client_hosts WHERE client_id = ?",
-    )
-    .bind(client_id)
-    .fetch_all(pool)
-    .await?;
+    let rows =
+        sqlx::query_scalar::<_, String>("SELECT host_id FROM mcp_client_hosts WHERE client_id = ?")
+            .bind(client_id)
+            .fetch_all(pool)
+            .await?;
 
     Ok(rows)
 }

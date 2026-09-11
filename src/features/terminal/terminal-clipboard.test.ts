@@ -23,14 +23,16 @@ describe("isTerminalSettingEnabled", () => {
 
 describe("resolveTerminalClipboardSettings", () => {
   it("uses devops-friendly defaults", () => {
-    expect(resolveTerminalClipboardSettings({})).toEqual(DEFAULT_TERMINAL_CLIPBOARD_SETTINGS)
+    expect(resolveTerminalClipboardSettings({})).toEqual(
+      DEFAULT_TERMINAL_CLIPBOARD_SETTINGS
+    )
   })
 
   it("falls back to legacy right-click paste setting for context menu", () => {
     expect(
       resolveTerminalClipboardSettings({
         contextMenu: true,
-      }).contextMenu,
+      }).contextMenu
     ).toBe(true)
   })
 })
@@ -54,7 +56,9 @@ describe("terminal shortcut matching", () => {
       defaultPrevented: false,
     } as KeyboardEvent
 
-    expect(isTerminalPasteShortcut(event, DEFAULT_TERMINAL_CLIPBOARD_SETTINGS)).toBe(true)
+    expect(
+      isTerminalPasteShortcut(event, DEFAULT_TERMINAL_CLIPBOARD_SETTINGS)
+    ).toBe(true)
   })
 
   it("matches ctrl+c copy chord", () => {
@@ -69,6 +73,8 @@ describe("terminal shortcut matching", () => {
       defaultPrevented: false,
     } as KeyboardEvent
 
-    expect(isTerminalCopyShortcut(event, DEFAULT_TERMINAL_CLIPBOARD_SETTINGS)).toBe(true)
+    expect(
+      isTerminalCopyShortcut(event, DEFAULT_TERMINAL_CLIPBOARD_SETTINGS)
+    ).toBe(true)
   })
 })

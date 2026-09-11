@@ -30,12 +30,16 @@ describe("keybinding-utils", () => {
   })
 
   it("matches Mod+K with ctrl", () => {
-    expect(matchesKeybinding(keyEvent({ key: "k", ctrlKey: true }), "Mod+K")).toBe(true)
+    expect(
+      matchesKeybinding(keyEvent({ key: "k", ctrlKey: true }), "Mod+K")
+    ).toBe(true)
   })
 
   it("matches single key d without modifiers", () => {
     expect(matchesKeybinding(keyEvent({ key: "d" }), "d")).toBe(true)
-    expect(matchesKeybinding(keyEvent({ key: "d", ctrlKey: true }), "d")).toBe(false)
+    expect(matchesKeybinding(keyEvent({ key: "d", ctrlKey: true }), "d")).toBe(
+      false
+    )
   })
 
   it("detects conflicts", () => {

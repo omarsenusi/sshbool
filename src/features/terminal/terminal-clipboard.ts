@@ -28,11 +28,18 @@ export type TerminalClipboardOptions = {
   container: HTMLElement
   getSettings: () => TerminalClipboardSettings
   getIsActive: () => boolean
-  onOpenContextMenu: (point: { x: number; y: number; hasSelection: boolean }) => void
+  onOpenContextMenu: (point: {
+    x: number
+    y: number
+    hasSelection: boolean
+  }) => void
   onPaste: (text: string) => void
 }
 
-function isPaneEligible(container: HTMLElement, getIsActive: () => boolean): boolean {
+function isPaneEligible(
+  container: HTMLElement,
+  getIsActive: () => boolean
+): boolean {
   if (!getIsActive()) return false
   if (!container.isConnected) return false
   if (container.closest('[aria-hidden="true"]')) return false
@@ -41,16 +48,28 @@ function isPaneEligible(container: HTMLElement, getIsActive: () => boolean): boo
   return rect.width > 0 && rect.height > 0
 }
 
-function isMouseEventInPane(container: HTMLElement, event: MouseEvent): boolean {
+function isMouseEventInPane(
+  container: HTMLElement,
+  event: MouseEvent
+): boolean {
   const target = event.target
   return target instanceof Node && container.contains(target)
 }
 
-export function attachTerminalClipboardHandlers(opts: TerminalClipboardOptions): {
+export function attachTerminalClipboardHandlers(
+  opts: TerminalClipboardOptions
+): {
   cleanup: () => void
   actions: TerminalClipboardActions
 } {
-  const { term, container, getSettings, getIsActive, onOpenContextMenu, onPaste } = opts
+  const {
+    term,
+    container,
+    getSettings,
+    getIsActive,
+    onOpenContextMenu,
+    onPaste,
+  } = opts
 
   const focus = () => {
     try {

@@ -36,7 +36,9 @@ async function readPersistedSession(): Promise<PersistedUpdateSession | null> {
   }
 }
 
-async function persistSession(session: PersistedUpdateSession | null): Promise<void> {
+async function persistSession(
+  session: PersistedUpdateSession | null
+): Promise<void> {
   if (!session) {
     await ipc.settingsSet(UPDATE_SESSION_KEY, null)
     return
@@ -62,13 +64,21 @@ export function useUpdateInstall(appInfo?: AppInfoDto | null) {
   }, [])
 
   const updateSession = useCallback(
-    async (next: Partial<PersistedUpdateSession> & { version: string; phase: UpdatePhase }) => {
+    async (
+      next: Partial<PersistedUpdateSession> & {
+        version: string
+        phase: UpdatePhase
+      }
+    ) => {
       const payload: PersistedUpdateSession = {
         version: next.version,
         phase: next.phase,
         downloadedBytes: next.downloadedBytes ?? 0,
         totalBytes: next.totalBytes ?? 0,
-        startedAt: next.startedAt ?? sessionStartedAtRef.current ?? new Date().toISOString(),
+        startedAt:
+          next.startedAt ??
+          sessionStartedAtRef.current ??
+          new Date().toISOString(),
         error: next.error,
       }
 
@@ -79,7 +89,7 @@ export function useUpdateInstall(appInfo?: AppInfoDto | null) {
 
       await persistSession(null)
     },
-    [],
+    []
   )
 
   const handleProgress = useCallback(
@@ -97,7 +107,7 @@ export function useUpdateInstall(appInfo?: AppInfoDto | null) {
         error: next.message,
       })
     },
-    [updateSession],
+    [updateSession]
   )
 
   const install = useCallback(
@@ -107,7 +117,12 @@ export function useUpdateInstall(appInfo?: AppInfoDto | null) {
       sessionStartedAtRef.current = new Date().toISOString()
       setInterruptedSession(null)
       setInstalling(true)
-      setProgress({ phase: "checking", downloadedBytes: 0, totalBytes: 0, percent: null })
+      setProgress({
+        phase: "checking",
+        downloadedBytes: 0,
+        totalBytes: 0,
+        percent: null,
+      })
 
       try {
         const result = await installUpdate({
@@ -146,7 +161,13 @@ export function useUpdateInstall(appInfo?: AppInfoDto | null) {
         sessionVersionRef.current = null
       }
     },
-    [appInfo, handleProgress, progress.downloadedBytes, progress.totalBytes, updateSession],
+    [
+      appInfo,
+      handleProgress,
+      progress.downloadedBytes,
+      progress.totalBytes,
+      updateSession,
+    ]
   )
 
   const dismissInterrupted = useCallback(async () => {
@@ -156,22 +177,23 @@ export function useUpdateInstall(appInfo?: AppInfoDto | null) {
 
   const canInstall = useCallback(
     (update: UpdateCheckResult | null) => canInstallUpdate(update),
-    [],
+    []
   )
 
   const buttonLabel = useCallback(
-    (update: UpdateCheckResult) => getInstallButtonLabel(update, progress, installing),
-    [installing, progress],
+    (update: UpdateCheckResult) =>
+      getInstallButtonLabel(update, progress, installing),
+    [installing, progress]
   )
 
   const platformSummary = useCallback(
     (update: UpdateCheckResult) => getPlatformInstallSummary(update, appInfo),
-    [appInfo],
+    [appInfo]
   )
 
   const isGithubFallback = useCallback(
     (update: UpdateCheckResult) => usesGithubFallback(update),
-    [],
+    []
   )
 
   return {
@@ -188,7 +210,10 @@ export function useUpdateInstall(appInfo?: AppInfoDto | null) {
   }
 }
 
-export function useUpdateTaskbarProgress(progress: UpdaterProgress, enabled = true) {
+export function useUpdateTaskbarProgress(
+  progress: UpdaterProgress,
+  enabled = true
+) {
   const lastKey = useRef("")
 
   useEffect(() => {
@@ -197,7 +222,9 @@ export function useUpdateTaskbarProgress(progress: UpdaterProgress, enabled = tr
     if (!enabled) {
       if (lastKey.current !== "none") {
         lastKey.current = "none"
-        void win.setProgressBar({ status: ProgressBarStatus.None }).catch(() => {})
+        void win
+          .setProgressBar({ status: ProgressBarStatus.None })
+          .catch(() => {})
       }
       return
     }
@@ -226,10 +253,13 @@ export function useUpdateTaskbarProgress(progress: UpdaterProgress, enabled = tr
         }
         await win.setProgressBar({
           status: ProgressBarStatus.Normal,
-          progress: progress.percent ?? calcUpdatePercent(
-            progress.downloadedBytes ?? 0,
-            progress.totalBytes ?? 0,
-          ) ?? 0,
+          progress:
+            progress.percent ??
+            calcUpdatePercent(
+              progress.downloadedBytes ?? 0,
+              progress.totalBytes ?? 0
+            ) ??
+            0,
         })
       } catch {
         /* platform / permission */

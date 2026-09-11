@@ -72,14 +72,16 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
   const workspacesQuery = useQuery<{ id: string; name: string }[]>({
     queryKey: ["settings", "workspaces"],
     queryFn: async () =>
-      ((await ipc.settingsGet("workspaces")) as { id: string; name: string }[]) ?? [
-        { id: "default", name: "Infrastructure Workspace" },
-      ],
+      ((await ipc.settingsGet("workspaces")) as {
+        id: string
+        name: string
+      }[]) ?? [{ id: "default", name: "Infrastructure Workspace" }],
   })
   const hostWorkspacesQuery = useQuery<Record<string, string>>({
     queryKey: ["settings", "hostWorkspaces"],
     queryFn: async () =>
-      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {},
+      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ??
+      {},
   })
   const [form, setForm] = useState<HostDto | null>(null)
   const [assignedWsId, setAssignedWsId] = useState<string>("default")
@@ -108,7 +110,8 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
       }
       await ipc.hostsUpdate(payload)
       const hostWs =
-        ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {}
+        ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ??
+        {}
       hostWs[hostId] = assignedWsId
       await ipc.settingsSet("hostWorkspaces", hostWs)
     },
@@ -139,20 +142,24 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
       </div>
     )
   }
-  const keyValue = form.sshKeyId && form.sshKeyId.length > 0 ? form.sshKeyId : AUTO_KEY
+  const keyValue =
+    form.sshKeyId && form.sshKeyId.length > 0 ? form.sshKeyId : AUTO_KEY
   return (
     <div className="flex h-full flex-1 flex-col overflow-y-auto bg-background/30 p-4 md:p-6">
       <div className="mx-auto w-full max-w-4xl space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/50 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+            <div className="flex size-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
               <Server className="size-4" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-foreground">Server Settings</h1>
+              <h1 className="text-sm font-semibold text-foreground">
+                Server Settings
+              </h1>
               <p className="text-[11px] text-muted-foreground">
-                Configure connection address, authentication credentials, and tile style
+                Configure connection address, authentication credentials, and
+                tile style
               </p>
             </div>
           </div>
@@ -160,7 +167,7 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
             size="sm"
             disabled={saveMutation.isPending}
             onClick={() => saveMutation.mutate()}
-            className="h-8 px-4 text-xs gap-1.5 shadow-sm"
+            className="h-8 gap-1.5 px-4 text-xs shadow-sm"
           >
             {savedSuccess ? (
               <>
@@ -177,110 +184,140 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
         </div>
         {/* Alerts */}
         {savedSuccess && (
-          <div className="rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
             <ShieldCheck className="size-4 shrink-0 text-emerald-500" />
             <span>Server settings updated successfully!</span>
           </div>
         )}
         {saveMutation.isError && (
-          <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             <X className="size-4 shrink-0" />
-            <span>{(saveMutation.error as Error)?.message ?? "Failed to save settings"}</span>
+            <span>
+              {(saveMutation.error as Error)?.message ??
+                "Failed to save settings"}
+            </span>
           </div>
         )}
         {/* 2-Column Responsive Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Left Column: General Info & Credentials */}
           <div className="space-y-4">
             {/* General Info Card */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-3.5 shadow-2xs">
+            <div className="space-y-3.5 rounded-xl border border-border/70 bg-card/60 p-4 shadow-2xs">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <Globe className="size-3.5 text-primary" />
                 <span>General Information</span>
               </div>
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="host-label" className="text-[11px] text-muted-foreground font-medium">
+                  <Label
+                    htmlFor="host-label"
+                    className="text-[11px] font-medium text-muted-foreground"
+                  >
                     Display Name
                   </Label>
                   <Input
                     id="host-label"
-                    className="h-8 text-xs mt-1"
+                    className="mt-1 h-8 text-xs"
                     placeholder="e.g. Production Web Server"
                     value={form.label}
-                    onChange={(e) => setForm({ ...form, label: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, label: e.target.value })
+                    }
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
-                    <Label htmlFor="host-address" className="text-[11px] text-muted-foreground font-medium">
+                    <Label
+                      htmlFor="host-address"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
                       Hostname / IP
                     </Label>
                     <Input
                       id="host-address"
-                      className="h-8 text-xs font-mono mt-1"
+                      className="mt-1 h-8 font-mono text-xs"
                       placeholder="192.168.1.1"
                       value={form.hostname}
-                      onChange={(e) => setForm({ ...form, hostname: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, hostname: e.target.value })
+                      }
                     />
                   </div>
                   <div>
-                    <Label htmlFor="host-port" className="text-[11px] text-muted-foreground font-medium">
+                    <Label
+                      htmlFor="host-port"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
                       Port
                     </Label>
                     <Input
                       id="host-port"
                       type="number"
-                      className="h-8 text-xs font-mono mt-1"
+                      className="mt-1 h-8 font-mono text-xs"
                       value={form.port}
-                      onChange={(e) => setForm({ ...form, port: Number(e.target.value) || 22 })}
+                      onChange={(e) =>
+                        setForm({ ...form, port: Number(e.target.value) || 22 })
+                      }
                     />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="host-user" className="text-[11px] text-muted-foreground font-medium">
+                  <Label
+                    htmlFor="host-user"
+                    className="text-[11px] font-medium text-muted-foreground"
+                  >
                     SSH Username
                   </Label>
                   <Input
                     id="host-user"
-                    className="h-8 text-xs font-mono mt-1"
+                    className="mt-1 h-8 font-mono text-xs"
                     placeholder="root"
                     value={form.username ?? ""}
-                    onChange={(e) => setForm({ ...form, username: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, username: e.target.value })
+                    }
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2">
                   <div>
-                    <Label className="text-[11px] font-medium">Production host</Label>
+                    <Label className="text-[11px] font-medium">
+                      Production host
+                    </Label>
                     <p className="text-[10px] text-muted-foreground">
-                      Blocks MCP session grants and requires extra confirmation for dangerous actions.
+                      Blocks MCP session grants and requires extra confirmation
+                      for dangerous actions.
                     </p>
                   </div>
                   <Switch
                     checked={Boolean(form.production)}
-                    onCheckedChange={(checked) => setForm({ ...form, production: checked })}
+                    onCheckedChange={(checked) =>
+                      setForm({ ...form, production: checked })
+                    }
                   />
                 </div>
                 <div>
-                  <Label className="text-[11px] text-muted-foreground font-medium">
+                  <Label className="text-[11px] font-medium text-muted-foreground">
                     Assigned Workspace
                   </Label>
                   <Select
                     value={assignedWsId}
                     onValueChange={(v) => v && setAssignedWsId(v)}
                   >
-                    <SelectTrigger className="h-8 text-xs mt-1">
+                    <SelectTrigger className="mt-1 h-8 text-xs">
                       <SelectValue placeholder="Select Workspace">
                         {(v) =>
-                          (workspacesQuery.data ?? []).find((w) => w.id === v)?.name ??
-                          "Infrastructure Workspace"
+                          (workspacesQuery.data ?? []).find((w) => w.id === v)
+                            ?.name ?? "Infrastructure Workspace"
                         }
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {(workspacesQuery.data ?? [
-                        { id: "default", name: "Infrastructure Workspace" },
-                      ]).map((w) => (
+                      {(
+                        workspacesQuery.data ?? [
+                          { id: "default", name: "Infrastructure Workspace" },
+                        ]
+                      ).map((w) => (
                         <SelectItem key={w.id} value={w.id} className="text-xs">
                           {w.name}
                         </SelectItem>
@@ -291,14 +328,14 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
               </div>
             </div>
             {/* Authentication Card */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-3.5 shadow-2xs">
+            <div className="space-y-3.5 rounded-xl border border-border/70 bg-card/60 p-4 shadow-2xs">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <KeyRound className="size-3.5 text-primary" />
                 <span>Authentication & Security</span>
               </div>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-[11px] text-muted-foreground font-medium">
+                  <Label className="text-[11px] font-medium text-muted-foreground">
                     Auth Method
                   </Label>
                   <Select
@@ -308,12 +345,13 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                       setForm({
                         ...form,
                         authMethod: v,
-                        sshKeyId: v === "key" ? (form.sshKeyId ?? AUTO_KEY) : null,
+                        sshKeyId:
+                          v === "key" ? (form.sshKeyId ?? AUTO_KEY) : null,
                         password: v === "password" ? (form.password ?? "") : "",
                       })
                     }}
                   >
-                    <SelectTrigger className="h-8 text-xs mt-1">
+                    <SelectTrigger className="mt-1 h-8 text-xs">
                       <SelectValue placeholder="Auth method">
                         {(v) =>
                           v === "password"
@@ -327,42 +365,57 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="password" className="text-xs">Password Authentication</SelectItem>
-                      <SelectItem value="key" className="text-xs">SSH Key Pair</SelectItem>
-                      <SelectItem value="agent" className="text-xs">SSH Agent</SelectItem>
+                      <SelectItem value="password" className="text-xs">
+                        Password Authentication
+                      </SelectItem>
+                      <SelectItem value="key" className="text-xs">
+                        SSH Key Pair
+                      </SelectItem>
+                      <SelectItem value="agent" className="text-xs">
+                        SSH Agent
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {form.authMethod === "password" && (
                   <div>
-                    <Label htmlFor="host-password" className="text-[11px] text-muted-foreground font-medium">
+                    <Label
+                      htmlFor="host-password"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
                       Server Password
                     </Label>
                     <div className="relative mt-1">
                       <Input
                         id="host-password"
                         type={showPassword ? "text" : "password"}
-                        className="h-8 text-xs pr-8 font-mono"
+                        className="h-8 pr-8 font-mono text-xs"
                         placeholder="Enter password"
                         value={form.password ?? ""}
-                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        onChange={(e) =>
+                          setForm({ ...form, password: e.target.value })
+                        }
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-xs"
-                        className="absolute right-1 top-1 size-6 text-muted-foreground hover:text-foreground"
+                        className="absolute top-1 right-1 size-6 text-muted-foreground hover:text-foreground"
                         onClick={() => setShowPassword(!showPassword)}
                         title={showPassword ? "Hide" : "Show"}
                       >
-                        {showPassword ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                        {showPassword ? (
+                          <EyeOff className="size-3" />
+                        ) : (
+                          <Eye className="size-3" />
+                        )}
                       </Button>
                     </div>
                   </div>
                 )}
                 {form.authMethod === "key" && (
                   <div>
-                    <Label className="text-[11px] text-muted-foreground font-medium">
+                    <Label className="text-[11px] font-medium text-muted-foreground">
                       SSH Key Selection
                     </Label>
                     <Select
@@ -372,19 +425,28 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                         setForm({ ...form, sshKeyId: v })
                       }}
                     >
-                      <SelectTrigger className="h-8 text-xs mt-1">
+                      <SelectTrigger className="mt-1 h-8 text-xs">
                         <SelectValue placeholder="Choose key">
                           {(v) => {
-                            if (v === AUTO_KEY || !v) return "Auto Key (latest in vault)"
-                            const k = (keysQuery.data ?? []).find((x) => x.id === v)
+                            if (v === AUTO_KEY || !v)
+                              return "Auto Key (latest in vault)"
+                            const k = (keysQuery.data ?? []).find(
+                              (x) => x.id === v
+                            )
                             return k ? `${k.name} · ${k.keyType}` : "Choose key"
                           }}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={AUTO_KEY} className="text-xs">Auto Key (latest in vault)</SelectItem>
+                        <SelectItem value={AUTO_KEY} className="text-xs">
+                          Auto Key (latest in vault)
+                        </SelectItem>
                         {(keysQuery.data ?? []).map((k) => (
-                          <SelectItem key={k.id} value={k.id} className="text-xs">
+                          <SelectItem
+                            key={k.id}
+                            value={k.id}
+                            className="text-xs"
+                          >
                             {k.name} · {k.keyType}
                           </SelectItem>
                         ))}
@@ -398,7 +460,7 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
           {/* Right Column: Style & Quick Overview */}
           <div className="space-y-4">
             {/* Tile Style & Icon Card */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4 shadow-2xs">
+            <div className="space-y-4 rounded-xl border border-border/70 bg-card/60 p-4 shadow-2xs">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <Palette className="size-3.5 text-primary" />
                 <span>Tile Appearance</span>
@@ -406,28 +468,37 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-[11px] text-muted-foreground font-medium">
+                    <Label className="text-[11px] font-medium text-muted-foreground">
                       Server Icon Image
                     </Label>
-                    <p className="text-[10px] text-muted-foreground">Upload a custom image logo</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Upload a custom image logo
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       className={cn(
-                        "border-input bg-background relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border shadow-2xs transition-transform hover:scale-105",
-                        !form.icon && "text-muted-foreground hover:bg-muted/40",
+                        "relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-input bg-background shadow-2xs transition-transform hover:scale-105",
+                        !form.icon && "text-muted-foreground hover:bg-muted/40"
                       )}
                       style={
                         form.icon
                           ? undefined
-                          : { backgroundColor: form.color ?? HOST_COLOR_PRESETS[0] }
+                          : {
+                              backgroundColor:
+                                form.color ?? HOST_COLOR_PRESETS[0],
+                            }
                       }
                       onClick={() => iconInputRef.current?.click()}
                       title="Upload icon"
                     >
                       {form.icon ? (
-                        <img src={form.icon} alt="" className="size-full object-cover" />
+                        <img
+                          src={form.icon}
+                          alt=""
+                          className="size-full object-cover"
+                        />
                       ) : (
                         <ImagePlus className="size-4 text-white/90" />
                       )}
@@ -436,7 +507,7 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                       type="button"
                       variant="outline"
                       size="xs"
-                      className="h-7 text-[11px] px-2.5"
+                      className="h-7 px-2.5 text-[11px]"
                       onClick={() => iconInputRef.current?.click()}
                     >
                       Upload
@@ -446,7 +517,7 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                         type="button"
                         variant="ghost"
                         size="xs"
-                        className="h-7 text-[11px] px-1.5 text-muted-foreground hover:text-destructive"
+                        className="h-7 px-1.5 text-[11px] text-muted-foreground hover:text-destructive"
                         onClick={() => setForm({ ...form, icon: null })}
                       >
                         <X className="size-3.5" />
@@ -465,7 +536,7 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-[11px] text-muted-foreground font-medium block mb-2">
+                  <Label className="mb-2 block text-[11px] font-medium text-muted-foreground">
                     Accent Color Presets
                   </Label>
                   <div className="flex flex-wrap gap-2.5">
@@ -478,12 +549,15 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
                           aria-label={`Color ${c}`}
                           className={cn(
                             "relative flex size-7 items-center justify-center rounded-md shadow-2xs transition-transform hover:scale-110",
-                            isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background scale-105",
+                            isSelected &&
+                              "scale-105 ring-2 ring-primary ring-offset-2 ring-offset-background"
                           )}
                           style={{ backgroundColor: c }}
                           onClick={() => setForm({ ...form, color: c })}
                         >
-                          {isSelected && <Check className="size-3.5 text-white drop-shadow" />}
+                          {isSelected && (
+                            <Check className="size-3.5 text-white drop-shadow" />
+                          )}
                         </button>
                       )
                     })}
@@ -492,17 +566,19 @@ export function HostSettingsPanel({ hostId }: { hostId: string }) {
               </div>
             </div>
             {/* Quick Connection Target Card */}
-            <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-3 shadow-2xs">
+            <div className="space-y-3 rounded-xl border border-border/70 bg-card/60 p-4 shadow-2xs">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <Info className="size-3.5 text-primary" />
                 <span>Connection Target Summary</span>
               </div>
-              <div className="rounded-lg bg-muted/40 p-3 space-y-1.5 font-mono text-xs border border-border/40">
-                <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+              <div className="space-y-1.5 rounded-lg border border-border/40 bg-muted/40 p-3 font-mono text-xs">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>Target SSH Spec</span>
-                  <span className="text-emerald-500 font-sans font-medium">Ready</span>
+                  <span className="font-sans font-medium text-emerald-500">
+                    Ready
+                  </span>
                 </div>
-                <div className="text-foreground font-bold truncate">
+                <div className="truncate font-bold text-foreground">
                   ssh {form.username ?? "root"}@{form.hostname}:{form.port}
                 </div>
               </div>

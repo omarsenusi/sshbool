@@ -1,17 +1,17 @@
-import { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ServerTab } from './server-tab';
-import { ClientsTab } from './clients-tab';
-import { ActivityTab } from './activity-tab';
-import { PolicyTab } from './policy-tab';
-import { PairingDialog } from './pairing-dialog';
-import { useMcpState } from '../hooks/use-mcp-state';
-import { Server, Laptop, Activity, Plug, Shield } from 'lucide-react';
+import { useState } from "react"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { ServerTab } from "./server-tab"
+import { ClientsTab } from "./clients-tab"
+import { ActivityTab } from "./activity-tab"
+import { PolicyTab } from "./policy-tab"
+import { PairingDialog } from "./pairing-dialog"
+import { useMcpState } from "../hooks/use-mcp-state"
+import { Server, Laptop, Activity, Plug, Shield } from "lucide-react"
 
 export function McpPanel() {
-  const [activeTab, setActiveTab] = useState('server');
-  const [pairingOpen, setPairingOpen] = useState(false);
-  const [pairClientName, setPairClientName] = useState('Cursor');
+  const [activeTab, setActiveTab] = useState("server")
+  const [pairingOpen, setPairingOpen] = useState(false)
+  const [pairClientName, setPairClientName] = useState("Cursor")
 
   const {
     serverState,
@@ -33,29 +33,29 @@ export function McpPanel() {
     deleteClient,
     grantHost,
     revokeHost,
-  } = useMcpState();
+  } = useMcpState()
 
   const handlePairClick = () => {
-    clearPairing();
-    setPairClientName('Cursor');
-    setPairingOpen(true);
-  };
+    clearPairing()
+    setPairClientName("Cursor")
+    setPairingOpen(true)
+  }
 
   const handleCreateToken = async () => {
     try {
-      await pairClient(pairClientName);
+      await pairClient(pairClientName)
     } catch {
       // error surfaced via hook state
     }
-  };
+  }
 
   const handleCreateCode = async () => {
     try {
-      await createPairingCode();
+      await createPairingCode()
     } catch {
       // error surfaced via hook state
     }
-  };
+  }
 
   return (
     <div className="flex h-full flex-col gap-3 p-4 text-sm">
@@ -75,7 +75,11 @@ export function McpPanel() {
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <TabsList className="w-fit">
           <TabsTrigger value="server" className="gap-1.5 text-xs">
             <Server className="h-3.5 w-3.5" />
@@ -128,8 +132,8 @@ export function McpPanel() {
       <PairingDialog
         open={pairingOpen}
         onOpenChange={(open) => {
-          setPairingOpen(open);
-          if (!open) clearPairing();
+          setPairingOpen(open)
+          if (!open) clearPairing()
         }}
         port={serverState.port}
         pairing={activePairing}
@@ -142,5 +146,5 @@ export function McpPanel() {
         onCreateCode={() => void handleCreateCode()}
       />
     </div>
-  );
+  )
 }

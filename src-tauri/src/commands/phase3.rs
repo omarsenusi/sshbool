@@ -15,7 +15,6 @@ fn db(e: sqlx::Error) -> AppError {
     }
 }
 
-
 // ── Database clients (remote CLI over SSH) ───────────────────────────
 
 fn shell_escape_single_quoted(s: &str) -> String {
@@ -180,11 +179,7 @@ fn build_db_cmd(conn: &DbConn, sql: &str, structured: bool) -> Result<String, Ap
             ))
         }
         "redis" => {
-            let cmd_name = sql
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .to_uppercase();
+            let cmd_name = sql.split_whitespace().next().unwrap_or("").to_uppercase();
             let blocked = [
                 "CONFIG",
                 "SLAVEOF",

@@ -33,12 +33,17 @@ export const useSessionStore = create<SessionState>((set) => ({
       const panes = s.panes.filter((p) => p.paneId !== paneId)
       return {
         panes,
-        activePaneId: s.activePaneId === paneId ? (panes[0]?.paneId ?? null) : s.activePaneId,
+        activePaneId:
+          s.activePaneId === paneId
+            ? (panes[0]?.paneId ?? null)
+            : s.activePaneId,
       }
     }),
   setActive: (paneId) => set({ activePaneId: paneId }),
   setPoppedOut: (paneId, poppedOut) =>
     set((s) => ({
-      panes: s.panes.map((p) => (p.paneId === paneId ? { ...p, poppedOut } : p)),
+      panes: s.panes.map((p) =>
+        p.paneId === paneId ? { ...p, poppedOut } : p
+      ),
     })),
 }))

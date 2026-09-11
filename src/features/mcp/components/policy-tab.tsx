@@ -1,93 +1,102 @@
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { Shield, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useEffect, useState } from "react"
+import { invoke } from "@tauri-apps/api/core"
+import { Shield, RefreshCw } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import type { McpClient } from '../types';
+} from "@/components/ui/select"
+import type { McpClient } from "../types"
 
 type BudgetDto = {
-  clientId: string;
-  callsPerMin: number;
-  execsPerMin: number;
-  maxPendingApprovals: number;
-};
+  clientId: string
+  callsPerMin: number
+  execsPerMin: number
+  maxPendingApprovals: number
+}
 
 interface PolicyTabProps {
-  clients: McpClient[];
+  clients: McpClient[]
 }
 
 export function PolicyTab({ clients }: PolicyTabProps) {
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [budget, setBudget] = useState<BudgetDto | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string>("")
+  const [budget, setBudget] = useState<BudgetDto | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selectedClientId && clients.length > 0) {
-      setSelectedClientId(clients[0].id);
+      setSelectedClientId(clients[0].id)
     }
-  }, [clients, selectedClientId]);
+  }, [clients, selectedClientId])
 
   const loadBudget = async (clientId: string) => {
-    if (!clientId) return;
-    setLoading(true);
-    setError(null);
+    if (!clientId) return
+    setLoading(true)
+    setError(null)
     try {
-      const res = await invoke<BudgetDto>('mcp_budgets_get', { clientId });
-      setBudget(res);
+      const res = await invoke<BudgetDto>("mcp_budgets_get", { clientId })
+      setBudget(res)
     } catch (e: unknown) {
-      const err = e as Error;
-      setError(typeof e === 'string' ? e : err?.message || 'Failed to load budget');
-      setBudget(null);
+      const err = e as Error
+      setError(
+        typeof e === "string" ? e : err?.message || "Failed to load budget"
+      )
+      setBudget(null)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    if (selectedClientId) void loadBudget(selectedClientId);
-  }, [selectedClientId]);
+    if (selectedClientId) void loadBudget(selectedClientId)
+  }, [selectedClientId])
 
   const saveBudget = async () => {
-    if (!budget) return;
-    setLoading(true);
-    setError(null);
+    if (!budget) return
+    setLoading(true)
+    setError(null)
     try {
-      await invoke('mcp_budgets_set', {
+      await invoke("mcp_budgets_set", {
         clientId: budget.clientId,
         callsPerMin: budget.callsPerMin,
         execsPerMin: budget.execsPerMin,
         maxPendingApprovals: budget.maxPendingApprovals,
-      });
-      await loadBudget(budget.clientId);
+      })
+      await loadBudget(budget.clientId)
     } catch (e: unknown) {
-      const err = e as Error;
-      setError(typeof e === 'string' ? e : err?.message || 'Failed to save budget');
+      const err = e as Error
+      setError(
+        typeof e === "string" ? e : err?.message || "Failed to save budget"
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const activateKillSwitch = async () => {
-    if (!window.confirm('Activate MCP kill switch? All paired clients will be revoked.')) return;
-    setLoading(true);
+    if (
+      !window.confirm(
+        "Activate MCP kill switch? All paired clients will be revoked."
+      )
+    )
+      return
+    setLoading(true)
     try {
-      await invoke('mcp_kill_switch');
+      await invoke("mcp_kill_switch")
     } catch (e: unknown) {
-      const err = e as Error;
-      setError(typeof e === 'string' ? e : err?.message || 'Kill switch failed');
+      const err = e as Error
+      setError(typeof e === "string" ? e : err?.message || "Kill switch failed")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="space-y-4">
@@ -107,7 +116,7 @@ export function PolicyTab({ clients }: PolicyTabProps) {
         </div>
       )}
 
-      <div className="rounded-xl border border-border/70 bg-card p-4 space-y-4">
+      <div className="space-y-4 rounded-xl border border-border/70 bg-card p-4">
         <div className="space-y-2">
           <Label className="text-xs">Client</Label>
           <Select
@@ -136,7 +145,10 @@ export function PolicyTab({ clients }: PolicyTabProps) {
                 className="h-8 text-xs"
                 value={budget.callsPerMin}
                 onChange={(e) =>
-                  setBudget({ ...budget, callsPerMin: Number(e.target.value) || 0 })
+                  setBudget({
+                    ...budget,
+                    callsPerMin: Number(e.target.value) || 0,
+                  })
                 }
               />
             </div>
@@ -147,7 +159,10 @@ export function PolicyTab({ clients }: PolicyTabProps) {
                 className="h-8 text-xs"
                 value={budget.execsPerMin}
                 onChange={(e) =>
-                  setBudget({ ...budget, execsPerMin: Number(e.target.value) || 0 })
+                  setBudget({
+                    ...budget,
+                    execsPerMin: Number(e.target.value) || 0,
+                  })
                 }
               />
             </div>
@@ -169,7 +184,12 @@ export function PolicyTab({ clients }: PolicyTabProps) {
         )}
 
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" disabled={loading || !budget} onClick={() => saveBudget()}>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={loading || !budget}
+            onClick={() => saveBudget()}
+          >
             Save budget
           </Button>
           <Button
@@ -181,11 +201,16 @@ export function PolicyTab({ clients }: PolicyTabProps) {
             <RefreshCw className="mr-1 h-3.5 w-3.5" />
             Refresh
           </Button>
-          <Button size="sm" variant="destructive" disabled={loading} onClick={() => activateKillSwitch()}>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={loading}
+            onClick={() => activateKillSwitch()}
+          >
             Kill switch
           </Button>
         </div>
       </div>
     </div>
-  );
+  )
 }

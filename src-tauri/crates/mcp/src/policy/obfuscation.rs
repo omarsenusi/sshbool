@@ -31,29 +31,24 @@ fn get_regexes() -> (
     let decode = DECODE_PIPE_RE.get_or_init(|| {
         Regex::new(r"(?i)(base64\s+(-d|--decode)|xxd\s+-r|printf|echo\s+-e)\b.*\|\s*(sh|bash|zsh|dash|python\d*|perl|ruby|node|php)").unwrap()
     });
-    let eval = EVAL_SUBST_RE.get_or_init(|| {
-        Regex::new(r"(?i)\b(eval|exec)\s+(\x22?\$\(|\`|\x27?\$\(|\$\w+)").unwrap()
-    });
-    let var_cmd = VAR_CMD_RE.get_or_init(|| {
-        Regex::new(r"(\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*){2,}\b").unwrap()
-    });
-    let ifs = IFS_RE.get_or_init(|| {
-        Regex::new(r"\bIFS\s*=").unwrap()
-    });
-    let dl_pipe = DL_PIPE_RE.get_or_init(|| {
-        Regex::new(r"(?i)(curl|wget)\b.*(\|\s*(sh|bash|zsh|dash)|<\()").unwrap()
-    });
+    let eval = EVAL_SUBST_RE
+        .get_or_init(|| Regex::new(r"(?i)\b(eval|exec)\s+(\x22?\$\(|\`|\x27?\$\(|\$\w+)").unwrap());
+    let var_cmd = VAR_CMD_RE
+        .get_or_init(|| Regex::new(r"(\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*){2,}\b").unwrap());
+    let ifs = IFS_RE.get_or_init(|| Regex::new(r"\bIFS\s*=").unwrap());
+    let dl_pipe = DL_PIPE_RE
+        .get_or_init(|| Regex::new(r"(?i)(curl|wget)\b.*(\|\s*(sh|bash|zsh|dash)|<\()").unwrap());
     let interp = INTERPRETER_INLINE_RE.get_or_init(|| {
         Regex::new(r"(?i)\b(python\d*|perl|node|ruby|php)\s+-[ce]\s+.*(rmtree|remove|unlink|system|exec|unlink|delete|chmod)").unwrap()
     });
-    let stage = STAGE_EXEC_RE.get_or_init(|| {
-        Regex::new(r"(?i)cat\s+<<.*>\s*\S+.*&&.*chmod.*&&").unwrap()
-    });
-    let confusable = CONFUSABLE_RE.get_or_init(|| {
-        Regex::new(r"[\u{FF01}-\u{FF5E}\u{200B}-\u{200D}\u{FEFF}]").unwrap()
-    });
+    let stage =
+        STAGE_EXEC_RE.get_or_init(|| Regex::new(r"(?i)cat\s+<<.*>\s*\S+.*&&.*chmod.*&&").unwrap());
+    let confusable = CONFUSABLE_RE
+        .get_or_init(|| Regex::new(r"[\u{FF01}-\u{FF5E}\u{200B}-\u{200D}\u{FEFF}]").unwrap());
 
-    (decode, eval, var_cmd, ifs, dl_pipe, interp, stage, confusable)
+    (
+        decode, eval, var_cmd, ifs, dl_pipe, interp, stage, confusable,
+    )
 }
 
 /// Detects obfuscation or evasion patterns in a raw command string.
@@ -61,7 +56,10 @@ pub fn detect_obfuscation(cmd: &str) -> Vec<ObfuscationSignal> {
     let mut signals = Vec::new();
 
     // Check control characters
-    if cmd.chars().any(|c| (c as u32) < 32 && c != '\t' && c != '\n' && c != '\r') {
+    if cmd
+        .chars()
+        .any(|c| (c as u32) < 32 && c != '\t' && c != '\n' && c != '\r')
+    {
         signals.push(ObfuscationSignal {
             signal: "control_characters",
             reason: "Command contains non-printable control characters",

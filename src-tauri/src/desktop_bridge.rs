@@ -31,7 +31,15 @@ impl DesktopBridgeManager {
             bridges: Mutex::new(HashMap::new()),
         }
     }
+}
 
+impl Default for DesktopBridgeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DesktopBridgeManager {
     /// Start Guacamole WebSocket bridge for in-app RDP (guacd backend).
     pub async fn start_guacamole(&self, session_id: String) -> Result<u16, String> {
         self.stop(&session_id).await;
@@ -82,10 +90,7 @@ impl DesktopBridgeManager {
             .await
             .map_err(|e| format!("Failed to bind local WebSocket bridge: {e}"))?;
 
-        let ws_port = listener
-            .local_addr()
-            .map_err(|e| e.to_string())?
-            .port();
+        let ws_port = listener.local_addr().map_err(|e| e.to_string())?.port();
 
         let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
         {
@@ -94,7 +99,9 @@ impl DesktopBridgeManager {
         }
 
         tokio::spawn(async move {
-            info!("DesktopBridge (VNC): active on 127.0.0.1:{ws_port} -> 127.0.0.1:{target_tcp_port}");
+            info!(
+                "DesktopBridge (VNC): active on 127.0.0.1:{ws_port} -> 127.0.0.1:{target_tcp_port}"
+            );
             loop {
                 tokio::select! {
                     _ = &mut shutdown_rx => {
@@ -142,21 +149,24 @@ fn extract_token_from_request(req: &Request) -> Option<String> {
     None
 }
 
+#[allow(clippy::result_large_err)]
 async fn handle_guacamole_connection(stream: TcpStream) {
-    let token_cell: Arc<std::sync::Mutex<Option<String>>> =
-        Arc::new(std::sync::Mutex::new(None));
+    let token_cell: Arc<std::sync::Mutex<Option<String>>> = Arc::new(std::sync::Mutex::new(None));
     let token_capture = token_cell.clone();
 
-    let ws = match tokio_tungstenite::accept_hdr_async(stream, move |req: &Request, response: Response| {
-        if let Some(token) = extract_token_from_request(req) {
-            if let Ok(mut guard) = token_capture.lock() {
-                *guard = Some(token);
+    let ws = match tokio_tungstenite::accept_hdr_async(
+        stream,
+        move |req: &Request, response: Response| {
+            if let Some(token) = extract_token_from_request(req) {
+                if let Ok(mut guard) = token_capture.lock() {
+                    *guard = Some(token);
+                }
+            } else {
+                warn!("Guacamole bridge: missing token in WebSocket URL");
             }
-        } else {
-            warn!("Guacamole bridge: missing token in WebSocket URL");
-        }
-        Ok(response)
-    })
+            Ok(response)
+        },
+    )
     .await
     {
         Ok(ws) => ws,
@@ -313,10 +323,7 @@ fn decrypt_and_merge_settings(token: &str) -> Result<HashMap<String, String>, St
     Ok(settings)
 }
 
-fn build_handshake_reply(
-    settings: &HashMap<String, String>,
-    arg_names: &[String],
-) -> Vec<String> {
+fn build_handshake_reply(settings: &HashMap<String, String>, arg_names: &[String]) -> Vec<String> {
     let mut protocol_version = "1_0_0".to_string();
     let mut connect_args: Vec<String> = Vec::new();
 
@@ -333,8 +340,14 @@ fn build_handshake_reply(
         }
     }
 
-    let width = settings.get("width").cloned().unwrap_or_else(|| "1024".into());
-    let height = settings.get("height").cloned().unwrap_or_else(|| "768".into());
+    let width = settings
+        .get("width")
+        .cloned()
+        .unwrap_or_else(|| "1024".into());
+    let height = settings
+        .get("height")
+        .cloned()
+        .unwrap_or_else(|| "768".into());
     let dpi = settings.get("dpi").cloned().unwrap_or_else(|| "96".into());
 
     let mut out = vec![
@@ -345,10 +358,7 @@ fn build_handshake_reply(
     ];
 
     if protocol_version == "1_1_0" {
-        let tz = settings
-            .get("timezone")
-            .map(String::as_str)
-            .unwrap_or("");
+        let tz = settings.get("timezone").map(String::as_str).unwrap_or("");
         out.push(to_instruction(&["timezone", tz]));
     }
 

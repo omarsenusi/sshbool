@@ -12,7 +12,7 @@ describe("clampHostRailWidth", () => {
 
   it("falls back to the default for non-finite input", () => {
     expect(clampHostRailWidth("label", Number.NaN)).toBe(
-      HOST_RAIL_SIZING.label.default,
+      HOST_RAIL_SIZING.label.default
     )
   })
 })
@@ -46,7 +46,7 @@ describe("parseHostRailPrefs", () => {
     expect(parseHostRailPrefs("nonsense").mode).toBe("icon")
     expect(parseHostRailPrefs({ mode: "bogus" }).mode).toBe("icon")
     expect(
-      parseHostRailPrefs({ mode: "label", width: "oops" }).width.label,
+      parseHostRailPrefs({ mode: "label", width: "oops" }).width.label
     ).toBe(HOST_RAIL_SIZING.label.default)
   })
 })

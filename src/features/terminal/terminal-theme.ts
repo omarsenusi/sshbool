@@ -2,9 +2,6 @@
 export const TERMINAL_FONT_FAMILY =
   "'DejaVu Sans Mono', 'Liberation Mono', 'Noto Mono', monospace"
 
-
-
-
 /** Standard 16-color palette (xterm / VS Code dark terminal). */
 export const TERMINAL_THEME = {
   background: "#14161c",

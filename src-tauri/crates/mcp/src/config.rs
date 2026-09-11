@@ -1,7 +1,7 @@
 //! Server configuration and LoopbackAddr binding type.
 
-use std::net::SocketAddr;
 use crate::error::McpError;
+use std::net::SocketAddr;
 
 /// Rejects any address that is not loopback. Construction is the enforcement point,
 /// so a misconfigured port cannot expose the server on a LAN interface.

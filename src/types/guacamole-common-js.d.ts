@@ -1,10 +1,10 @@
 declare module "guacamole-common-js" {
-  interface GuacamoleStatus {
+  export interface GuacamoleStatus {
     code?: number
     message?: string
   }
 
-  interface MouseState {
+  export interface MouseState {
     x: number
     y: number
     left: boolean
@@ -14,17 +14,17 @@ declare module "guacamole-common-js" {
     down: boolean
   }
 
-  class WebSocketTunnel {
+  export class WebSocketTunnel {
     constructor(url: string)
   }
 
-  class Display {
+  export class Display {
     getElement(): HTMLElement
     getDefaultLayer(): { width: number; height: number } | null
     onresize: ((width: number, height: number) => void) | null
   }
 
-  class Client {
+  export class Client {
     constructor(tunnel: WebSocketTunnel)
     onstatechange: ((state: number) => void) | null
     onerror: ((status: GuacamoleStatus) => void) | null
@@ -43,14 +43,14 @@ declare module "guacamole-common-js" {
     }
   }
 
-  class Mouse {
+  export class Mouse {
     constructor(element: HTMLElement)
     onmousedown: ((state: MouseState) => void) | null
     onmouseup: ((state: MouseState) => void) | null
     onmousemove: ((state: MouseState) => void) | null
   }
 
-  class Keyboard {
+  export class Keyboard {
     constructor(element: Document | HTMLElement)
     onkeydown: ((keysym: number) => void) | null
     onkeyup: ((keysym: number) => void) | null

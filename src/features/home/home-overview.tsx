@@ -24,10 +24,7 @@ import {
 import { ipc } from "@/lib/ipc/commands"
 import { cn } from "@/lib/utils"
 import { useConnectionStore } from "@/stores/connection.store"
-import {
-  type ActivityId,
-  useLayoutStore,
-} from "@/stores/layout.store"
+import { type ActivityId, useLayoutStore } from "@/stores/layout.store"
 import { useSessionStore } from "@/stores/session.store"
 import { useVaultStore } from "@/stores/vault.store"
 
@@ -82,18 +79,24 @@ export function HomeOverview() {
     queryFn: () => ipc.appInfo(),
   })
 
-  const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+  const urlWsId =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("wsId")
+      : null
   const activeWorkspaceIdQuery = useQuery<string>({
     queryKey: ["settings", "activeWorkspaceId", urlWsId],
     queryFn: async () => {
       if (urlWsId) return urlWsId
-      return ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      return (
+        ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      )
     },
   })
   const hostWorkspacesQuery = useQuery<Record<string, string>>({
     queryKey: ["settings", "hostWorkspaces"],
     queryFn: async () =>
-      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {},
+      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ??
+      {},
   })
   const activeWsId = activeWorkspaceIdQuery.data ?? urlWsId ?? "default"
   const hostWorkspaces = hostWorkspacesQuery.data ?? {}
@@ -102,18 +105,22 @@ export function HomeOverview() {
     const wsId = hostWorkspaces[h.id] ?? "default"
     return activeWsId === "default" ? wsId === "default" : wsId === activeWsId
   })
-  const connectedHosts = hosts.filter((h) => byHost[h.id]?.status === "connected")
-  const openPanes = panes.filter((p) => hosts.some((h) => h.id === p.hostId)).length
-  
+  const connectedHosts = hosts.filter(
+    (h) => byHost[h.id]?.status === "connected"
+  )
+  const openPanes = panes.filter((p) =>
+    hosts.some((h) => h.id === p.hostId)
+  ).length
+
   const recentHosts = (recent.data ?? []).filter((r) =>
-    hosts.some((h) => h.id === r.id),
+    hosts.some((h) => h.id === r.id)
   )
   const lastHost =
     (lastViewed?.hostId
       ? hosts.find((h) => h.id === lastViewed.hostId)
       : null) ??
     (recentHosts[0]
-      ? hosts.find((h) => h.id === recentHosts[0]!.id) ?? null
+      ? (hosts.find((h) => h.id === recentHosts[0]!.id) ?? null)
       : null) ??
     hosts[0] ??
     null
@@ -137,7 +144,7 @@ export function HomeOverview() {
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Overview</h1>
-            <p className="text-muted-foreground mt-0.5 text-sm">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {connectedHosts.length > 0
                 ? `${connectedHosts.length} connected · ${openPanes} terminal${openPanes === 1 ? "" : "s"} open`
                 : "Pick a host from the rail, or manage them below."}
@@ -155,7 +162,11 @@ export function HomeOverview() {
               <Plus className="size-3.5" />
               Add host
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setActivity("settings")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setActivity("settings")}
+            >
               <Settings className="size-3.5" />
               Settings
             </Button>
@@ -164,7 +175,11 @@ export function HomeOverview() {
 
         {/* Stats strip — edge to edge */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-6">
-          <StatChip icon={<Server className="size-3.5" />} label="Hosts" value={hosts.length} />
+          <StatChip
+            icon={<Server className="size-3.5" />}
+            label="Hosts"
+            value={hosts.length}
+          />
           <StatChip
             icon={<Cable className="size-3.5" />}
             label="Connected"
@@ -196,19 +211,23 @@ export function HomeOverview() {
 
         {/* Main row: last server + side panels */}
         <div className="grid gap-4 xl:grid-cols-12">
-          <section className="border-border bg-card/30 xl:col-span-7 rounded-xl border p-4">
+          <section className="rounded-xl border border-border bg-card/30 p-4 xl:col-span-7">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Last server
               </h2>
               {lastHost && (
-                <Button size="sm" variant="ghost" onClick={() => openHost(lastHost.id)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => openHost(lastHost.id)}
+                >
                   Open tools
                 </Button>
               )}
             </div>
             {!lastHost ? (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 No hosts yet — add one to get started.
               </p>
             ) : (
@@ -220,23 +239,33 @@ export function HomeOverview() {
                   {hostLetter(lastHost.label)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-semibold">{lastHost.label}</div>
-                  <div className="text-muted-foreground truncate font-mono text-xs">
+                  <div className="truncate text-base font-semibold">
+                    {lastHost.label}
+                  </div>
+                  <div className="truncate font-mono text-xs text-muted-foreground">
                     {lastHost.username ? `${lastHost.username}@` : ""}
                     {lastHost.hostname}:{lastHost.port}
                   </div>
-                  <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <StatusPill status={lastConn?.status ?? "idle"} />
-                    <span>Last seen {formatRelative(lastHost.lastConnectedAt)}</span>
+                    <span>
+                      Last seen {formatRelative(lastHost.lastConnectedAt)}
+                    </span>
                     {lastViewed?.hostId === lastHost.id && (
                       <span>
-                        Tool: <span className="text-foreground">{lastViewed.activity}</span>
+                        Tool:{" "}
+                        <span className="text-foreground">
+                          {lastViewed.activity}
+                        </span>
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:max-w-[220px] sm:justify-end">
-                  <Button size="sm" onClick={() => openHost(lastHost.id, "terminal")}>
+                  <Button
+                    size="sm"
+                    onClick={() => openHost(lastHost.id, "terminal")}
+                  >
                     <TerminalSquare className="size-3.5" />
                     Terminal
                   </Button>
@@ -263,12 +292,12 @@ export function HomeOverview() {
 
           <div className="flex flex-col gap-4 xl:col-span-5">
             {/* Connected now */}
-            <section className="border-border bg-card/30 flex-1 rounded-xl border p-4">
-              <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+            <section className="flex-1 rounded-xl border border-border bg-card/30 p-4">
+              <h2 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Connected now
               </h2>
               {connectedHosts.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   Nothing connected. Select a host and press Connect.
                 </p>
               ) : (
@@ -277,7 +306,7 @@ export function HomeOverview() {
                     <li key={h.id}>
                       <button
                         type="button"
-                        className="hover:bg-muted/50 flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm"
+                        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-muted/50"
                         onClick={() => openHost(h.id)}
                       >
                         <span
@@ -286,7 +315,9 @@ export function HomeOverview() {
                         >
                           {hostLetter(h.label)}
                         </span>
-                        <span className="min-w-0 flex-1 truncate font-medium">{h.label}</span>
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                          {h.label}
+                        </span>
                         <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
                       </button>
                     </li>
@@ -296,8 +327,8 @@ export function HomeOverview() {
             </section>
 
             {/* Quick jumps */}
-            <section className="border-border bg-card/30 rounded-xl border p-4">
-              <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+            <section className="rounded-xl border border-border bg-card/30 p-4">
+              <h2 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Quick open
               </h2>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -342,8 +373,8 @@ export function HomeOverview() {
 
         {/* Open terminals */}
         {panes.length > 0 && (
-          <section className="border-border bg-card/30 rounded-xl border p-4">
-            <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+          <section className="rounded-xl border border-border bg-card/30 p-4">
+            <h2 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Open terminals
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -353,19 +384,21 @@ export function HomeOverview() {
                   <button
                     key={p.paneId}
                     type="button"
-                    className="border-border hover:bg-muted/50 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-sm"
+                    className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-left text-sm hover:bg-muted/50"
                     onClick={() => {
                       setSelectedHostId(p.hostId)
                       setActivity("terminal")
                       useSessionStore.getState().setActive(p.paneId)
                     }}
                   >
-                    <TerminalSquare className="text-muted-foreground size-3.5" />
+                    <TerminalSquare className="size-3.5 text-muted-foreground" />
                     <span className="max-w-[160px] truncate font-medium">
                       {p.title || host?.label || "Terminal"}
                     </span>
                     {p.poppedOut && (
-                      <span className="text-muted-foreground text-[10px]">pop-out</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        pop-out
+                      </span>
                     )}
                   </button>
                 )
@@ -381,20 +414,22 @@ export function HomeOverview() {
           </div>
 
           <div className="flex flex-col gap-4 lg:col-span-5">
-            <section className="border-border bg-card/30 rounded-xl border p-4">
-              <h2 className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+            <section className="rounded-xl border border-border bg-card/30 p-4">
+              <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <Clock3 className="size-3.5" />
                 Recent hosts
               </h2>
               <ul className="space-y-0.5">
                 {recentHosts.length === 0 && (
-                  <li className="text-muted-foreground text-xs">No recent connections.</li>
+                  <li className="text-xs text-muted-foreground">
+                    No recent connections.
+                  </li>
                 )}
                 {recentHosts.map((h) => (
                   <li key={h.id}>
                     <button
                       type="button"
-                      className="hover:bg-muted/50 flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm"
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-muted/50"
                       onClick={() => openHost(h.id)}
                     >
                       <span
@@ -403,8 +438,10 @@ export function HomeOverview() {
                       >
                         {hostLetter(h.label)}
                       </span>
-                      <span className="min-w-0 flex-1 truncate font-medium">{h.label}</span>
-                      <span className="text-muted-foreground shrink-0 text-[11px]">
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {h.label}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
                         {formatRelative(h.lastConnectedAt)}
                       </span>
                     </button>
@@ -413,23 +450,31 @@ export function HomeOverview() {
               </ul>
             </section>
 
-            <section className="border-border bg-card/30 flex-1 rounded-xl border p-4">
+            <section className="flex-1 rounded-xl border border-border bg-card/30 p-4">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+                <h2 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   <Activity className="size-3.5" />
                   Activity
                 </h2>
-                <Button size="sm" variant="ghost" onClick={() => setActivity("audit")}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setActivity("audit")}
+                >
                   Full log
                 </Button>
               </div>
               <ul className="space-y-1.5">
                 {(audit.data ?? []).length === 0 && (
-                  <li className="text-muted-foreground text-xs">No events yet.</li>
+                  <li className="text-xs text-muted-foreground">
+                    No events yet.
+                  </li>
                 )}
                 {(audit.data ?? []).slice(0, 8).map((row, i) => {
                   const r = row as Record<string, unknown>
-                  const action = String(r.action ?? r.kind ?? r.event ?? "event")
+                  const action = String(
+                    r.action ?? r.kind ?? r.event ?? "event"
+                  )
                   const at =
                     typeof r.at === "number"
                       ? r.at
@@ -439,12 +484,14 @@ export function HomeOverview() {
                   return (
                     <li
                       key={i}
-                      className="text-muted-foreground flex items-baseline justify-between gap-3 text-xs"
+                      className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground"
                     >
-                      <span className="text-foreground min-w-0 truncate font-medium">
+                      <span className="min-w-0 truncate font-medium text-foreground">
                         {action}
                       </span>
-                      <span className="shrink-0 tabular-nums">{formatWhen(at)}</span>
+                      <span className="shrink-0 tabular-nums">
+                        {formatWhen(at)}
+                      </span>
                     </li>
                   )
                 })}
@@ -469,20 +516,26 @@ function StatChip({
   tone?: "ok" | "warn"
 }) {
   return (
-    <div className="border-border bg-card/30 flex items-center gap-3 rounded-xl border px-3 py-2.5">
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card/30 px-3 py-2.5">
       <div
         className={cn(
-          "text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg",
-          tone === "ok" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-          tone === "warn" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-          !tone && "bg-muted/50",
+          "flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground",
+          tone === "ok" &&
+            "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+          tone === "warn" &&
+            "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+          !tone && "bg-muted/50"
         )}
       >
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-muted-foreground truncate text-[11px]">{label}</div>
-        <div className="truncate text-sm font-semibold tabular-nums">{value}</div>
+        <div className="truncate text-[11px] text-muted-foreground">
+          {label}
+        </div>
+        <div className="truncate text-sm font-semibold tabular-nums">
+          {value}
+        </div>
       </div>
     </div>
   )
@@ -495,7 +548,7 @@ function StatusPill({ status }: { status: string }) {
         "inline-flex items-center gap-1.5 font-medium",
         status === "connected" && "text-emerald-600 dark:text-emerald-400",
         status === "connecting" && "text-sky-600 dark:text-sky-400",
-        status === "error" && "text-destructive",
+        status === "error" && "text-destructive"
       )}
     >
       <span
@@ -504,7 +557,7 @@ function StatusPill({ status }: { status: string }) {
           status === "connected" && "bg-emerald-500",
           status === "connecting" && "bg-sky-500",
           status === "error" && "bg-destructive",
-          status === "idle" && "bg-muted-foreground/40",
+          status === "idle" && "bg-muted-foreground/40"
         )}
       />
       {status}
@@ -525,7 +578,7 @@ function QuickBtn({
     <button
       type="button"
       onClick={onClick}
-      className="border-border hover:bg-muted/50 flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs font-medium"
+      className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-2 text-left text-xs font-medium hover:bg-muted/50"
     >
       <span className="text-muted-foreground">{icon}</span>
       {label}

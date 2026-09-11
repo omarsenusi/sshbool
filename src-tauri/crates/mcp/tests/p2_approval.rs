@@ -2,10 +2,13 @@
 
 use infrastructure::db::migrate;
 use mcp::approval::grant::{CreateGrantParams, SessionGrant};
-use mcp::approval::{hash_canonical_args, hash_command_bytes, ApprovalBroker, ApprovalOutcome, ApprovalResponse, ToolCallContext};
-use mcp::runtime::McpRuntimeState;
+use mcp::approval::{
+    hash_canonical_args, hash_command_bytes, ApprovalBroker, ApprovalOutcome, ApprovalResponse,
+    ToolCallContext,
+};
 use mcp::policy::tier::Tier;
 use mcp::repo::approvals::{consume_nonce, insert_approval, ApprovalRow};
+use mcp::runtime::McpRuntimeState;
 use mcp::tools::dispatch_tool_call;
 use serde_json::json;
 use sqlx::SqlitePool;
@@ -84,7 +87,9 @@ async fn test_nonce_replay_attack_prevention() {
 
     // 2nd consumption MUST fail (replay attack defense)
     let mut tx2 = pool.begin().await.unwrap();
-    let second = consume_nonce(&mut tx2, &approval_id, now + 10).await.unwrap();
+    let second = consume_nonce(&mut tx2, &approval_id, now + 10)
+        .await
+        .unwrap();
     assert!(!second, "Second nonce consumption MUST be rejected");
 }
 

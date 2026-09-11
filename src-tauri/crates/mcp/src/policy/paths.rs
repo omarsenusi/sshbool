@@ -47,7 +47,7 @@ pub fn normalize_path(path: &str) -> String {
     if clean.starts_with("~/") || clean == "~" {
         clean = format!("/home/user{}", &clean[1..]);
     }
-    
+
     // Collapse double slashes
     while clean.contains("//") {
         clean = clean.replace("//", "/");
@@ -75,19 +75,39 @@ pub fn normalize_path(path: &str) -> String {
 /// Returns true if the path is in the forbidden sensitive read set.
 pub fn is_sensitive_read_path(path: &str) -> bool {
     let norm = normalize_path(path);
-    get_sensitive_path_regexes().iter().any(|re| re.is_match(&norm))
+    get_sensitive_path_regexes()
+        .iter()
+        .any(|re| re.is_match(&norm))
 }
 
 /// Returns true if writing/deleting under this path escalates to DANGEROUS.
 pub fn is_system_path_write(path: &str) -> bool {
     let norm = normalize_path(path);
     let system_prefixes = [
-        "/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/lib64",
-        "/var/lib", "/var/log", "/opt", "/srv", "/root", "/sys", "/proc", "/dev",
-        "/home/user/.ssh", "/home/user/.gnupg", "/home/user/.aws",
-        "/home/user/.kube", "/home/user/.docker/config.json",
+        "/etc",
+        "/boot",
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/lib64",
+        "/var/lib",
+        "/var/log",
+        "/opt",
+        "/srv",
+        "/root",
+        "/sys",
+        "/proc",
+        "/dev",
+        "/home/user/.ssh",
+        "/home/user/.gnupg",
+        "/home/user/.aws",
+        "/home/user/.kube",
+        "/home/user/.docker/config.json",
     ];
-    system_prefixes.iter().any(|prefix| norm == *prefix || norm.starts_with(&format!("{prefix}/")))
+    system_prefixes
+        .iter()
+        .any(|prefix| norm == *prefix || norm.starts_with(&format!("{prefix}/")))
 }
 
 /// Returns true if `delete_path` violates hard invariants (e.g. system roots or root paths).
@@ -97,8 +117,19 @@ pub fn is_hard_deny_delete_path(path: &str) -> bool {
         return true;
     }
     let protected = [
-        "/", "/etc", "/boot", "/usr", "/bin", "/sbin", "/lib", "/lib64",
-        "/var", "/opt", "/srv", "/root", "/home/user/.ssh",
+        "/",
+        "/etc",
+        "/boot",
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/lib64",
+        "/var",
+        "/opt",
+        "/srv",
+        "/root",
+        "/home/user/.ssh",
     ];
     if protected.contains(&norm.as_str()) {
         return true;

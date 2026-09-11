@@ -16,13 +16,17 @@ function needsKeyPassphrase(err: unknown): boolean {
     return err.appError.field === "keyPassphrase"
   }
   const msg = errMessage(err).toLowerCase()
-  return msg.includes("encrypted") || msg.includes("keypassphrase") || msg.includes("passphrase")
+  return (
+    msg.includes("encrypted") ||
+    msg.includes("keypassphrase") ||
+    msg.includes("passphrase")
+  )
 }
 
 async function openSessionAndPane(
   hostId: string,
   opts?: { label?: string; openPane?: boolean },
-  keyPassphrase?: string,
+  keyPassphrase?: string
 ): Promise<void> {
   const { sessionId } = await ipc.sessionOpen(hostId, keyPassphrase)
 
@@ -48,7 +52,7 @@ async function openSessionAndPane(
 /** Open SSH session for a host (shared by all tools). Optionally opens a terminal pane. */
 export async function connectHost(
   hostId: string,
-  opts?: { label?: string; openPane?: boolean },
+  opts?: { label?: string; openPane?: boolean }
 ): Promise<void> {
   const conn = useConnectionStore.getState()
   conn.clearError(hostId)
@@ -85,7 +89,7 @@ export async function connectHost(
 
     if (needsKeyPassphrase(err)) {
       const pass = window.prompt(
-        "This SSH key is encrypted.\n\nEnter the key passphrase (not your vault password).\nIt will be unlocked once and stored safely in the vault.",
+        "This SSH key is encrypted.\n\nEnter the key passphrase (not your vault password).\nIt will be unlocked once and stored safely in the vault."
       )
       if (pass != null && pass.trim()) {
         try {
@@ -109,7 +113,9 @@ export async function connectHost(
 /** Tear down SSH session + panes; SFTP/tools lose access until reconnect. */
 export async function disconnectHost(hostId: string): Promise<void> {
   const session = useConnectionStore.getState().byHost[hostId]
-  const panes = useSessionStore.getState().panes.filter((p) => p.hostId === hostId)
+  const panes = useSessionStore
+    .getState()
+    .panes.filter((p) => p.hostId === hostId)
   const removePane = useSessionStore.getState().removePane
 
   for (const p of panes) {

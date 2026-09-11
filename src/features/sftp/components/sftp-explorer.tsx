@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query"
 import { listen } from "@tauri-apps/api/event"
 import { open as openDialog } from "@tauri-apps/plugin-dialog"
 import { revealItemInDir } from "@tauri-apps/plugin-opener"
@@ -37,7 +42,12 @@ import { useLayoutStore } from "@/stores/layout.store"
 import { runSftpActivity } from "@/stores/sftp-activity.store"
 import { toast } from "@/stores/toast.store"
 
-type MenuState = { x: number; y: number; side: PaneSide; entry: SftpEntryDto | null }
+type MenuState = {
+  x: number
+  y: number
+  side: PaneSide
+  entry: SftpEntryDto | null
+}
 
 function basename(path: string) {
   const parts = path.replace(/\\/g, "/").split("/")
@@ -63,20 +73,22 @@ function totalSize(entries: SftpEntryDto[]) {
 
 export function SftpExplorer({ hostId }: { hostId: string }) {
   const qc = useQueryClient()
-  const connected = useConnectionStore((s) => s.byHost[hostId]?.status === "connected")
+  const connected = useConnectionStore(
+    (s) => s.byHost[hostId]?.status === "connected"
+  )
   const clipboard = useSftpClipboard((s) => s.clipboard)
   const setClipboard = useSftpClipboard((s) => s.setClipboard)
   const clearClipboard = useSftpClipboard((s) => s.clearClipboard)
   /** Clipboard is only valid for this host's remote/local ops. */
-  const hostClipboard =
-    clipboard?.hostId === hostId ? clipboard : null
+  const hostClipboard = clipboard?.hostId === hostId ? clipboard : null
 
   const hostsTree = useQuery({
     queryKey: ["hosts"],
     queryFn: () => ipc.hostsListTree(),
   })
   const hostLabel =
-    flattenHosts(hostsTree.data ?? []).find((h) => h.id === hostId)?.label ?? "Remote"
+    flattenHosts(hostsTree.data ?? []).find((h) => h.id === hostId)?.label ??
+    "Remote"
 
   const confirmDeleteSetting = useSetting(SETTINGS.sftp.confirmDelete)
   const showHiddenSetting = useSetting(SETTINGS.sftp.showHidden)
@@ -130,7 +142,11 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       remoteNav.replace(start)
     }
     remoteStartApplied.current = true
-  }, [remoteStartPathSetting.isLoading, remoteStartPathSetting.value, remoteNav])
+  }, [
+    remoteStartPathSetting.isLoading,
+    remoteStartPathSetting.value,
+    remoteNav,
+  ])
   const localPath = localNav.path
   const remotePath = remoteNav.path
   const setLocalPath = localNav.navigate
@@ -209,7 +225,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     refetchInterval: (q) => {
       const rows = q.state.data ?? []
       const active = rows.some(
-        (t) => t.status === "active" || t.status === "queued",
+        (t) => t.status === "active" || t.status === "queued"
       )
       return active ? 500 : 4000
     },
@@ -252,7 +268,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       }
       void openEditorPopout({ hostId, path: normalized })
     },
-    [hostId, openFileInSetting.value],
+    [hostId, openFileInSetting.value]
   )
 
   const performDelete = useCallback(
@@ -271,13 +287,13 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             if (side === "local") await ipc.localDelete(e.path, true)
             else await ipc.sftpDelete(hostId, e.path, true)
           }
-        },
+        }
       )
       setLocalSelected([])
       setRemoteSelected([])
       await invalidateAll()
     },
-    [hostId, invalidateAll],
+    [hostId, invalidateAll]
   )
 
   const requestDelete = useCallback(
@@ -289,7 +305,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       }
       void performDelete(side, entries)
     },
-    [confirmDeleteSetting.value, performDelete],
+    [confirmDeleteSetting.value, performDelete]
   )
 
   const uploadPaths = useMutation({
@@ -324,13 +340,13 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       if (!connected || paths.length === 0) return
       uploadPaths.mutate(paths)
     },
-    [connected, uploadPaths],
+    [connected, uploadPaths]
   )
 
   const { dragging: osDragging } = useOsFileDrop(
     connected,
     onOsDrop,
-    remotePaneRef,
+    remotePaneRef
   )
 
   const localEntries = local.data ?? []
@@ -340,7 +356,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     side: PaneSide,
     paths: string[],
     additive?: boolean,
-    range?: boolean,
+    range?: boolean
   ) {
     setFocusedPane(side)
     const setter = side === "local" ? setLocalSelected : setRemoteSelected
@@ -372,54 +388,58 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     const { side: srcSide, mode, entries } = hostClipboard
     const names = entries.map((e) => e.name).join(", ")
     const listing =
-      destDir === localPath ? localEntries : destDir === remotePath ? remoteEntries : []
+      destDir === localPath
+        ? localEntries
+        : destDir === remotePath
+          ? remoteEntries
+          : []
     const used = new Set(listing.map((e) => e.name))
 
     try {
       await runSftpActivity(
-      {
-        hostId,
-        kind: mode === "cut" ? "move" : "paste",
-        label: `${names} → ${destDir}`,
-        side,
-        bytesTotal: totalSize(entries),
-      },
-      async () => {
-        for (const entry of entries) {
-          let destName = entry.name
-          let dest = joinPath(destDir, destName, side)
-          if (dest === entry.path) {
-            if (mode === "cut") continue
-            destName = uniquifyName(destName, used)
-            dest = joinPath(destDir, destName, side)
-          } else if (used.has(destName)) {
-            destName = uniquifyName(destName, used)
-            dest = joinPath(destDir, destName, side)
-          }
-          used.add(destName)
+        {
+          hostId,
+          kind: mode === "cut" ? "move" : "paste",
+          label: `${names} → ${destDir}`,
+          side,
+          bytesTotal: totalSize(entries),
+        },
+        async () => {
+          for (const entry of entries) {
+            let destName = entry.name
+            let dest = joinPath(destDir, destName, side)
+            if (dest === entry.path) {
+              if (mode === "cut") continue
+              destName = uniquifyName(destName, used)
+              dest = joinPath(destDir, destName, side)
+            } else if (used.has(destName)) {
+              destName = uniquifyName(destName, used)
+              dest = joinPath(destDir, destName, side)
+            }
+            used.add(destName)
 
-          if (srcSide === "remote" && side === "remote") {
-            if (mode === "copy") await ipc.sftpCopy(hostId, entry.path, dest)
-            else await ipc.sftpRename(hostId, entry.path, dest)
-          } else if (srcSide === "local" && side === "local") {
-            if (mode === "cut") await ipc.localRename(entry.path, dest)
-            else await ipc.localCopy(entry.path, dest)
-          } else if (srcSide === "local" && side === "remote") {
-            await ipc.transferUpload(hostId, entry.path, destDir)
-            if (mode === "cut") await ipc.localDelete(entry.path, true)
-          } else {
-            await ipc.transferDownload(hostId, entry.path, destDir)
-            if (mode === "cut") await ipc.sftpDelete(hostId, entry.path, true)
+            if (srcSide === "remote" && side === "remote") {
+              if (mode === "copy") await ipc.sftpCopy(hostId, entry.path, dest)
+              else await ipc.sftpRename(hostId, entry.path, dest)
+            } else if (srcSide === "local" && side === "local") {
+              if (mode === "cut") await ipc.localRename(entry.path, dest)
+              else await ipc.localCopy(entry.path, dest)
+            } else if (srcSide === "local" && side === "remote") {
+              await ipc.transferUpload(hostId, entry.path, destDir)
+              if (mode === "cut") await ipc.localDelete(entry.path, true)
+            } else {
+              await ipc.transferDownload(hostId, entry.path, destDir)
+              if (mode === "cut") await ipc.sftpDelete(hostId, entry.path, true)
+            }
           }
+          if (mode === "cut") clearClipboard()
+          await invalidateAll()
         }
-        if (mode === "cut") clearClipboard()
-        await invalidateAll()
-      },
-    )
+      )
     } catch (err) {
       toast.error(
         "Paste failed",
-        err instanceof Error ? err.message : String(err),
+        err instanceof Error ? err.message : String(err)
       )
     }
   }
@@ -439,7 +459,9 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         type: "item",
         label: "Open",
         onClick: () =>
-          side === "local" ? setLocalPath(focus.path) : setRemotePath(focus.path),
+          side === "local"
+            ? setLocalPath(focus.path)
+            : setRemotePath(focus.path),
       })
     } else if (focus && !focus.isDir && side === "remote") {
       items.push({
@@ -463,8 +485,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       items.push({
         type: "item",
         label: "Upload to remote",
-        onClick: () =>
-          uploadPaths.mutate(targets.map((e) => e.path)),
+        onClick: () => uploadPaths.mutate(targets.map((e) => e.path)),
       })
       items.push({
         type: "item",
@@ -476,7 +497,8 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       items.push({
         type: "item",
         label: "Download",
-        onClick: () => downloadPaths.mutate({ paths: targets.map((e) => e.path) }),
+        onClick: () =>
+          downloadPaths.mutate({ paths: targets.map((e) => e.path) }),
       })
     }
 
@@ -498,13 +520,15 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       type: "item",
       label: "Copy",
       disabled: !focus,
-      onClick: () => setClipboard({ hostId, side, mode: "copy", entries: targets }),
+      onClick: () =>
+        setClipboard({ hostId, side, mode: "copy", entries: targets }),
     })
     items.push({
       type: "item",
       label: "Cut",
       disabled: !focus,
-      onClick: () => setClipboard({ hostId, side, mode: "cut", entries: targets }),
+      onClick: () =>
+        setClipboard({ hostId, side, mode: "cut", entries: targets }),
     })
     items.push({
       type: "item",
@@ -518,11 +542,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
       onClick: () =>
         void doPaste(
           side,
-          focus?.isDir
-            ? focus.path
-            : side === "local"
-              ? localPath
-              : remotePath,
+          focus?.isDir ? focus.path : side === "local" ? localPath : remotePath
         ),
     })
     items.push({
@@ -576,7 +596,10 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     }
   }
 
-  function hitDropTarget(x: number, y: number): {
+  function hitDropTarget(
+    x: number,
+    y: number
+  ): {
     side: PaneSide
     destDir: string
     folderPath: string | null
@@ -598,12 +621,9 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     const payload = dragPayloadRef.current
     if (!payload) return
     const hit = hitDropTarget(x, y)
-    const over =
-      hit && hit.side !== payload.side ? hit.side : null
+    const over = hit && hit.side !== payload.side ? hit.side : null
     setPaneDrop(over)
-    setDropFolderPath(
-      hit && hit.side !== payload.side ? hit.folderPath : null,
-    )
+    setDropFolderPath(hit && hit.side !== payload.side ? hit.folderPath : null)
     const label =
       payload.paths.length === 1
         ? basename(payload.paths[0]!)
@@ -626,7 +646,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
   async function handleCrossDrop(
     targetSide: PaneSide,
     destDir: string,
-    payload: InternalSftpDrag,
+    payload: InternalSftpDrag
   ) {
     if (!payload.paths.length) return
     const { side, paths } = payload
@@ -645,7 +665,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
     try {
       if (side === targetSide) {
         const moves = paths.filter(
-          (p) => joinPath(destDir, basename(p), targetSide) !== p,
+          (p) => joinPath(destDir, basename(p), targetSide) !== p
         )
         if (moves.length === 0) return
         await runSftpActivity(
@@ -662,7 +682,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
               if (side === "remote") await ipc.sftpRename(hostId, p, dest)
               else await ipc.localRename(p, dest)
             }
-          },
+          }
         )
       } else if (side === "local" && targetSide === "remote") {
         await runSftpActivity(
@@ -680,7 +700,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             } else {
               await ipc.transferUploadMany(hostId, paths, destDir)
             }
-          },
+          }
         )
       } else {
         await runSftpActivity(
@@ -693,15 +713,16 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
           },
           async () => {
             await qc.invalidateQueries({ queryKey: ["transfers"] })
-            for (const p of paths) await ipc.transferDownload(hostId, p, destDir)
-          },
+            for (const p of paths)
+              await ipc.transferDownload(hostId, p, destDir)
+          }
         )
       }
       await invalidateAll()
     } catch (err) {
       toast.error(
         "Transfer failed",
-        err instanceof Error ? err.message : String(err),
+        err instanceof Error ? err.message : String(err)
       )
     }
   }
@@ -728,10 +749,18 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         e.preventDefault()
         requestDelete(side, entries)
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && entries.length) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "c" &&
+        entries.length
+      ) {
         setClipboard({ hostId, side, mode: "copy", entries })
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x" && entries.length) {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "x" &&
+        entries.length
+      ) {
         setClipboard({ hostId, side, mode: "cut", entries })
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
@@ -761,12 +790,12 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
 
   const recentTransfers = useMemo(
     () => (transfers.data ?? []).filter((t) => t.hostId === hostId),
-    [transfers.data, hostId],
+    [transfers.data, hostId]
   )
 
   if (!connected) {
     return (
-      <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         SFTP is offline — connect this host first.
       </div>
     )
@@ -774,9 +803,9 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      <div className="border-border flex flex-wrap items-center gap-2 border-b px-3 py-2">
-        <span className="text-muted-foreground text-xs">
-          <span className="text-foreground font-medium">{hostLabel}</span>
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+        <span className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">{hostLabel}</span>
           {" · "}
           Local ↔ Remote (this server only)
         </span>
@@ -830,38 +859,38 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
           className="flex min-h-0 min-w-0 flex-1 flex-col"
           onMouseDown={() => setFocusedPane("local")}
         >
-        <FilePane
-          title="Local"
-          side="local"
-          path={localPath || "…"}
-          onPathChange={(p) => {
-            setFocusedPane("local")
-            setLocalPath(p)
-          }}
-          entries={localEntries}
-          loading={local.isFetching}
-          error={local.error ? String(local.error) : null}
-          selected={localSelected}
-          onSelect={(p, a, r) => selectHandler("local", p, a, r)}
-          onOpen={(e) => {
-            setFocusedPane("local")
-            if (e.isDir) setLocalPath(e.path)
-          }}
-          onRefresh={() => void qc.invalidateQueries({ queryKey: ["local"] })}
-          onMkdir={() => setMkdirSide("local")}
-          onContextMenu={(e, entry) => {
-            setFocusedPane("local")
-            setMenu({ x: e.clientX, y: e.clientY, side: "local", entry })
-          }}
-          showHidden={showHiddenLocal}
-          onToggleHidden={() => setShowHiddenLocal((v) => !v)}
-          dropHighlight={paneDrop === "local"}
-          highlightDropPath={paneDrop === "local" ? dropFolderPath : null}
-          focused={focusedPane === "local"}
-          onDragStartEntries={(ents) => beginInternalDrag("local", ents)}
-          onDragSessionMove={moveInternalDrag}
-          onDragSessionEnd={endInternalDrag}
-        />
+          <FilePane
+            title="Local"
+            side="local"
+            path={localPath || "…"}
+            onPathChange={(p) => {
+              setFocusedPane("local")
+              setLocalPath(p)
+            }}
+            entries={localEntries}
+            loading={local.isFetching}
+            error={local.error ? String(local.error) : null}
+            selected={localSelected}
+            onSelect={(p, a, r) => selectHandler("local", p, a, r)}
+            onOpen={(e) => {
+              setFocusedPane("local")
+              if (e.isDir) setLocalPath(e.path)
+            }}
+            onRefresh={() => void qc.invalidateQueries({ queryKey: ["local"] })}
+            onMkdir={() => setMkdirSide("local")}
+            onContextMenu={(e, entry) => {
+              setFocusedPane("local")
+              setMenu({ x: e.clientX, y: e.clientY, side: "local", entry })
+            }}
+            showHidden={showHiddenLocal}
+            onToggleHidden={() => setShowHiddenLocal((v) => !v)}
+            dropHighlight={paneDrop === "local"}
+            highlightDropPath={paneDrop === "local" ? dropFolderPath : null}
+            focused={focusedPane === "local"}
+            onDragStartEntries={(ents) => beginInternalDrag("local", ents)}
+            onDragSessionMove={moveInternalDrag}
+            onDragSessionEnd={endInternalDrag}
+          />
         </div>
         <div
           ref={remotePaneRef}
@@ -889,7 +918,9 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
               }
               openRemoteFile(e.path)
             }}
-            onRefresh={() => void qc.invalidateQueries({ queryKey: ["sftp", hostId] })}
+            onRefresh={() =>
+              void qc.invalidateQueries({ queryKey: ["sftp", hostId] })
+            }
             onMkdir={() => setMkdirSide("remote")}
             onNewFile={() => setNewFileOpen(true)}
             onContextMenu={(e, entry) => {
@@ -950,9 +981,10 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
               bytesTotal: rename.size || undefined,
             },
             async () => {
-              if (rename.side === "local") await ipc.localRename(rename.path, dest)
+              if (rename.side === "local")
+                await ipc.localRename(rename.path, dest)
               else await ipc.sftpRename(hostId, rename.path, dest)
-            },
+            }
           )
           setRename(null)
           await invalidateAll()
@@ -979,7 +1011,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             async () => {
               if (mkdirSide === "local") await ipc.localMkdir(dest)
               else await ipc.sftpMkdir(hostId, dest)
-            },
+            }
           )
           setMkdirSide(null)
           await invalidateAll()
@@ -994,13 +1026,21 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
         onClose={() => setNewFileOpen(false)}
         onSubmit={async (name) => {
           if (/[/\\]/.test(name) || name === "." || name === "..") {
-            toast.error("Invalid name", "File name cannot contain path separators.")
+            toast.error(
+              "Invalid name",
+              "File name cannot contain path separators."
+            )
             throw new Error("invalid file name")
           }
           const dest = joinPath(remotePath, name, "remote")
-          const exists = remoteEntries.some((e) => e.path === dest || e.name === name)
+          const exists = remoteEntries.some(
+            (e) => e.path === dest || e.name === name
+          )
           if (exists) {
-            toast.error("File exists", `"${name}" already exists in this folder`)
+            toast.error(
+              "File exists",
+              `"${name}" already exists in this folder`
+            )
             throw new Error("file exists")
           }
           await runSftpActivity(
@@ -1012,11 +1052,13 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             },
             async () => {
               await ipc.sftpWrite(hostId, dest, "")
-            },
+            }
           )
           setNewFileOpen(false)
           await invalidateAll()
-          useLayoutStore.getState().openEditor(hostId, normalizeRemotePath(dest))
+          useLayoutStore
+            .getState()
+            .openEditor(hostId, normalizeRemotePath(dest))
         }}
       />
 
@@ -1046,7 +1088,7 @@ export function SftpExplorer({ hostId }: { hostId: string }) {
             },
             async () => {
               await ipc.sftpChmod(hostId, chmodPath, mode)
-            },
+            }
           )
           setChmodPath(null)
           await invalidateAll()

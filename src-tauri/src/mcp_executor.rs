@@ -5,7 +5,7 @@ use infrastructure::AppState;
 use mcp::error::McpError;
 use mcp::executor::McpToolExecutor;
 use mcp::runtime::McpRuntimeState;
-use mcp::{PaneReadyEvent};
+use mcp::PaneReadyEvent;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -32,13 +32,13 @@ impl AppMcpExecutor {
     ) {
         if let Some(notifier) = self.runtime.notifier() {
             notifier.pane_ready(&PaneReadyEvent {
-                    pane_id: pane_id.to_string(),
-                    session_id: session_id.to_string(),
-                    host_id: host_id.to_string(),
-                    label: label.to_string(),
-                    show_terminal,
-                    mcp_hidden: !show_terminal,
-                });
+                pane_id: pane_id.to_string(),
+                session_id: session_id.to_string(),
+                host_id: host_id.to_string(),
+                label: label.to_string(),
+                show_terminal,
+                mcp_hidden: !show_terminal,
+            });
         }
     }
 
@@ -81,13 +81,7 @@ impl AppMcpExecutor {
             .await
             .map_err(|e| McpError::Internal(e.to_string()))?;
         let label = self.host_label(host_id).await;
-        self.emit_pane_ready(
-            &pane_id,
-            &session_id,
-            host_id,
-            &label,
-            show_terminal,
-        );
+        self.emit_pane_ready(&pane_id, &session_id, host_id, &label, show_terminal);
         Ok((pane_id, session_id, true))
     }
 }
@@ -95,11 +89,7 @@ impl AppMcpExecutor {
 #[async_trait]
 impl McpToolExecutor for AppMcpExecutor {
     async fn sftp_list_dir(&self, host_id: &str, path: &str) -> Result<Value, McpError> {
-        let entries = self
-            .state
-            .connections
-            .sftp_list_dir(host_id, path)
-            .await?;
+        let entries = self.state.connections.sftp_list_dir(host_id, path).await?;
         let items: Vec<Value> = entries
             .iter()
             .map(|e| {
@@ -134,11 +124,7 @@ impl McpToolExecutor for AppMcpExecutor {
         path: &str,
         max_bytes: u64,
     ) -> Result<Value, McpError> {
-        let (content, mtime) = self
-            .state
-            .connections
-            .sftp_read(host_id, path)
-            .await?;
+        let (content, mtime) = self.state.connections.sftp_read(host_id, path).await?;
         let truncated = if content.len() as u64 > max_bytes {
             content[..max_bytes as usize].to_string()
         } else {
@@ -211,11 +197,7 @@ impl McpToolExecutor for AppMcpExecutor {
         Ok(json!({ "path": path, "mode": mode, "status": "chmod" }))
     }
 
-    async fn open_session(
-        &self,
-        host_id: &str,
-        show_terminal: bool,
-    ) -> Result<Value, McpError> {
+    async fn open_session(&self, host_id: &str, show_terminal: bool) -> Result<Value, McpError> {
         let (pane_id, session_id, created) = self.ensure_mcp_pane(host_id, show_terminal).await?;
         let label = self.host_label(host_id).await;
         let production: i64 = sqlx::query_scalar("SELECT production FROM hosts WHERE id = ?")

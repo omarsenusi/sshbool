@@ -69,7 +69,7 @@ function packGrid(
   tableById: Map<string, { schema: string; table: DbTableDto }>,
   originX: number,
   originY: number,
-  cols: number,
+  cols: number
 ): LayoutNode[] {
   const colY = Array.from({ length: Math.max(1, cols) }, () => originY)
   const nodes: LayoutNode[] = []
@@ -91,7 +91,7 @@ function packWrappedStacks(
   tableById: Map<string, { schema: string; table: DbTableDto }>,
   startX: number,
   startY: number,
-  maxStackH: number,
+  maxStackH: number
 ): { nodes: LayoutNode[]; nextX: number; height: number } {
   const nodes: LayoutNode[] = []
   let x = startX
@@ -118,7 +118,7 @@ function packWrappedStacks(
 function connectedComponents(
   ids: string[],
   outgoing: Map<string, string[]>,
-  incoming: Map<string, string[]>,
+  incoming: Map<string, string[]>
 ): string[][] {
   const seen = new Set<string>()
   const comps: string[][] = []
@@ -130,7 +130,10 @@ function connectedComponents(
     while (stack.length) {
       const id = stack.pop()!
       comp.push(id)
-      for (const n of [...(outgoing.get(id) ?? []), ...(incoming.get(id) ?? [])]) {
+      for (const n of [
+        ...(outgoing.get(id) ?? []),
+        ...(incoming.get(id) ?? []),
+      ]) {
         if (!seen.has(n)) {
           seen.add(n)
           stack.push(n)
@@ -184,7 +187,10 @@ function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
   }
 
   const tableById = new Map(
-    tables.map(({ schema: sch, table }) => [idOf(sch, table.name), { schema: sch, table }]),
+    tables.map(({ schema: sch, table }) => [
+      idOf(sch, table.name),
+      { schema: sch, table },
+    ])
   )
 
   const degree = (id: string) =>
@@ -200,7 +206,10 @@ function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
   // Soft height budget so many tables wrap sideways into a landscape map
   const stackH = Math.max(
     520,
-    Math.min(MAX_STACK_H, Math.round(Math.sqrt((n * NODE_W * 180) / TARGET_ASPECT))),
+    Math.min(
+      MAX_STACK_H,
+      Math.round(Math.sqrt((n * NODE_W * 180) / TARGET_ASPECT))
+    )
   )
 
   type Block = { nodes: LayoutNode[]; w: number; h: number }
@@ -240,7 +249,10 @@ function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
           const avg = (id: string) => {
             const parents = (outgoing.get(id) ?? []).filter((p) => idx.has(p))
             if (parents.length === 0) return idx.size / 2
-            return parents.reduce((s, p) => s + (idx.get(p) ?? 0), 0) / parents.length
+            return (
+              parents.reduce((s, p) => s + (idx.get(p) ?? 0), 0) /
+              parents.length
+            )
           }
           return avg(a) - avg(b) || degree(b) - degree(a) || a.localeCompare(b)
         })
@@ -286,7 +298,7 @@ function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
   if (islands.length > 0) {
     const islandCols = Math.max(
       2,
-      Math.min(10, Math.ceil(Math.sqrt(islands.length * TARGET_ASPECT))),
+      Math.min(10, Math.ceil(Math.sqrt(islands.length * TARGET_ASPECT)))
     )
     const islandNodes = packGrid(islands, tableById, 0, 0, islandCols)
     const w =
@@ -300,10 +312,13 @@ function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
 
   // Meta-pack blocks into landscape rows
   const avgBlockW =
-    blocks.reduce((s, b) => s + b.w, 0) / Math.max(blocks.length, 1) || NODE_W * 4
+    blocks.reduce((s, b) => s + b.w, 0) / Math.max(blocks.length, 1) ||
+    NODE_W * 4
   const rowBudget = Math.max(
     avgBlockW * 1.2,
-    Math.sqrt(blocks.reduce((s, b) => s + b.w * b.h, NODE_W * 400) * TARGET_ASPECT),
+    Math.sqrt(
+      blocks.reduce((s, b) => s + b.w * b.h, NODE_W * 400) * TARGET_ASPECT
+    )
   )
 
   const nodes: LayoutNode[] = []
@@ -341,11 +356,11 @@ function buildLayout(tables: { schema: string; table: DbTableDto }[]): {
     if (h > 0 && w / h < 1.05 && nodes.length >= 8) {
       // Fallback: full landscape grid ordered by connectivity
       const ordered = [...ids].sort(
-        (a, b) => degree(b) - degree(a) || a.localeCompare(b),
+        (a, b) => degree(b) - degree(a) || a.localeCompare(b)
       )
       const cols = Math.max(
         3,
-        Math.min(12, Math.ceil(Math.sqrt(ordered.length * TARGET_ASPECT))),
+        Math.min(12, Math.ceil(Math.sqrt(ordered.length * TARGET_ASPECT)))
       )
       const grid = packGrid(ordered, tableById, PAD, PAD, cols)
       nodes.length = 0
@@ -383,7 +398,14 @@ function boundsOf(nodes: LayoutNode[], positions: Record<string, Pos>) {
     maxY = Math.max(maxY, p.y + n.h)
   }
   if (!Number.isFinite(minX)) {
-    return { minX: 0, minY: 0, maxX: 1600, maxY: 1000, width: 1600, height: 1000 }
+    return {
+      minX: 0,
+      minY: 0,
+      maxX: 1600,
+      maxY: 1000,
+      width: 1600,
+      height: 1000,
+    }
   }
   // Tight world size around content (no huge empty strip)
   const width = Math.max(maxX + PAD, minX + 400)
@@ -454,7 +476,12 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
   const [positions, setPositions] = useState<Record<string, Pos>>({})
   const [layoutKey, setLayoutKey] = useState(0)
 
-  const panDrag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null)
+  const panDrag = useRef<{
+    px: number
+    py: number
+    ox: number
+    oy: number
+  } | null>(null)
   const nodeDrag = useRef<{
     id: string
     px: number
@@ -473,7 +500,8 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
     for (const g of schema?.schemas ?? []) {
       for (const t of g.tables) tables.push({ schema: g.name, table: t })
     }
-    if (tables.length === 0) return { baseNodes: [] as LayoutNode[], edges: [] as Edge[] }
+    if (tables.length === 0)
+      return { baseNodes: [] as LayoutNode[], edges: [] as Edge[] }
     const { nodes, edges } = buildLayout(tables)
     return { baseNodes: nodes, edges }
   }, [schema, layoutKey])
@@ -491,10 +519,13 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
         const p = positions[n.id]
         return p ? { ...n, x: p.x, y: p.y } : n
       }),
-    [baseNodes, positions],
+    [baseNodes, positions]
   )
 
-  const { width, height } = useMemo(() => boundsOf(baseNodes, positions), [baseNodes, positions])
+  const { width, height } = useMemo(
+    () => boundsOf(baseNodes, positions),
+    [baseNodes, positions]
+  )
 
   const related = useMemo(() => {
     if (!hover) return null
@@ -544,7 +575,7 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
       panDrag.current = { px: e.clientX, py: e.clientY, ox: pan.x, oy: pan.y }
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     },
-    [pan],
+    [pan]
   )
 
   const onViewportPointerMove = useCallback((e: ReactPointerEvent) => {
@@ -575,12 +606,12 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
         y: -(my * height * zoom - vp.clientHeight / 2),
       })
     },
-    [width, height, zoom],
+    [width, height, zoom]
   )
 
   if (baseNodes.length === 0) {
     return (
-      <div className="text-muted-foreground flex flex-1 items-center justify-center p-8 text-xs">
+      <div className="flex flex-1 items-center justify-center p-8 text-xs text-muted-foreground">
         Load a connection with tables to view the ER diagram.
       </div>
     )
@@ -600,8 +631,8 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
   }
 
   return (
-    <div className="bg-background relative flex min-h-0 w-full flex-1 flex-col">
-      <div className="border-border absolute top-3 right-3 z-30 flex items-center gap-0.5 rounded-md border bg-background/90 p-1 shadow-md backdrop-blur">
+    <div className="relative flex min-h-0 w-full flex-1 flex-col bg-background">
+      <div className="absolute top-3 right-3 z-30 flex items-center gap-0.5 rounded-md border border-border bg-background/90 p-1 shadow-md backdrop-blur">
         <Button
           size="icon-xs"
           variant="ghost"
@@ -610,7 +641,7 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
         >
           <ZoomOut className="size-3.5" />
         </Button>
-        <span className="text-muted-foreground w-11 text-center font-mono text-[10px]">
+        <span className="w-11 text-center font-mono text-[10px] text-muted-foreground">
           {Math.round(zoom * 100)}%
         </span>
         <Button
@@ -651,7 +682,11 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           }}
         >
-          <svg width={width} height={height} className="pointer-events-none absolute inset-0">
+          <svg
+            width={width}
+            height={height}
+            className="pointer-events-none absolute inset-0"
+          >
             <defs>
               <marker
                 id="er-arrow"
@@ -664,8 +699,19 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
               >
                 <path d="M0 0 L10 5 L0 10 Z" fill="rgb(14 165 233 / 0.75)" />
               </marker>
-              <pattern id="er-dots" width="28" height="28" patternUnits="userSpaceOnUse">
-                <circle cx="1.5" cy="1.5" r="1" fill="currentColor" className="text-muted-foreground/25" />
+              <pattern
+                id="er-dots"
+                width="28"
+                height="28"
+                patternUnits="userSpaceOnUse"
+              >
+                <circle
+                  cx="1.5"
+                  cy="1.5"
+                  r="1"
+                  fill="currentColor"
+                  className="text-muted-foreground/25"
+                />
               </pattern>
             </defs>
             <rect width={width} height={height} fill="url(#er-dots)" />
@@ -674,7 +720,8 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
               const from = nodes.find((n) => n.id === e.from)
               const to = nodes.find((n) => n.id === e.to)
               if (!from || !to) return null
-              const active = !related || related.has(e.from) || related.has(e.to)
+              const active =
+                !related || related.has(e.from) || related.has(e.to)
               return (
                 <path
                   key={e.id}
@@ -714,20 +761,28 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
                     oy: n.y,
                     moved: false,
                   }
-                  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+                  ;(e.currentTarget as HTMLElement).setPointerCapture(
+                    e.pointerId
+                  )
                 }}
                 onPointerMove={(e) => {
                   const d = nodeDrag.current
                   if (!d || d.id !== node.id) return
                   const nx = d.ox + (e.clientX - d.px) / zoom
                   const ny = d.oy + (e.clientY - d.py) / zoom
-                  if (Math.abs(e.clientX - d.px) + Math.abs(e.clientY - d.py) > 3) {
+                  if (
+                    Math.abs(e.clientX - d.px) + Math.abs(e.clientY - d.py) >
+                    3
+                  ) {
                     d.moved = true
                   }
                   if (dragRaf.current) cancelAnimationFrame(dragRaf.current)
                   dragRaf.current = requestAnimationFrame(() => {
                     dragRaf.current = 0
-                    setPositions((prev) => ({ ...prev, [d.id]: { x: nx, y: ny } }))
+                    setPositions((prev) => ({
+                      ...prev,
+                      [d.id]: { x: nx, y: ny },
+                    }))
                   })
                 }}
                 onPointerUp={() => {
@@ -738,24 +793,28 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
                 onMouseEnter={() => setHover(node.id)}
                 onMouseLeave={() => setHover(null)}
                 className={cn(
-                  "absolute select-none overflow-hidden rounded-lg border bg-card shadow-md",
+                  "absolute overflow-hidden rounded-lg border bg-card shadow-md select-none",
                   "cursor-grab active:cursor-grabbing",
                   focused
                     ? "z-10 border-sky-500 ring-2 ring-sky-500/25"
                     : "border-border/80",
-                  dimmed && "opacity-20",
+                  dimmed && "opacity-20"
                 )}
                 style={{ left: node.x, top: node.y, width: node.w }}
               >
-                <div className="border-border/60 flex items-center gap-2 border-b bg-sky-500/10 px-2.5 py-2">
-                  <span className="truncate text-[12px] font-semibold">{node.table.name}</span>
-                  <span className="text-muted-foreground ml-auto shrink-0 font-mono text-[9px]">
+                <div className="flex items-center gap-2 border-b border-border/60 bg-sky-500/10 px-2.5 py-2">
+                  <span className="truncate text-[12px] font-semibold">
+                    {node.table.name}
+                  </span>
+                  <span className="ml-auto shrink-0 font-mono text-[9px] text-muted-foreground">
                     {node.schema}
                   </span>
                 </div>
                 <div className="px-2 py-1">
                   {node.table.columns.map((col) => {
-                    const fk = node.table.foreignKeys.some((f) => f.column === col.name)
+                    const fk = node.table.foreignKeys.some(
+                      (f) => f.column === col.name
+                    )
                     return (
                       <div
                         key={col.name}
@@ -773,7 +832,7 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
                           <span className="w-[17px]" />
                         )}
                         <span className="min-w-0 truncate">{col.name}</span>
-                        <span className="text-muted-foreground ml-auto shrink-0 text-[9px]">
+                        <span className="ml-auto shrink-0 text-[9px] text-muted-foreground">
                           {shortType(col.dataType)}
                         </span>
                       </div>
@@ -788,7 +847,7 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
         {/* Minimap */}
         <div
           data-er-minimap
-          className="border-border bg-background/95 absolute right-3 bottom-3 z-30 overflow-hidden rounded-md border shadow-lg backdrop-blur"
+          className="absolute right-3 bottom-3 z-30 overflow-hidden rounded-md border border-border bg-background/95 shadow-lg backdrop-blur"
           style={{ width: MINIMAP_W, height: MINIMAP_H }}
           onPointerDown={(e) => {
             e.stopPropagation()
@@ -804,11 +863,15 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
             minimapDrag.current = false
           }}
         >
-          <div className="text-muted-foreground absolute top-1 left-1.5 z-10 text-[9px] font-semibold tracking-wide uppercase opacity-70">
+          <div className="absolute top-1 left-1.5 z-10 text-[9px] font-semibold tracking-wide text-muted-foreground uppercase opacity-70">
             Overview
           </div>
           <svg width={MINIMAP_W} height={MINIMAP_H} className="block">
-            <rect width={MINIMAP_W} height={MINIMAP_H} className="fill-muted/40" />
+            <rect
+              width={MINIMAP_W}
+              height={MINIMAP_H}
+              className="fill-muted/40"
+            />
             {nodes.map((n) => (
               <rect
                 key={n.id}
@@ -834,12 +897,13 @@ export function DbErDiagram({ schema, onSelectTable }: Props) {
         </div>
       </div>
 
-      <div className="text-muted-foreground border-border flex shrink-0 items-center justify-between border-t px-3 py-1 text-[10px]">
+      <div className="flex shrink-0 items-center justify-between border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
         <span>
           {nodes.length} tables · {edges.length} relations
         </span>
         <span className="opacity-70">
-          Drag tables to move · Drag canvas to pan · Scroll zoom · Minimap bottom-right
+          Drag tables to move · Drag canvas to pan · Scroll zoom · Minimap
+          bottom-right
         </span>
       </div>
     </div>

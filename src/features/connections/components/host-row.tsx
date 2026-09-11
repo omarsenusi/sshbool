@@ -37,7 +37,7 @@ export function HostRow({
       {/* -6px lines the pill up with the rail's left edge (container px-1.5). */}
       {selected && (
         <span
-          className="bg-primary absolute top-1/2 -left-[6px] z-30 h-6 w-1 -translate-y-1/2 rounded-r-full shadow-sm"
+          className="absolute top-1/2 -left-[6px] z-30 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-sm"
           aria-hidden
         />
       )}
@@ -49,8 +49,8 @@ export function HostRow({
         aria-current={selected ? "true" : undefined}
         aria-busy={connecting || undefined}
         className={cn(
-          "hover:bg-sidebar-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors",
-          selected && "bg-sidebar-accent text-sidebar-accent-foreground",
+          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent",
+          selected && "bg-sidebar-accent text-sidebar-accent-foreground"
         )}
         onClick={onClick}
       >
@@ -82,7 +82,7 @@ export function HostRow({
         )}
         {errored && (
           <AlertCircle
-            className="text-destructive size-3.5 shrink-0"
+            className="size-3.5 shrink-0 text-destructive"
             strokeWidth={2.5}
             aria-hidden
           />

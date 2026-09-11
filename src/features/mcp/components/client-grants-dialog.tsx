@@ -1,39 +1,39 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { invoke } from "@tauri-apps/api/core"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { KeyRound, Plus, Trash2 } from 'lucide-react';
-import { HostAutocomplete } from '@/features/connections/components/host-autocomplete';
-import { HostSearchRow } from '@/features/connections/components/host-search-row';
-import { flattenHosts } from '@/features/connections/host-appearance';
-import { ipc } from '@/lib/ipc/commands';
-import type { HostDto } from '@/lib/ipc/types';
-import type { McpClient } from '../types';
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { KeyRound, Plus, Trash2 } from "lucide-react"
+import { HostAutocomplete } from "@/features/connections/components/host-autocomplete"
+import { HostSearchRow } from "@/features/connections/components/host-search-row"
+import { flattenHosts } from "@/features/connections/host-appearance"
+import { ipc } from "@/lib/ipc/commands"
+import type { HostDto } from "@/lib/ipc/types"
+import type { McpClient } from "../types"
 
 type McpGrant = {
-  id: string;
-  clientId: string;
-  sessionHandle: string;
-  hostId?: string;
-  tool: string;
-  uses: number;
-  maxUses: number;
-  expiresAt: number;
-};
+  id: string
+  clientId: string
+  sessionHandle: string
+  hostId?: string
+  tool: string
+  uses: number
+  maxUses: number
+  expiresAt: number
+}
 
 interface ClientGrantsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  client: McpClient | null;
-  onGrantHost: (clientId: string, hostId: string) => Promise<void>;
-  onRevokeHost: (clientId: string, hostId: string) => Promise<void>;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  client: McpClient | null
+  onGrantHost: (clientId: string, hostId: string) => Promise<void>
+  onRevokeHost: (clientId: string, hostId: string) => Promise<void>
 }
 
 export function ClientGrantsDialog({
@@ -43,87 +43,87 @@ export function ClientGrantsDialog({
   onGrantHost,
   onRevokeHost,
 }: ClientGrantsDialogProps) {
-  const [hosts, setHosts] = useState<HostDto[]>([]);
-  const [grants, setGrants] = useState<McpGrant[]>([]);
-  const [selectedHostId, setSelectedHostId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [hosts, setHosts] = useState<HostDto[]>([])
+  const [grants, setGrants] = useState<McpGrant[]>([])
+  const [selectedHostId, setSelectedHostId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   const loadData = useCallback(async (clientId: string) => {
-    setLoading(true);
+    setLoading(true)
     try {
       const [tree, grantRows] = await Promise.all([
         ipc.hostsListTree(),
-        invoke<McpGrant[]>('mcp_grants_list', { clientId }),
-      ]);
-      setHosts(flattenHosts(tree));
-      setGrants(grantRows);
+        invoke<McpGrant[]>("mcp_grants_list", { clientId }),
+      ])
+      setHosts(flattenHosts(tree))
+      setGrants(grantRows)
     } catch {
-      setHosts([]);
-      setGrants([]);
+      setHosts([])
+      setGrants([])
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     if (!open || !client) {
-      setSelectedHostId(null);
-      return;
+      setSelectedHostId(null)
+      return
     }
-    void loadData(client.id);
-  }, [open, client, loadData]);
+    void loadData(client.id)
+  }, [open, client, loadData])
 
-  const hostById = useMemo(() => new Map(hosts.map((h) => [h.id, h])), [hosts]);
+  const hostById = useMemo(() => new Map(hosts.map((h) => [h.id, h])), [hosts])
 
   const grantedHosts = useMemo(() => {
-    if (!client) return [];
+    if (!client) return []
     return client.allowedHosts
       .map((id) => hostById.get(id))
-      .filter((h): h is HostDto => !!h);
-  }, [client, hostById]);
+      .filter((h): h is HostDto => !!h)
+  }, [client, hostById])
 
   const availableHosts = useMemo(() => {
-    if (!client) return [];
-    const granted = new Set(client.allowedHosts);
-    return hosts.filter((h) => !granted.has(h.id));
-  }, [client, hosts]);
+    if (!client) return []
+    const granted = new Set(client.allowedHosts)
+    return hosts.filter((h) => !granted.has(h.id))
+  }, [client, hosts])
 
   const handleGrant = async () => {
-    if (!client || !selectedHostId) return;
-    setBusy(true);
+    if (!client || !selectedHostId) return
+    setBusy(true)
     try {
-      await onGrantHost(client.id, selectedHostId);
-      setSelectedHostId(null);
+      await onGrantHost(client.id, selectedHostId)
+      setSelectedHostId(null)
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
-  };
+  }
 
   const handleRevokeHost = async (hostId: string) => {
-    if (!client) return;
-    setBusy(true);
+    if (!client) return
+    setBusy(true)
     try {
-      await onRevokeHost(client.id, hostId);
+      await onRevokeHost(client.id, hostId)
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
-  };
+  }
 
   const handleRevokeGrant = async (grantId: string) => {
-    if (!client) return;
-    setBusy(true);
+    if (!client) return
+    setBusy(true)
     try {
-      await invoke('mcp_grant_revoke', { grantId });
-      await loadData(client.id);
+      await invoke("mcp_grant_revoke", { grantId })
+      await loadData(client.id)
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
-  };
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md gap-4">
+      <DialogContent className="gap-4 sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
             <KeyRound className="h-4 w-4 text-muted-foreground" />
@@ -132,11 +132,12 @@ export function ClientGrantsDialog({
           <DialogDescription className="text-xs">
             {client ? (
               <>
-                Manage host access for <span className="font-medium">{client.name}</span>. Clients
-                can only reach granted hosts.
+                Manage host access for{" "}
+                <span className="font-medium">{client.name}</span>. Clients can
+                only reach granted hosts.
               </>
             ) : (
-              'Select a client to manage grants.'
+              "Select a client to manage grants."
             )}
           </DialogDescription>
         </DialogHeader>
@@ -149,7 +150,8 @@ export function ClientGrantsDialog({
                 <p className="text-xs text-muted-foreground">Loading hosts…</p>
               ) : grantedHosts.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border/70 px-3 py-4 text-xs text-muted-foreground">
-                  No hosts granted yet. Add a host below so this client can connect.
+                  No hosts granted yet. Add a host below so this client can
+                  connect.
                 </p>
               ) : (
                 <ul className="space-y-1">
@@ -178,7 +180,10 @@ export function ClientGrantsDialog({
               {availableHosts.length > 0 && (
                 <div className="flex items-start gap-2 pt-1">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <Label htmlFor="grant-host-search" className="text-[11px] text-muted-foreground">
+                    <Label
+                      htmlFor="grant-host-search"
+                      className="text-[11px] text-muted-foreground"
+                    >
                       Add host
                     </Label>
                     <HostAutocomplete
@@ -202,9 +207,13 @@ export function ClientGrantsDialog({
                 </div>
               )}
 
-              {!loading && availableHosts.length === 0 && grantedHosts.length > 0 && (
-                <p className="text-[11px] text-muted-foreground">All hosts are already granted.</p>
-              )}
+              {!loading &&
+                availableHosts.length === 0 &&
+                grantedHosts.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    All hosts are already granted.
+                  </p>
+                )}
 
               {!loading && hosts.length === 0 && (
                 <p className="text-[11px] text-muted-foreground">
@@ -219,8 +228,8 @@ export function ClientGrantsDialog({
                 <p className="text-xs text-muted-foreground">Loading…</p>
               ) : grants.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No temporary session grants. These appear when you approve repeatable tool access
-                  during a session.
+                  No temporary session grants. These appear when you approve
+                  repeatable tool access during a session.
                 </p>
               ) : (
                 <ul className="space-y-1.5">
@@ -232,7 +241,7 @@ export function ClientGrantsDialog({
                       <div>
                         <span className="font-mono">{g.tool}</span>
                         <span className="ml-2 text-muted-foreground">
-                          {g.uses}/{g.maxUses} uses · expires{' '}
+                          {g.uses}/{g.maxUses} uses · expires{" "}
                           {new Date(g.expiresAt).toLocaleTimeString()}
                         </span>
                       </div>
@@ -254,5 +263,5 @@ export function ClientGrantsDialog({
         )}
       </DialogContent>
     </Dialog>
-  );
+  )
 }

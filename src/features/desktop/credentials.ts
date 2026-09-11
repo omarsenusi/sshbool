@@ -4,7 +4,7 @@ export const PASSWORD_PLACEHOLDER = "••••••••"
 /** Prefer vault password; never treat the UI placeholder as a real password. */
 export function resolveVaultPassword(
   uiPassword: string,
-  vaultPassword?: string | null,
+  vaultPassword?: string | null
 ): string {
   if (vaultPassword) {
     return vaultPassword

@@ -69,7 +69,14 @@ impl SessionGrant {
         })
     }
 
-    pub fn is_valid(&self, client_id: &str, session_handle: &str, tool: &str, arg_shape: &str, now_ms: i64) -> bool {
+    pub fn is_valid(
+        &self,
+        client_id: &str,
+        session_handle: &str,
+        tool: &str,
+        arg_shape: &str,
+        now_ms: i64,
+    ) -> bool {
         if self.revoked_at.is_some() {
             return false;
         }
@@ -79,7 +86,8 @@ impl SessionGrant {
         if now_ms >= self.expires_at {
             return false;
         }
-        if self.client_id != client_id || self.session_handle != session_handle || self.tool != tool {
+        if self.client_id != client_id || self.session_handle != session_handle || self.tool != tool
+        {
             return false;
         }
 

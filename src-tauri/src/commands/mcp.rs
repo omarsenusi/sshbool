@@ -97,9 +97,7 @@ pub async fn mcp_server_start(
 }
 
 #[tauri::command]
-pub async fn mcp_server_stop(
-    _state: State<'_, Arc<AppState>>,
-) -> Result<(), AppError> {
+pub async fn mcp_server_stop(_state: State<'_, Arc<AppState>>) -> Result<(), AppError> {
     let mut lock = MCP_HANDLE.lock().await;
     if let Some(handle) = lock.take() {
         handle.stop();
@@ -108,9 +106,7 @@ pub async fn mcp_server_stop(
 }
 
 #[tauri::command]
-pub async fn mcp_server_status(
-    _state: State<'_, Arc<AppState>>,
-) -> Result<Value, AppError> {
+pub async fn mcp_server_status(_state: State<'_, Arc<AppState>>) -> Result<Value, AppError> {
     let lock = MCP_HANDLE.lock().await;
     let (running, port) = match &*lock {
         Some(h) => (h.is_running(), h.port()),
@@ -127,16 +123,16 @@ pub async fn mcp_server_status(
 }
 
 #[tauri::command]
-pub async fn mcp_pairing_code_create(
-    state: State<'_, Arc<AppState>>,
-) -> Result<Value, AppError> {
+pub async fn mcp_pairing_code_create(state: State<'_, Arc<AppState>>) -> Result<Value, AppError> {
     let raw_code = generate_6digit_code();
     let code_hash = hash_pairing_code(&raw_code);
     let ttl_secs = 300; // 5 minutes
 
     let _id = mcp::repo::clients::create_pairing_code(state.vault.pool(), &code_hash, ttl_secs)
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?;
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?;
 
     let expires_at = chrono::Utc::now().timestamp_millis() + (ttl_secs * 1000);
 
@@ -203,12 +199,12 @@ pub async fn mcp_client_pair(
 }
 
 #[tauri::command]
-pub async fn mcp_clients_list(
-    state: State<'_, Arc<AppState>>,
-) -> Result<Vec<Value>, AppError> {
+pub async fn mcp_clients_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Value>, AppError> {
     let clients = list_clients(state.vault.pool())
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?;
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?;
 
     let mut result = Vec::new();
     for c in clients {
@@ -300,7 +296,9 @@ pub async fn mcp_client_grant_host(
         Some("user"),
     )
     .await
-    .map_err(|e| AppError::Internal { message: e.to_string() })?;
+    .map_err(|e| AppError::Internal {
+        message: e.to_string(),
+    })?;
 
     Ok(())
 }
@@ -360,17 +358,18 @@ pub async fn mcp_approvals_pending(
     let now = chrono::Utc::now().timestamp_millis();
     let rows = mcp::repo::approvals::list_pending_approvals(state.vault.pool(), now)
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?;
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?;
 
     let mut result = Vec::with_capacity(rows.len());
     for row in rows {
-        let client_name: Option<String> = sqlx::query_scalar(
-            "SELECT name FROM mcp_clients WHERE id = ?",
-        )
-        .bind(&row.client_id)
-        .fetch_optional(state.vault.pool())
-        .await
-        .map_err(db)?;
+        let client_name: Option<String> =
+            sqlx::query_scalar("SELECT name FROM mcp_clients WHERE id = ?")
+                .bind(&row.client_id)
+                .fetch_optional(state.vault.pool())
+                .await
+                .map_err(db)?;
 
         let host_meta: Option<(String, i64)> = if let Some(ref host_id) = row.host_id {
             sqlx::query_as("SELECT label, production FROM hosts WHERE id = ?")
@@ -423,7 +422,9 @@ pub async fn mcp_approval_respond(
 
     let row = mcp::repo::approvals::get_approval_by_id(state.vault.pool(), &approval_id)
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?
         .ok_or_else(|| AppError::NotFound {
             entity: "approval".into(),
             id: Some(approval_id.clone()),
@@ -496,7 +497,9 @@ pub async fn mcp_approval_respond(
         now,
     )
     .await
-    .map_err(|e| AppError::Internal { message: e.to_string() })?;
+    .map_err(|e| AppError::Internal {
+        message: e.to_string(),
+    })?;
 
     Ok(())
 }
@@ -549,11 +552,15 @@ pub async fn mcp_grants_list(
     let rows = if let Some(cid) = client_id {
         mcp::repo::grants::list_grants_for_client(state.vault.pool(), &cid, now)
             .await
-            .map_err(|e| AppError::Internal { message: e.to_string() })?
+            .map_err(|e| AppError::Internal {
+                message: e.to_string(),
+            })?
     } else {
         mcp::repo::grants::list_all_active_grants(state.vault.pool(), now)
             .await
-            .map_err(|e| AppError::Internal { message: e.to_string() })?
+            .map_err(|e| AppError::Internal {
+                message: e.to_string(),
+            })?
     };
 
     Ok(rows
@@ -582,7 +589,9 @@ pub async fn mcp_grant_revoke(
     let now = chrono::Utc::now().timestamp_millis();
     mcp::repo::grants::revoke_grant(state.vault.pool(), &grant_id, now)
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?;
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?;
     Ok(())
 }
 
@@ -593,7 +602,9 @@ pub async fn mcp_budgets_get(
 ) -> Result<Value, AppError> {
     let row = mcp::repo::policies::get_budget_for_client(state.vault.pool(), &client_id)
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?
         .ok_or_else(|| AppError::NotFound {
             entity: "mcp_budget".into(),
             id: Some(client_id.clone()),
@@ -626,7 +637,9 @@ pub async fn mcp_budgets_set(
     let now = chrono::Utc::now().timestamp_millis();
     let existing = mcp::repo::policies::get_budget_for_client(state.vault.pool(), &client_id)
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?
         .ok_or_else(|| AppError::NotFound {
             entity: "mcp_budget".into(),
             id: Some(client_id.clone()),
@@ -653,7 +666,9 @@ pub async fn mcp_policy_list(
 ) -> Result<Vec<Value>, AppError> {
     let rows = mcp::repo::policies::get_policies_for_client(state.vault.pool(), &client_id)
         .await
-        .map_err(|e| AppError::Internal { message: e.to_string() })?;
+        .map_err(|e| AppError::Internal {
+            message: e.to_string(),
+        })?;
 
     Ok(rows
         .into_iter()

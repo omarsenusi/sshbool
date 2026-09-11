@@ -1,16 +1,22 @@
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Server, ShieldAlert, KeyRound } from 'lucide-react';
-import type { McpServerState } from '../types';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Server, ShieldAlert, KeyRound } from "lucide-react"
+import type { McpServerState } from "../types"
 
 interface ServerTabProps {
-  serverState: McpServerState;
-  loading: boolean;
-  onStart: () => void;
-  onStop: () => void;
-  onPairClick: () => void;
+  serverState: McpServerState
+  loading: boolean
+  onStart: () => void
+  onStop: () => void
+  onPairClick: () => void
 }
 
 export function ServerTab({
@@ -34,7 +40,9 @@ export function ServerTab({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline">{serverState.enabled ? 'Running' : 'Stopped'}</Badge>
+            <Badge variant="outline">
+              {serverState.enabled ? "Running" : "Stopped"}
+            </Badge>
             <Switch
               checked={serverState.enabled}
               disabled={loading}
@@ -45,11 +53,17 @@ export function ServerTab({
         <CardContent className="space-y-3 p-0">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-              <span className="text-xs text-muted-foreground block mb-1">Port</span>
-              <span className="font-mono text-xs font-medium">{serverState.port}</span>
+              <span className="mb-1 block text-xs text-muted-foreground">
+                Port
+              </span>
+              <span className="font-mono text-xs font-medium">
+                {serverState.port}
+              </span>
             </div>
             <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-              <span className="text-xs text-muted-foreground block mb-1">Bind address</span>
+              <span className="mb-1 block text-xs text-muted-foreground">
+                Bind address
+              </span>
               <span className="text-xs font-medium">127.0.0.1 only</span>
             </div>
           </div>
@@ -74,14 +88,17 @@ export function ServerTab({
 
       <Card className="rounded-xl border border-border/70 bg-card/60 p-4 shadow-2xs">
         <CardHeader className="p-0 pb-2">
-          <CardTitle className="text-sm font-semibold">Client configuration</CardTitle>
+          <CardTitle className="text-sm font-semibold">
+            Client configuration
+          </CardTitle>
           <CardDescription className="text-xs">
-            Direct token or pairing code — then paste config into Cursor MCP settings.
+            Direct token or pairing code — then paste config into Cursor MCP
+            settings.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <pre className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs font-mono select-all overflow-x-auto">
-{`{
+          <pre className="overflow-x-auto rounded-xl border border-border/70 bg-muted/20 p-3 font-mono text-xs select-all">
+            {`{
   "mcpServers": {
     "sshbool": {
       "url": "http://127.0.0.1:${serverState.port}/mcp",
@@ -95,5 +112,5 @@ export function ServerTab({
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

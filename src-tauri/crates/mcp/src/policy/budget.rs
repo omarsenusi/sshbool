@@ -33,8 +33,8 @@ impl ClientBudget {
             exec_timeout_ms: 60_000,
             max_pending_approvals: 3,
             approvals_per_hour: 40,
-            handle_idle_ms: 600_000,   // 10 minutes
-            handle_max_ms: 3_600_000,  // 60 minutes
+            handle_idle_ms: 600_000,  // 10 minutes
+            handle_max_ms: 3_600_000, // 60 minutes
             updated_at: chrono::Utc::now().timestamp_millis(),
         }
     }

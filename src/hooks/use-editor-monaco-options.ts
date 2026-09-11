@@ -24,7 +24,7 @@ export function useEditorMonacoOptions() {
       minimap: { enabled: !!minimap.value },
       automaticLayout: true,
     }),
-    [font.value, fontSize.value, tabSize.value, wordWrap.value, minimap.value],
+    [font.value, fontSize.value, tabSize.value, wordWrap.value, minimap.value]
   )
 
   return {

@@ -55,7 +55,10 @@ export function parseKeybinding(chord: string): {
   meta: boolean
   key: string
 } {
-  const parts = chord.split("+").map((p) => p.trim()).filter(Boolean)
+  const parts = chord
+    .split("+")
+    .map((p) => p.trim())
+    .filter(Boolean)
   let mod = false
   let ctrl = false
   let alt = false
@@ -107,7 +110,10 @@ export function formatKeybindingForDisplay(chord: string): string {
     .join(isMac ? "" : "+")
 }
 
-export function matchesKeybinding(event: KeyboardEvent, chord: string): boolean {
+export function matchesKeybinding(
+  event: KeyboardEvent,
+  chord: string
+): boolean {
   if (event.defaultPrevented || event.repeat) return false
 
   const parsed = parseKeybinding(chord)
@@ -143,7 +149,7 @@ export function matchesKeybinding(event: KeyboardEvent, chord: string): boolean 
 }
 
 export function findKeybindingConflicts(
-  bindings: Record<string, string>,
+  bindings: Record<string, string>
 ): Map<string, string[]> {
   const byChord = new Map<string, string[]>()
   for (const [command, chord] of Object.entries(bindings)) {
@@ -163,7 +169,10 @@ export function findKeybindingConflicts(
 export function isValidKeybinding(chord: string): boolean {
   const trimmed = chord.trim()
   if (!trimmed) return false
-  const parts = trimmed.split("+").map((p) => p.trim()).filter(Boolean)
+  const parts = trimmed
+    .split("+")
+    .map((p) => p.trim())
+    .filter(Boolean)
   if (parts.length === 0) return false
   const last = parts[parts.length - 1]!
   if (MODIFIERS.includes(last as (typeof MODIFIERS)[number])) return false

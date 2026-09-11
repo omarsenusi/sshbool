@@ -8,10 +8,7 @@ import { RemoteEditor } from "@/features/editor/components/remote-editor"
 import { RemotePathInput } from "@/features/editor/components/remote-path-input"
 import { openEditorPopout } from "@/features/editor/open-editor-popout"
 import { normalizeRemotePath } from "@/features/sftp/lib/remote-path"
-import {
-  editorTabTitle,
-  useEditorStore,
-} from "@/stores/editor.store"
+import { editorTabTitle, useEditorStore } from "@/stores/editor.store"
 
 export function EditorWorkspace({
   hostId,
@@ -37,7 +34,7 @@ export function EditorWorkspace({
 
   const tabs = useMemo(
     () => allTabs.filter((t) => t.hostId === hostId),
-    [allTabs, hostId],
+    [allTabs, hostId]
   )
 
   const active =
@@ -60,7 +57,8 @@ export function EditorWorkspace({
   }, [hostId, initialPath, openTab])
 
   if (singleFile) {
-    const path = active?.path ?? (initialPath ? normalizeRemotePath(initialPath) : "")
+    const path =
+      active?.path ?? (initialPath ? normalizeRemotePath(initialPath) : "")
     return (
       <div className="flex h-full min-h-0 flex-col">
         {path ? (
@@ -71,12 +69,12 @@ export function EditorWorkspace({
               path={path}
               tabId={active?.id}
               renderToolbar={({ dirty, saving, save }) => (
-                <div className="border-border flex items-center gap-2 border-b px-2 py-1">
+                <div className="flex items-center gap-2 border-b border-border px-2 py-1">
                   <input
                     readOnly
                     value={path}
                     title={path}
-                    className="border-input bg-muted/40 text-muted-foreground w-full cursor-default rounded-md border px-2 py-1 font-mono text-xs outline-none"
+                    className="w-full cursor-default rounded-md border border-input bg-muted/40 px-2 py-1 font-mono text-xs text-muted-foreground outline-none"
                   />
                   <Button
                     size="xs"
@@ -92,7 +90,7 @@ export function EditorWorkspace({
             />
           </ErrorBoundary>
         ) : (
-          <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             No file open.
           </div>
         )}
@@ -143,7 +141,7 @@ export function EditorWorkspace({
         ))}
       </WindowTabStrip>
 
-      <div className="border-border border-b px-2 py-1">
+      <div className="border-b border-border px-2 py-1">
         <RemotePathInput
           hostId={hostId}
           value={active?.path ?? ""}
@@ -171,7 +169,7 @@ export function EditorWorkspace({
             />
           </ErrorBoundary>
         ) : (
-          <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Open a remote file from SFTP, or type a path above.
           </div>
         )}

@@ -19,7 +19,9 @@ export const useToastStore = create<ToastState>((set) => ({
   items: [],
   push: (kind, title, description) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    set((s) => ({ items: [...s.items.slice(-4), { id, kind, title, description }] }))
+    set((s) => ({
+      items: [...s.items.slice(-4), { id, kind, title, description }],
+    }))
     window.setTimeout(() => {
       set((s) => ({ items: s.items.filter((t) => t.id !== id) }))
     }, 4500)

@@ -38,7 +38,7 @@ export function useTransferCloseGuard(enabled = true) {
             kind: "warning",
             okLabel: "Close anyway",
             cancelLabel: "Keep open",
-          },
+          }
         )
         if (ok && !cancelled) {
           await win.destroy()

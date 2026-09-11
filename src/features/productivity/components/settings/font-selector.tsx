@@ -19,22 +19,22 @@ export function FontSelector({
   popularFonts: string[]
 }) {
   return (
-    <div className="space-y-3 max-w-md">
+    <div className="max-w-md space-y-3">
       <div>
         <h3 className="text-sm font-semibold">{label}</h3>
-        <p className="text-muted-foreground mt-1 text-xs mb-3">{description}</p>
+        <p className="mt-1 mb-3 text-xs text-muted-foreground">{description}</p>
 
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="mb-3 flex flex-wrap gap-2">
           {popularFonts.map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => onChange(f)}
               className={cn(
-                "px-2.5 py-1 text-xs rounded-md border transition-colors",
+                "rounded-md border px-2.5 py-1 text-xs transition-colors",
                 value === f
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "hover:bg-muted bg-background border-border text-foreground",
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-foreground hover:bg-muted"
               )}
             >
               {f}
@@ -44,10 +44,10 @@ export function FontSelector({
             type="button"
             onClick={() => onChange("")}
             className={cn(
-              "px-2.5 py-1 text-xs rounded-md border transition-colors",
+              "rounded-md border px-2.5 py-1 text-xs transition-colors",
               !value
-                ? "bg-primary text-primary-foreground border-primary"
-                : "hover:bg-muted bg-background border-border text-foreground",
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background text-foreground hover:bg-muted"
             )}
           >
             Default
@@ -57,7 +57,7 @@ export function FontSelector({
         <div className="flex gap-2">
           <input
             type="text"
-            className="border-input bg-background flex-1 rounded-md border px-2 py-1.5 text-sm"
+            className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             placeholder="Custom Google Font (e.g. Almarai)"
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -71,7 +71,7 @@ export function FontSelector({
         )}
         <div className="mt-4 rounded-md border bg-card text-card-foreground shadow-sm">
           <div
-            className="flex items-center justify-between px-3 py-2 border-b border-border/50"
+            className="flex items-center justify-between border-b border-border/50 px-3 py-2"
             style={{ fontFamily: "system-ui, sans-serif" }}
           >
             <span className="text-xs font-medium">Preview</span>
@@ -81,15 +81,17 @@ export function FontSelector({
           </div>
 
           <div
-            className="px-3 py-3 space-y-2"
+            className="space-y-2 px-3 py-3"
             style={{
-              fontFamily: value.trim() ? `"${value.trim()}", system-ui, sans-serif` : undefined,
+              fontFamily: value.trim()
+                ? `"${value.trim()}", system-ui, sans-serif`
+                : undefined,
             }}
           >
             {document.documentElement.lang === "ar" ||
             document.documentElement.dir === "rtl" ||
             navigator.language.startsWith("ar") ? (
-              <p className="text-sm text-foreground text-right" dir="rtl">
+              <p className="text-right text-sm text-foreground" dir="rtl">
                 أبجد هوز حطي كلمن سعفص قرشت.
               </p>
             ) : (
@@ -97,7 +99,9 @@ export function FontSelector({
                 The quick brown fox jumps over the lazy dog.
               </p>
             )}
-            <p className="text-xs text-muted-foreground break-all">0123456789 !@#$%^&*()</p>
+            <p className="text-xs break-all text-muted-foreground">
+              0123456789 !@#$%^&*()
+            </p>
           </div>
         </div>
       </div>

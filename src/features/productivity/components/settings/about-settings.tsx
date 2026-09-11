@@ -5,7 +5,10 @@ import { fetchCmsPage } from "@/lib/api"
 import { ipc } from "@/lib/ipc/commands"
 
 export function AboutSettings() {
-  const info = useQuery({ queryKey: ["app-info"], queryFn: () => ipc.appInfo() })
+  const info = useQuery({
+    queryKey: ["app-info"],
+    queryFn: () => ipc.appInfo(),
+  })
   const aboutPage = useQuery({
     queryKey: ["cms-page", "about"],
     queryFn: () => fetchCmsPage("about"),
@@ -14,32 +17,32 @@ export function AboutSettings() {
   })
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="max-w-2xl space-y-4">
       <div>
         <h2 className="font-semibold">About</h2>
         <p className="mt-1 text-sm">
           {info.data?.name ?? "SSHBool"} {info.data?.version ?? "0.1.7"}
         </p>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           Tauri {info.data?.tauriVersion ?? "2"}
         </p>
       </div>
 
       {aboutPage.isLoading && (
-        <p className="text-muted-foreground text-xs">Loading about content…</p>
+        <p className="text-xs text-muted-foreground">Loading about content…</p>
       )}
 
       {aboutPage.isError && (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           Could not load about content from the server.
         </p>
       )}
 
       {aboutPage.data && (
-        <div className="border-border space-y-2 rounded-lg border p-4">
+        <div className="space-y-2 rounded-lg border border-border p-4">
           <MarkdownContent content={aboutPage.data.content} />
           {aboutPage.data.updated_at && (
-            <p className="text-muted-foreground pt-2 text-[11px]">
+            <p className="pt-2 text-[11px] text-muted-foreground">
               Updated {new Date(aboutPage.data.updated_at).toLocaleDateString()}
             </p>
           )}

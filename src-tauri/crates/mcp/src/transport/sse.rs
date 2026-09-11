@@ -9,12 +9,9 @@ use std::time::Duration;
 pub fn create_sse_stream(
     post_endpoint_url: String,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let initial_event = Event::default()
-        .event("endpoint")
-        .data(post_endpoint_url);
+    let initial_event = Event::default().event("endpoint").data(post_endpoint_url);
 
     let stream = stream::once(async move { Ok(initial_event) }).chain(stream::pending());
 
     Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
 }
-

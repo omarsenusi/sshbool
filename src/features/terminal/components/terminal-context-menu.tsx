@@ -1,4 +1,7 @@
-import { FileContextMenu, type MenuItem } from "@/features/sftp/components/file-context-menu"
+import {
+  FileContextMenu,
+  type MenuItem,
+} from "@/features/sftp/components/file-context-menu"
 import { formatKeybindingForDisplay } from "@/lib/keybinding-utils"
 
 import type { TerminalClipboardSettings } from "@/features/terminal/terminal-clipboard-settings"

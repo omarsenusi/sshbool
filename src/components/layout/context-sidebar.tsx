@@ -33,18 +33,19 @@ import {
   useLayoutStore,
 } from "@/stores/layout.store"
 
-const tools: { id: ActivityId; icon: typeof TerminalSquare; label: string }[] = [
-  { id: "terminal", icon: TerminalSquare, label: "Terminal" },
-  { id: "sftp", icon: HardDrive, label: "SFTP" },
-  { id: "editor", icon: FileCode2, label: "Editor" },
-  { id: "dashboard", icon: Activity, label: "Dashboard" },
-  // Docker / Kubernetes hidden for now — bring back when ready.
-  { id: "databases", icon: Database, label: "Databases" },
-  { id: "devtools", icon: Wrench, label: "Dev Tools" },
-  { id: "tunnels", icon: ArrowLeftRight, label: "Tunnels" },
-  { id: "desktop", icon: Monitor, label: "Remote Desktop" },
-  { id: "hostSettings", icon: Settings, label: "Settings" },
-]
+const tools: { id: ActivityId; icon: typeof TerminalSquare; label: string }[] =
+  [
+    { id: "terminal", icon: TerminalSquare, label: "Terminal" },
+    { id: "sftp", icon: HardDrive, label: "SFTP" },
+    { id: "editor", icon: FileCode2, label: "Editor" },
+    { id: "dashboard", icon: Activity, label: "Dashboard" },
+    // Docker / Kubernetes hidden for now — bring back when ready.
+    { id: "databases", icon: Database, label: "Databases" },
+    { id: "devtools", icon: Wrench, label: "Dev Tools" },
+    { id: "tunnels", icon: ArrowLeftRight, label: "Tunnels" },
+    { id: "desktop", icon: Monitor, label: "Remote Desktop" },
+    { id: "hostSettings", icon: Settings, label: "Settings" },
+  ]
 
 export function ContextSidebar() {
   const activity = useLayoutStore((s) => s.activity)
@@ -81,7 +82,9 @@ export function ContextSidebar() {
 
   const host = useMemo(() => {
     if (!selectedHostId) return null
-    return flattenHosts(tree.data ?? []).find((h) => h.id === selectedHostId) ?? null
+    return (
+      flattenHosts(tree.data ?? []).find((h) => h.id === selectedHostId) ?? null
+    )
   }, [tree.data, selectedHostId])
 
   const conn = host ? (byHost[host.id] ?? { status: "idle" as const }) : null
@@ -116,11 +119,11 @@ export function ContextSidebar() {
   return (
     <aside
       className={cn(
-        "bg-sidebar border-border relative flex shrink-0 flex-col overflow-hidden border-r",
+        "relative flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar",
         "transition-[opacity,transform] duration-200 ease-out",
         visible
           ? "translate-x-0 opacity-100"
-          : "pointer-events-none w-0 translate-x-[-6px] border-r-0 opacity-0",
+          : "pointer-events-none w-0 translate-x-[-6px] border-r-0 opacity-0"
       )}
       style={{ width: visible ? `${sidebarWidth}px` : 0 }}
       aria-label="Host tools"
@@ -129,7 +132,7 @@ export function ContextSidebar() {
       {/* Resizable handle on the right edge */}
       {visible && (
         <div
-          className="hover:bg-primary/50 active:bg-primary absolute right-0 top-0 bottom-0 z-30 w-1.5 cursor-col-resize transition-colors"
+          className="absolute top-0 right-0 bottom-0 z-30 w-1.5 cursor-col-resize transition-colors hover:bg-primary/50 active:bg-primary"
           onMouseDown={handleMouseDown}
           title="Drag to resize sidebar"
         />
@@ -137,7 +140,7 @@ export function ContextSidebar() {
       <div className="flex h-full w-full flex-col">
         {host && conn ? (
           <>
-            <div className="border-border space-y-3 border-b p-3">
+            <div className="space-y-3 border-b border-border p-3">
               <div className="flex items-start gap-2.5">
                 <HostTile
                   label={host.label}
@@ -146,8 +149,10 @@ export function ContextSidebar() {
                   status={conn.status}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">{host.label}</div>
-                  <div className="text-muted-foreground truncate font-mono text-[11px]">
+                  <div className="truncate text-sm font-semibold">
+                    {host.label}
+                  </div>
+                  <div className="truncate font-mono text-[11px] text-muted-foreground">
                     {host.username ? `${host.username}@` : ""}
                     {host.hostname}:{host.port}
                   </div>
@@ -157,16 +162,16 @@ export function ContextSidebar() {
                       live && "text-emerald-600 dark:text-emerald-400",
                       connecting && "text-sky-600 dark:text-sky-400",
                       conn.status === "error" && "text-destructive",
-                      conn.status === "idle" && "text-muted-foreground",
+                      conn.status === "idle" && "text-muted-foreground"
                     )}
                   >
                     {conn.status === "connected"
                       ? "Connected"
                       : conn.status === "connecting"
                         ? "Connecting…"
-                      : conn.status === "error"
-                        ? "Connection failed"
-                        : "Not connected"}
+                        : conn.status === "error"
+                          ? "Connection failed"
+                          : "Not connected"}
                   </div>
                 </div>
               </div>
@@ -193,7 +198,9 @@ export function ContextSidebar() {
                 </Button>
               )}
               {conn.status === "error" && conn.error && (
-                <p className="text-destructive text-[11px] leading-snug">{conn.error}</p>
+                <p className="text-[11px] leading-snug text-destructive">
+                  {conn.error}
+                </p>
               )}
             </div>
 
@@ -206,14 +213,14 @@ export function ContextSidebar() {
                     key={id}
                     type="button"
                     className={cn(
-                      "hover:bg-sidebar-accent flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm",
+                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-sidebar-accent",
                       active &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-                      !live && "opacity-70",
+                        "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                      !live && "opacity-70"
                     )}
                     onClick={() => setActivity(id)}
                   >
-                    <Icon className="text-muted-foreground size-4 shrink-0" />
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">{label}</span>
                     {live && (
                       <span

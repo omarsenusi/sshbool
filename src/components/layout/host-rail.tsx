@@ -51,7 +51,9 @@ export function HostRail() {
   const setAddHostOpen = useLayoutStore((s) => s.setAddHostOpen)
   const rememberView = useLayoutStore((s) => s.rememberView)
   const railMode = useLayoutStore((s) => s.hostRailMode)
-  const autoConnectOnSelect = useSetting(SETTINGS.connections.autoConnectOnSelect)
+  const autoConnectOnSelect = useSetting(
+    SETTINGS.connections.autoConnectOnSelect
+  )
   const railWidth = useLayoutStore((s) => s.hostRailWidth[s.hostRailMode])
   const setHostRailWidth = useLayoutStore((s) => s.setHostRailWidth)
   const clearError = useConnectionStore((s) => s.clearError)
@@ -92,17 +94,24 @@ export function HostRail() {
     queryFn: () => ipc.hostsListTree(),
   })
 
-  const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+  const urlWsId =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("wsId")
+      : null
   const activeWorkspaceIdQuery = useQuery<string>({
     queryKey: ["settings", "activeWorkspaceId", urlWsId],
     queryFn: async () => {
       if (urlWsId) return urlWsId
-      return ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      return (
+        ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      )
     },
   })
   const hostWorkspacesQuery = useQuery<Record<string, string>>({
     queryKey: ["settings", "hostWorkspaces"],
-    queryFn: async () => (await ipc.settingsGet("hostWorkspaces")) as Record<string, string> ?? {},
+    queryFn: async () =>
+      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ??
+      {},
   })
   const activeWsId = activeWorkspaceIdQuery.data ?? urlWsId ?? "default"
   const hostWorkspaces = hostWorkspacesQuery.data ?? {}
@@ -116,8 +125,8 @@ export function HostRail() {
   return (
     <nav
       className={cn(
-        "bg-sidebar border-border relative flex shrink-0 flex-col overflow-hidden border-r",
-        labelMode ? "items-stretch" : "items-center",
+        "relative flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar",
+        labelMode ? "items-stretch" : "items-center"
       )}
       style={{ width: `${railWidth}px` }}
       aria-label="Hosts"
@@ -125,7 +134,7 @@ export function HostRail() {
       <div
         className={cn(
           "flex h-[var(--titlebar-h)] w-full shrink-0 items-center gap-2",
-          labelMode ? "justify-start px-2.5" : "justify-center",
+          labelMode ? "justify-start px-2.5" : "justify-center"
         )}
         title="SSHBool"
         data-tauri-drag-region
@@ -148,7 +157,7 @@ export function HostRail() {
         aria-orientation="vertical"
         aria-label="Resize host rail"
         tabIndex={0}
-        className="hover:bg-primary/50 active:bg-primary focus-visible:bg-primary absolute top-0 right-0 bottom-0 z-30 w-1.5 cursor-col-resize transition-colors outline-none"
+        className="absolute top-0 right-0 bottom-0 z-30 w-1.5 cursor-col-resize transition-colors outline-none hover:bg-primary/50 focus-visible:bg-primary active:bg-primary"
         onMouseDown={handleResizeStart}
         onKeyDown={handleResizeKey}
         title="Drag to resize host rail"
@@ -157,7 +166,7 @@ export function HostRail() {
       <div
         className={cn(
           "flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-y-auto px-1.5 py-2",
-          labelMode ? "items-stretch" : "items-center",
+          labelMode ? "items-stretch" : "items-center"
         )}
       >
         <button
@@ -166,13 +175,11 @@ export function HostRail() {
           title="Overview"
           aria-current={homeActive ? "page" : undefined}
           className={cn(
-            "text-muted-foreground relative flex shrink-0 items-center rounded-md transition-all",
-            labelMode
-              ? "w-full gap-2 px-2 py-1.5"
-              : "size-8 justify-center",
+            "relative flex shrink-0 items-center rounded-md text-muted-foreground transition-all",
+            labelMode ? "w-full gap-2 px-2 py-1.5" : "size-8 justify-center",
             homeActive
               ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-              : "hover:bg-sidebar-accent/60",
+              : "hover:bg-sidebar-accent/60"
           )}
           onClick={() => {
             setSelectedHostId(null)
@@ -183,8 +190,8 @@ export function HostRail() {
           {homeActive && (
             <span
               className={cn(
-                "bg-primary absolute top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full shadow-sm",
-                labelMode ? "-left-[6px]" : "-left-[10px]",
+                "absolute top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-sm",
+                labelMode ? "-left-[6px]" : "-left-[10px]"
               )}
               aria-hidden
             />
@@ -240,8 +247,8 @@ export function HostRail() {
           aria-label="Add host"
           title="Add host"
           className={cn(
-            "text-muted-foreground shrink-0 rounded-md border border-dashed",
-            labelMode ? "w-full justify-start gap-2 px-2" : "size-8",
+            "shrink-0 rounded-md border border-dashed text-muted-foreground",
+            labelMode ? "w-full justify-start gap-2 px-2" : "size-8"
           )}
           onClick={() => {
             setSelectedHostId(null)
@@ -256,8 +263,8 @@ export function HostRail() {
 
       <div
         className={cn(
-          "border-border flex w-full flex-col gap-0.5 border-t px-1.5 py-2",
-          labelMode ? "items-stretch" : "items-center",
+          "flex w-full flex-col gap-0.5 border-t border-border px-1.5 py-2",
+          labelMode ? "items-stretch" : "items-center"
         )}
       >
         {bottomGlobals.map(({ id, icon: Icon, label }) => (
@@ -272,7 +279,7 @@ export function HostRail() {
               "text-muted-foreground",
               labelMode ? "w-full justify-start gap-2 px-2" : "size-8",
               activity === id &&
-                "bg-sidebar-accent text-sidebar-accent-foreground",
+                "bg-sidebar-accent text-sidebar-accent-foreground"
             )}
             onClick={() => {
               setSelectedHostId(null)

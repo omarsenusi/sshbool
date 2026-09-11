@@ -26,13 +26,13 @@ export function DevtoolsPanel({ hostId }: { hostId: string }) {
       <h2 className="text-lg font-semibold">Dev tools</h2>
       <section>
         <h3 className="mb-1 font-medium">Runtimes</h3>
-        <pre className="bg-muted rounded-md p-2 font-mono text-xs whitespace-pre-wrap">
+        <pre className="rounded-md bg-muted p-2 font-mono text-xs whitespace-pre-wrap">
           {JSON.stringify(probe.data ?? {}, null, 2)}
         </pre>
       </section>
       <div className="flex flex-wrap gap-2">
         <input
-          className="border-input bg-background rounded-md border px-2 py-1 font-mono text-xs"
+          className="rounded-md border border-input bg-background px-2 py-1 font-mono text-xs"
           value={path}
           onChange={(e) => setPath(e.target.value)}
           placeholder="git path"
@@ -43,7 +43,7 @@ export function DevtoolsPanel({ hostId }: { hostId: string }) {
       </div>
       <div className="flex flex-wrap gap-2">
         <input
-          className="border-input bg-background min-w-[240px] flex-1 rounded-md border px-2 py-1 font-mono text-xs"
+          className="min-w-[240px] flex-1 rounded-md border border-input bg-background px-2 py-1 font-mono text-xs"
           value={cmd}
           onChange={(e) => setCmd(e.target.value)}
         />
@@ -52,7 +52,9 @@ export function DevtoolsPanel({ hostId }: { hostId: string }) {
         </Button>
       </div>
       {out && (
-        <pre className="bg-muted flex-1 overflow-auto rounded-md p-2 text-xs whitespace-pre-wrap">{out}</pre>
+        <pre className="flex-1 overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap">
+          {out}
+        </pre>
       )}
     </div>
   )

@@ -53,22 +53,64 @@ pub async fn open_pool(db_path: &Path) -> Result<SqlitePool, DomainError> {
 }
 
 const EMBEDDED_MIGRATIONS: &[(&str, &str)] = &[
-    ("0001_init", include_str!("../../../migrations/0001_init.sql")),
-    ("0002_vault", include_str!("../../../migrations/0002_vault.sql")),
-    ("0003_sessions", include_str!("../../../migrations/0003_sessions.sql")),
-    ("0004_transfers", include_str!("../../../migrations/0004_transfers.sql")),
-    ("0005_monitoring", include_str!("../../../migrations/0005_monitoring.sql")),
-    ("0006_containers", include_str!("../../../migrations/0006_containers.sql")),
-    ("0007_datastores", include_str!("../../../migrations/0007_datastores.sql")),
-    ("0008_knowledge", include_str!("../../../migrations/0008_knowledge.sql")),
+    (
+        "0001_init",
+        include_str!("../../../migrations/0001_init.sql"),
+    ),
+    (
+        "0002_vault",
+        include_str!("../../../migrations/0002_vault.sql"),
+    ),
+    (
+        "0003_sessions",
+        include_str!("../../../migrations/0003_sessions.sql"),
+    ),
+    (
+        "0004_transfers",
+        include_str!("../../../migrations/0004_transfers.sql"),
+    ),
+    (
+        "0005_monitoring",
+        include_str!("../../../migrations/0005_monitoring.sql"),
+    ),
+    (
+        "0006_containers",
+        include_str!("../../../migrations/0006_containers.sql"),
+    ),
+    (
+        "0007_datastores",
+        include_str!("../../../migrations/0007_datastores.sql"),
+    ),
+    (
+        "0008_knowledge",
+        include_str!("../../../migrations/0008_knowledge.sql"),
+    ),
     ("0009_ai", include_str!("../../../migrations/0009_ai.sql")),
-    ("0010_sync", include_str!("../../../migrations/0010_sync.sql")),
-    ("0011_plugins", include_str!("../../../migrations/0011_plugins.sql")),
+    (
+        "0010_sync",
+        include_str!("../../../migrations/0010_sync.sql"),
+    ),
+    (
+        "0011_plugins",
+        include_str!("../../../migrations/0011_plugins.sql"),
+    ),
     ("0012_fts", include_str!("../../../migrations/0012_fts.sql")),
-    ("0013_audit", include_str!("../../../migrations/0013_audit.sql")),
-    ("0014_licensing", include_str!("../../../migrations/0014_licensing.sql")),
-    ("0015_team", include_str!("../../../migrations/0015_team.sql")),
-    ("0016_host_icon", include_str!("../../../migrations/0016_host_icon.sql")),
+    (
+        "0013_audit",
+        include_str!("../../../migrations/0013_audit.sql"),
+    ),
+    (
+        "0014_licensing",
+        include_str!("../../../migrations/0014_licensing.sql"),
+    ),
+    (
+        "0015_team",
+        include_str!("../../../migrations/0015_team.sql"),
+    ),
+    (
+        "0016_host_icon",
+        include_str!("../../../migrations/0016_host_icon.sql"),
+    ),
     (
         "0017_license_features",
         include_str!("../../../migrations/0017_license_features.sql"),
@@ -94,13 +136,12 @@ async fn ensure_migration_table(pool: &SqlitePool) -> Result<(), DomainError> {
 }
 
 async fn migration_applied(pool: &SqlitePool, id: &str) -> Result<bool, DomainError> {
-    let row: Option<(i64,)> = sqlx::query_as(
-        "SELECT 1 FROM _schema_migrations WHERE id = ? LIMIT 1",
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| DomainError::Crypto(format!("migration lookup: {e}")))?;
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT 1 FROM _schema_migrations WHERE id = ? LIMIT 1")
+            .bind(id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| DomainError::Crypto(format!("migration lookup: {e}")))?;
     Ok(row.is_some())
 }
 

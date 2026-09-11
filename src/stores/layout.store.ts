@@ -138,10 +138,7 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   editorPath: "",
   setActivity: (activity) =>
     set((s) => {
-      if (
-        s.selectedHostId &&
-        HOST_SCOPED_ACTIVITIES.includes(activity)
-      ) {
+      if (s.selectedHostId && HOST_SCOPED_ACTIVITIES.includes(activity)) {
         return {
           activity,
           lastViewed: {
@@ -159,7 +156,7 @@ export const useLayoutStore = create<LayoutState>((set) => ({
     set((s) =>
       s.liveHostIds.includes(hostId)
         ? s
-        : { liveHostIds: [...s.liveHostIds, hostId] },
+        : { liveHostIds: [...s.liveHostIds, hostId] }
     ),
   unmarkHostLive: (hostId) =>
     set((s) => ({ liveHostIds: s.liveHostIds.filter((id) => id !== hostId) })),

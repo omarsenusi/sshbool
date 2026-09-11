@@ -26,10 +26,7 @@ pub struct ApprovalRow {
     pub expires_at: i64,
 }
 
-pub async fn insert_approval(
-    pool: &SqlitePool,
-    row: &ApprovalRow,
-) -> Result<(), McpError> {
+pub async fn insert_approval(pool: &SqlitePool, row: &ApprovalRow) -> Result<(), McpError> {
     sqlx::query(
         r#"INSERT INTO mcp_approvals
         (id, client_id, host_id, session_handle, tool, args_hash, command_hash, command_preview, risk_tier, risk_reasons, ruleset_version, preview_output, decision, decided_by, decided_at, nonce_hash, consumed_at, requested_at, expires_at)

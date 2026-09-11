@@ -51,7 +51,9 @@ describe("ArabicXtermFixer", () => {
 
     const khalas = reshapeArabicKeepWordOrder("خلاص")
     expect(screen.startsWith(khalas)).toBe(true)
-    expect(screen.indexOf(khalas)).toBeLessThan(screen.indexOf(reshapeArabicKeepWordOrder("اخيرا")))
+    expect(screen.indexOf(khalas)).toBeLessThan(
+      screen.indexOf(reshapeArabicKeepWordOrder("اخيرا"))
+    )
   })
 })
 

@@ -88,7 +88,7 @@ export function RemotePathInput({
     <div className={cn("relative", className)}>
       <input
         ref={inputRef}
-        className="border-input bg-background w-full rounded-md border px-2 py-1 font-mono text-xs outline-none"
+        className="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-xs outline-none"
         placeholder={placeholder}
         value={value}
         autoComplete="off"
@@ -130,11 +130,16 @@ export function RemotePathInput({
         }}
       />
 
-      {open && suggestions.length > 0 &&
+      {open &&
+        suggestions.length > 0 &&
         createPortal(
           <ul
-            className="border-border bg-popover text-popover-foreground fixed z-[220] max-h-64 overflow-y-auto rounded-md border py-1 shadow-lg"
-            style={{ left: box.left, top: box.top, width: Math.max(box.width, 280) }}
+            className="fixed z-[220] max-h-64 overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg"
+            style={{
+              left: box.left,
+              top: box.top,
+              width: Math.max(box.width, 280),
+            }}
             role="listbox"
           >
             {suggestions.map((e, i) => (
@@ -144,8 +149,8 @@ export function RemotePathInput({
                   role="option"
                   aria-selected={i === active}
                   className={cn(
-                    "hover:bg-muted flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-mono text-xs",
-                    i === active && "bg-muted",
+                    "flex w-full items-center gap-2 px-2.5 py-1.5 text-left font-mono text-xs hover:bg-muted",
+                    i === active && "bg-muted"
                   )}
                   onMouseDown={(ev) => {
                     ev.preventDefault()
@@ -156,18 +161,22 @@ export function RemotePathInput({
                   {e.isDir ? (
                     <Folder className="size-3.5 shrink-0 text-amber-500" />
                   ) : (
-                    <File className="text-muted-foreground size-3.5 shrink-0" />
+                    <File className="size-3.5 shrink-0 text-muted-foreground" />
                   )}
                   <span className="min-w-0 flex-1 truncate">{e.name}</span>
-                  {e.isDir && <span className="text-muted-foreground text-[10px]">/</span>}
+                  {e.isDir && (
+                    <span className="text-[10px] text-muted-foreground">/</span>
+                  )}
                 </button>
               </li>
             ))}
             {listing.isFetching && (
-              <li className="text-muted-foreground px-2.5 py-1 text-[10px]">Searching…</li>
+              <li className="px-2.5 py-1 text-[10px] text-muted-foreground">
+                Searching…
+              </li>
             )}
           </ul>,
-          document.body,
+          document.body
         )}
     </div>
   )

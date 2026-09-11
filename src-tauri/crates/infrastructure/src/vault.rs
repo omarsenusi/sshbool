@@ -138,10 +138,11 @@ impl VaultService {
 
     /// Whether the user requires a master password on every app launch.
     pub async fn lock_on_startup(&self) -> Result<bool, DomainError> {
-        let row: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = 'lockOnStartup'")
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|e| DomainError::Crypto(e.to_string()))?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT value FROM settings WHERE key = 'lockOnStartup'")
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| DomainError::Crypto(e.to_string()))?;
         Ok(row
             .and_then(|(v,)| serde_json::from_str::<serde_json::Value>(&v).ok())
             .is_some_and(|v| v == serde_json::Value::Bool(true)))

@@ -3,20 +3,20 @@
 //! Provides the core policy engine, risk classifier, approval broker, and data repository
 //! for security-gated MCP integration over SSHBool infrastructure.
 
+pub mod approval;
 pub mod config;
 pub mod error;
-pub mod policy;
-pub mod approval;
-pub mod repo;
+pub mod executor;
 pub mod pairing;
+pub mod policy;
 pub mod protocol;
+pub mod repo;
+pub mod runtime;
 pub mod scope;
+pub mod server;
 pub mod session;
 pub mod tools;
 pub mod transport;
-pub mod server;
-pub mod executor;
-pub mod runtime;
 
 pub use config::{LoopbackAddr, ServerConfig};
 pub use error::McpError;

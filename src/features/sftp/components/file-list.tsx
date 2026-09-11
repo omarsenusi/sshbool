@@ -130,7 +130,7 @@ export function FileList({
           onSelect(
             entries.slice(a, b + 1).map((x) => x.path),
             false,
-            true,
+            true
           )
           return
         }
@@ -138,28 +138,30 @@ export function FileList({
       lastClicked.current = entry.path
       onSelect([entry.path], additive, false)
     },
-    [entries, onSelect],
+    [entries, onSelect]
   )
 
   return (
     <div
       data-sftp-list-side={dragSide}
       className={cn(
-        "min-h-0 h-full flex-1 overflow-y-auto font-mono text-xs",
-        dropHighlight && "bg-primary/5 ring-primary/30 ring-1 ring-inset",
+        "h-full min-h-0 flex-1 overflow-y-auto font-mono text-xs",
+        dropHighlight && "bg-primary/5 ring-1 ring-primary/30 ring-inset"
       )}
       onContextMenu={(e) => {
         e.preventDefault()
         onContextMenu(e, null)
       }}
     >
-      <div className="text-muted-foreground border-border sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_88px_140px] gap-2 border-b bg-background/95 px-2 py-1 text-[10px] uppercase tracking-wide backdrop-blur">
+      <div className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_88px_140px] gap-2 border-b border-border bg-background/95 px-2 py-1 text-[10px] tracking-wide text-muted-foreground uppercase backdrop-blur">
         <span>Name</span>
         <span className="text-right">Size</span>
         <span className="text-right">Modified</span>
       </div>
       {entries.length === 0 && (
-        <p className="text-muted-foreground px-3 py-6 text-center text-xs">Empty folder</p>
+        <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+          Empty folder
+        </p>
       )}
       {entries.map((entry) => {
         const isSel = selectedSet.has(entry.path)
@@ -170,11 +172,11 @@ export function FileList({
             tabIndex={0}
             data-sftp-drop-folder={entry.isDir ? entry.path : undefined}
             className={cn(
-              "hover:bg-muted/50 grid w-full cursor-default grid-cols-[minmax(0,1fr)_88px_140px] items-center gap-2 px-2 py-1 text-left select-none",
+              "grid w-full cursor-default grid-cols-[minmax(0,1fr)_88px_140px] items-center gap-2 px-2 py-1 text-left select-none hover:bg-muted/50",
               isSel && "bg-muted",
               highlightDropPath === entry.path &&
                 entry.isDir &&
-                "bg-primary/15 ring-primary/40 ring-1",
+                "bg-primary/15 ring-1 ring-primary/40"
             )}
             onPointerDown={(e) => {
               if (e.button !== 0) return
@@ -224,7 +226,12 @@ export function FileList({
               onOpen(entry)
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+              if (
+                e.key === "Enter" &&
+                !e.ctrlKey &&
+                !e.metaKey &&
+                !e.shiftKey
+              ) {
                 e.preventDefault()
                 onOpen(entry)
               }
@@ -240,14 +247,14 @@ export function FileList({
               {entry.isDir ? (
                 <Folder className="size-3.5 shrink-0 text-amber-500" />
               ) : (
-                <File className="size-3.5 text-muted-foreground shrink-0" />
+                <File className="size-3.5 shrink-0 text-muted-foreground" />
               )}
               <span className="truncate">{entry.name}</span>
             </span>
-            <span className="text-muted-foreground text-right tabular-nums">
+            <span className="text-right text-muted-foreground tabular-nums">
               {entry.isDir ? "—" : formatBytes(entry.size)}
             </span>
-            <span className="text-muted-foreground truncate text-right">
+            <span className="truncate text-right text-muted-foreground">
               {formatMtime(entry.mtime)}
             </span>
           </div>

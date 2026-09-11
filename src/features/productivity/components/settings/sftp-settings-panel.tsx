@@ -19,10 +19,10 @@ export function SftpSettingsPanel() {
   const openFileIn = useSetting(SETTINGS.sftp.openFileIn)
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="max-w-lg space-y-6">
       <div>
         <h2 className="font-semibold">SFTP</h2>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="mt-1 text-xs text-muted-foreground">
           File transfer explorer defaults and safety options.
         </p>
       </div>
@@ -30,8 +30,9 @@ export function SftpSettingsPanel() {
       <div className="space-y-4 border-t border-border pt-4">
         <label className="block space-y-1">
           <span className="text-sm font-medium">Remote start path</span>
-          <p className="text-muted-foreground text-xs">
-            Initial remote directory when opening SFTP (e.g. <code className="font-mono">.</code> or{" "}
+          <p className="text-xs text-muted-foreground">
+            Initial remote directory when opening SFTP (e.g.{" "}
+            <code className="font-mono">.</code> or{" "}
             <code className="font-mono">/var/log</code>).
           </p>
           <input
@@ -47,7 +48,9 @@ export function SftpSettingsPanel() {
             <label className="text-sm font-medium" htmlFor="sftp-show-hidden">
               Show hidden files
             </label>
-            <p className="text-muted-foreground text-xs">Show dotfiles in local and remote panes.</p>
+            <p className="text-xs text-muted-foreground">
+              Show dotfiles in local and remote panes.
+            </p>
           </div>
           <Switch
             id="sftp-show-hidden"
@@ -58,10 +61,13 @@ export function SftpSettingsPanel() {
 
         <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
           <div className="space-y-0.5">
-            <label className="text-sm font-medium" htmlFor="sftp-confirm-delete">
+            <label
+              className="text-sm font-medium"
+              htmlFor="sftp-confirm-delete"
+            >
               Confirm before delete
             </label>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               Ask for confirmation when deleting files or folders.
             </p>
           </div>

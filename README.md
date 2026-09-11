@@ -54,48 +54,52 @@ Built with a **"Connect once, do everything"** architecture, SSHBool opens a sin
 
 ## ✨ Key Features
 
-*   ⚡ **Native Performance:** Built on Rust and Tauri v2, bypassing the massive memory footprint of Electron. Starts in less than 800ms with a cold start connection time under 1.2s on LAN.
-*   🔒 **Security by Default:**
-    *   All host profiles, settings, and metadata are saved locally in an encrypted database using **SQLCipher (AES-256)**.
-    *   Cryptographic keys derived via **Argon2id** from your master password.
-    *   Hardware key support (FIDO2/YubiKey) for unlocking and authenticating connections.
-*   🌐 **Multiplexed SSH Transport:** Opens a single connection per host. Terminals, file operations, monitoring metrics, and DB queries run asynchronously over the same TCP socket.
-*   🖥️ **High-Performance Terminal:** An integrated, GPU-accelerated console powered by **Xterm.js** with WebGL rendering for ultra-fast text outputs.
-*   📂 **Dual-Pane SFTP Client:** Side-by-side local and remote file explorers supporting drag-and-drop actions, download/upload queues, and transfer status monitoring.
-*   📝 **Remote Text Editor:** Edit remote configuration files directly in the workspace using the integrated **Monaco Editor** with full syntax highlighting.
-*   📊 **Live Server Monitoring:** Real-time metrics showing CPU, RAM, disk storage, and network utilization on the active remote host.
-*   🗄️ **Database Inspector & Query Runner:** Automatically scans the remote host for active database ports (PostgreSQL, MySQL, Redis, MongoDB), connects to them, and lets you execute queries inside a terminal-friendly view.
+- ⚡ **Native Performance:** Built on Rust and Tauri v2, bypassing the massive memory footprint of Electron. Starts in less than 800ms with a cold start connection time under 1.2s on LAN.
+- 🔒 **Security by Default:**
+  - All host profiles, settings, and metadata are saved locally in an encrypted database using **SQLCipher (AES-256)**.
+  - Cryptographic keys derived via **Argon2id** from your master password.
+  - Hardware key support (FIDO2/YubiKey) for unlocking and authenticating connections.
+- 🌐 **Multiplexed SSH Transport:** Opens a single connection per host. Terminals, file operations, monitoring metrics, and DB queries run asynchronously over the same TCP socket.
+- 🖥️ **High-Performance Terminal:** An integrated, GPU-accelerated console powered by **Xterm.js** with WebGL rendering for ultra-fast text outputs.
+- 📂 **Dual-Pane SFTP Client:** Side-by-side local and remote file explorers supporting drag-and-drop actions, download/upload queues, and transfer status monitoring.
+- 📝 **Remote Text Editor:** Edit remote configuration files directly in the workspace using the integrated **Monaco Editor** with full syntax highlighting.
+- 📊 **Live Server Monitoring:** Real-time metrics showing CPU, RAM, disk storage, and network utilization on the active remote host.
+- 🗄️ **Database Inspector & Query Runner:** Automatically scans the remote host for active database ports (PostgreSQL, MySQL, Redis, MongoDB), connects to them, and lets you execute queries inside a terminal-friendly view.
 
 ---
 
 ## 🛠️ Tech Stack
 
-*   **OS Desktop Wrapper:** Tauri v2 (Rust)
-*   **Frontend Core:** React 19 + TypeScript + Vite
-*   **State & Query Caching:** Zustand + TanStack Query v5
-*   **Styling & UI:** TailwindCSS v4 + Base UI
-*   **Local Database:** SQLCipher (SQLite with AES-256 at-rest encryption)
-*   **SSH Transport:** russh (Async SSH client in Rust)
-*   **Terminal & Editor:** Xterm.js & Monaco Editor
+- **OS Desktop Wrapper:** Tauri v2 (Rust)
+- **Frontend Core:** React 19 + TypeScript + Vite
+- **State & Query Caching:** Zustand + TanStack Query v5
+- **Styling & UI:** TailwindCSS v4 + Base UI
+- **Local Database:** SQLCipher (SQLite with AES-256 at-rest encryption)
+- **SSH Transport:** russh (Async SSH client in Rust)
+- **Terminal & Editor:** Xterm.js & Monaco Editor
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 Make sure you have the following installed on your machine:
-*   [Node.js](https://nodejs.org/) (LTS recommended)
-*   [Rust toolchain](https://www.rust-lang.org/) (via rustup)
-*   [Bun](https://bun.sh/) (as the default package runner)
+
+- [Node.js](https://nodejs.org/) (LTS recommended)
+- [Rust toolchain](https://www.rust-lang.org/) (via rustup)
+- [Bun](https://bun.sh/) (as the default package runner)
 
 ### Installation & Development Run
 
 1. **Install dependencies:**
+
    ```bash
    bun install
    ```
 
 2. **Launch the app in development mode:**
+
    ```bash
    bun run tauri dev
    ```
@@ -126,4 +130,3 @@ For in-depth architectural documents, data schemas, and the development roadmap,
 ## 📄 License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-

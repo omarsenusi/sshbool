@@ -19,7 +19,7 @@ export function TerminalPopoutWindow({ paneId, title }: TerminalPopoutParams) {
   }, [title])
 
   return (
-    <div className="bg-background flex h-screen w-screen flex-col overflow-hidden">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
       <WindowChrome title="SSHBool" subtitle={title} />
       <WindowTabStrip>
         <WindowTab title={title} active leading={<span aria-hidden>↗</span>} />

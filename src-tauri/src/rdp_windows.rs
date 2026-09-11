@@ -119,9 +119,7 @@ pub fn launch_with_protocol_password(opts: &RdpLaunchOpts<'_>) -> Result<(), Str
             .to_string()
     })?;
 
-    if let Err(e) = launch_freerdp(&bin, opts) {
-        return Err(e);
-    }
+    launch_freerdp(&bin, opts)?;
     tracing::info!(
         "RDP: FreeRDP {} connected to {addr} user={} (xRDP greeter auto-login scheduled)",
         bin.display(),
@@ -197,7 +195,9 @@ pub fn provision_freerdp_bundle() -> Result<PathBuf, String> {
                 tracing::info!("RDP: provisioned FreeRDP artifact at {}", dest.display());
                 return Ok(dest);
             }
-            Ok(()) => last_error = format!("artifact {filename} is not a usable FreeRDP 3.x client"),
+            Ok(()) => {
+                last_error = format!("artifact {filename} is not a usable FreeRDP 3.x client")
+            }
             Err(e) => last_error = e,
         }
     }
@@ -337,10 +337,7 @@ pub fn launch_mstsc(opts: &MstscLaunchOpts<'_>) -> Result<(), String> {
         format!("redirectclipboard:i:{}", u8::from(opts.share_clipboard)),
         format!("smart sizing:i:{}", u8::from(opts.smart_sizing)),
         format!("administrative session:i:{}", u8::from(opts.admin_mode)),
-        format!(
-            "screen mode id:i:{}",
-            if opts.full_screen { 2 } else { 1 }
-        ),
+        format!("screen mode id:i:{}", if opts.full_screen { 2 } else { 1 }),
         format!("desktopwidth:i:{}", opts.width),
         format!("desktopheight:i:{}", opts.height),
         format!("session bpp:i:{}", opts.color_depth),
@@ -449,23 +446,11 @@ fn launch_freerdp(bin: &Path, opts: &RdpLaunchOpts<'_>) -> Result<(), String> {
     let profiles: &[(&str, &[&str])] = &[
         (
             "tls",
-            &[
-                "/sec:tls",
-                "-gfx",
-                "/bpp:24",
-                "/network:lan",
-                "/gdi:sw",
-            ],
+            &["/sec:tls", "-gfx", "/bpp:24", "/network:lan", "/gdi:sw"],
         ),
         (
             "rdp",
-            &[
-                "/sec:rdp",
-                "-gfx",
-                "/bpp:24",
-                "/network:lan",
-                "/gdi:sw",
-            ],
+            &["/sec:rdp", "-gfx", "/bpp:24", "/network:lan", "/gdi:sw"],
         ),
     ];
 
@@ -722,14 +707,20 @@ fn pick_preferred_client(current: Option<PathBuf>, candidate: PathBuf) -> Option
 }
 
 fn find_release_dir(root: &Path) -> Option<PathBuf> {
-    if root.file_name().is_some_and(|n| n.eq_ignore_ascii_case("Release")) {
+    if root
+        .file_name()
+        .is_some_and(|n| n.eq_ignore_ascii_case("Release"))
+    {
         return Some(root.to_path_buf());
     }
     let entries = std::fs::read_dir(root).ok()?;
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            if path.file_name().is_some_and(|n| n.eq_ignore_ascii_case("Release")) {
+            if path
+                .file_name()
+                .is_some_and(|n| n.eq_ignore_ascii_case("Release"))
+            {
                 return Some(path);
             }
             if let Some(nested) = find_release_dir(&path) {
@@ -874,13 +865,13 @@ fn schedule_freerdp_auto_login(freerdp_pid: u32, password: Zeroizing<String>) {
             if freerdp_credential_dialog_visible() {
                 tracing::info!("RDP: credential dialog visible (attempt {})", attempt + 1);
                 if submit_freerdp_credential_dialog(password.as_str()) {
-                    tracing::info!(
-                        "RDP: credential dialog accepted (attempt {})",
-                        attempt + 1
-                    );
+                    tracing::info!("RDP: credential dialog accepted (attempt {})", attempt + 1);
                     break;
                 }
-                tracing::info!("RDP: credential dialog fill incomplete (attempt {})", attempt + 1);
+                tracing::info!(
+                    "RDP: credential dialog fill incomplete (attempt {})",
+                    attempt + 1
+                );
             }
             if attempt + 1 < 30 {
                 std::thread::sleep(std::time::Duration::from_millis(400));
@@ -896,7 +887,10 @@ fn schedule_freerdp_auto_login(freerdp_pid: u32, password: Zeroizing<String>) {
                 tracing::info!("RDP: credential dialog retry during greeter phase ({attempt})");
                 let _ = submit_freerdp_credential_dialog(password.as_str());
             } else if find_freerdp_window(freerdp_pid).is_some() {
-                tracing::info!("RDP: greeter auto-login attempt {} (pid={freerdp_pid})", attempt + 1);
+                tracing::info!(
+                    "RDP: greeter auto-login attempt {} (pid={freerdp_pid})",
+                    attempt + 1
+                );
                 if submit_xrdp_greeter_login(freerdp_pid, password.as_str()) {
                     greeter_submits += 1;
                 }
@@ -937,8 +931,7 @@ fn freerdp_credential_dialog_visible() -> bool {
 
 fn freerdp_login_screen_visible(freerdp_pid: u32) -> bool {
     find_freerdp_window(freerdp_pid).is_some_and(|hwnd| {
-        window_title(hwnd)
-            .is_some_and(|title| title_is_freerdp_session(&title))
+        window_title(hwnd).is_some_and(|title| title_is_freerdp_session(&title))
     })
 }
 
@@ -1059,9 +1052,7 @@ fn submit_xrdp_greeter_login(freerdp_pid: u32, password: &str) -> bool {
     };
 
     let title = window_title(hwnd).unwrap_or_default();
-    tracing::info!(
-        "RDP: greeter submit hwnd={hwnd} title=\"{title}\" mode=scancode"
-    );
+    tracing::info!("RDP: greeter submit hwnd={hwnd} title=\"{title}\" mode=scancode");
 
     allow_child_foreground();
     let _ = focus_freerdp_window(hwnd);
@@ -1278,7 +1269,11 @@ fn send_vk(vk: u16, flags: u32) {
         },
     };
     unsafe {
-        SendInput(1, (&mut input as *mut Input).cast(), std::mem::size_of::<Input>() as i32);
+        SendInput(
+            1,
+            (&mut input as *mut Input).cast(),
+            std::mem::size_of::<Input>() as i32,
+        );
     }
 }
 
@@ -1375,7 +1370,11 @@ fn send_scancode(vk: u16, scan: u16, flags: u32) {
         },
     };
     unsafe {
-        SendInput(1, (&mut input as *mut Input).cast(), std::mem::size_of::<Input>() as i32);
+        SendInput(
+            1,
+            (&mut input as *mut Input).cast(),
+            std::mem::size_of::<Input>() as i32,
+        );
     }
 }
 
@@ -1416,7 +1415,11 @@ fn send_vk_with_scan(scan: u16, flags: u32) {
         },
     };
     unsafe {
-        SendInput(1, (&mut input as *mut Input).cast(), std::mem::size_of::<Input>() as i32);
+        SendInput(
+            1,
+            (&mut input as *mut Input).cast(),
+            std::mem::size_of::<Input>() as i32,
+        );
     }
 }
 

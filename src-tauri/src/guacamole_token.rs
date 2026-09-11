@@ -3,10 +3,7 @@
 use aes::Aes256;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use cbc::{Decryptor, Encryptor};
-use cipher::{
-    block_padding::Pkcs7,
-    BlockDecryptMut, BlockEncryptMut, KeyIvInit,
-};
+use cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use rand::RngCore;
 use serde_json::{json, Value};
 
@@ -91,9 +88,7 @@ pub fn encrypt_token(payload: &Value) -> Result<String, String> {
         "value": B64.encode(&ciphertext),
     });
 
-    Ok(B64.encode(
-        serde_json::to_string(&wrapper).map_err(|e| e.to_string())?,
-    ))
+    Ok(B64.encode(serde_json::to_string(&wrapper).map_err(|e| e.to_string())?))
 }
 
 /// Decrypt token for the WebSocket bridge.

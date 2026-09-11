@@ -25,7 +25,7 @@ function HostNode({
   if (node.kind === "group") {
     return (
       <div className="space-y-1">
-        <div className="text-muted-foreground px-2 py-1 text-xs font-medium uppercase">
+        <div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase">
           {node.group.name}
         </div>
         <div className="pl-2">
@@ -42,7 +42,7 @@ function HostNode({
   return (
     <button
       type="button"
-      className="hover:bg-muted/60 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm"
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted/60"
       onClick={() => onSelect(h.id)}
     >
       <span
@@ -53,7 +53,7 @@ function HostNode({
       </span>
       {h.isFavorite && <Star className="size-3 fill-current text-warning" />}
       <span className="min-w-0 flex-1 truncate font-medium">{h.label}</span>
-      <span className="text-muted-foreground truncate text-xs">
+      <span className="truncate text-xs text-muted-foreground">
         {h.username ? `${h.username}@` : ""}
         {h.hostname}:{h.port}
       </span>
@@ -80,7 +80,7 @@ function EditHostColor({
   })
 
   return (
-    <div className="border-border space-y-2 border-t p-3">
+    <div className="space-y-2 border-t border-border p-3">
       <div className="text-sm font-medium">Color — {host.label}</div>
       <div className="flex flex-wrap gap-2">
         {HOST_COLOR_PRESETS.map((c) => (
@@ -89,7 +89,7 @@ function EditHostColor({
             type="button"
             className={cn(
               "size-7 rounded-md",
-              color === c && "ring-foreground ring-2 ring-offset-2",
+              color === c && "ring-2 ring-foreground ring-offset-2"
             )}
             style={{ backgroundColor: c }}
             onClick={() => setColor(c)}
@@ -97,7 +97,11 @@ function EditHostColor({
         ))}
       </div>
       <div className="flex gap-2">
-        <Button size="sm" disabled={update.isPending} onClick={() => update.mutate()}>
+        <Button
+          size="sm"
+          disabled={update.isPending}
+          onClick={() => update.mutate()}
+        >
           Save
         </Button>
         <Button size="sm" variant="ghost" onClick={onClose}>
@@ -138,18 +142,24 @@ export function HostTree({
     },
   })
 
-  const urlWsId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsId") : null
+  const urlWsId =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("wsId")
+      : null
   const activeWorkspaceIdQuery = useQuery<string>({
     queryKey: ["settings", "activeWorkspaceId", urlWsId],
     queryFn: async () => {
       if (urlWsId) return urlWsId
-      return ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      return (
+        ((await ipc.settingsGet("activeWorkspaceId")) as string) ?? "default"
+      )
     },
   })
   const hostWorkspacesQuery = useQuery<Record<string, string>>({
     queryKey: ["settings", "hostWorkspaces"],
     queryFn: async () =>
-      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ?? {},
+      ((await ipc.settingsGet("hostWorkspaces")) as Record<string, string>) ??
+      {},
   })
   const activeWsId = activeWorkspaceIdQuery.data ?? urlWsId ?? "default"
   const hostWorkspaces = hostWorkspacesQuery.data ?? {}
@@ -183,7 +193,9 @@ export function HostTree({
 
   const list = (
     <>
-      {tree.isLoading && <p className="text-muted-foreground p-2 text-xs">Loading…</p>}
+      {tree.isLoading && (
+        <p className="p-2 text-xs text-muted-foreground">Loading…</p>
+      )}
       {filteredTree.map((n, i) => (
         <div key={i} className="group relative">
           <HostNode node={n} onSelect={selectHost} />
@@ -209,7 +221,9 @@ export function HostTree({
         </div>
       ))}
       {filteredTree.length === 0 && (
-        <p className="text-muted-foreground p-3 text-xs">No hosts in this workspace. Add one to connect.</p>
+        <p className="p-3 text-xs text-muted-foreground">
+          No hosts in this workspace. Add one to connect.
+        </p>
       )}
       {editing && (
         <EditHostColor host={editing} onClose={() => setEditingId(null)} />
@@ -219,15 +233,19 @@ export function HostTree({
 
   if (embedded) {
     return (
-      <section className="border-border rounded-xl border">
-        <div className="border-border flex items-center justify-between border-b px-4 py-3">
+      <section className="rounded-xl border border-border">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold">Manage hosts</h2>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               Select a host to open tools, or edit its tile color.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setAddHostOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAddHostOpen(true)}
+          >
             <Plus className="size-3.5" />
             Add
           </Button>
@@ -239,14 +257,18 @@ export function HostTree({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-border flex items-center justify-between border-b px-3 py-2">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <div>
           <h2 className="text-sm font-semibold">Manage hosts</h2>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             Select a host to use tools, or edit its tile color.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setAddHostOpen(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setAddHostOpen(true)}
+        >
           <Plus className="size-3.5" />
           Add
         </Button>

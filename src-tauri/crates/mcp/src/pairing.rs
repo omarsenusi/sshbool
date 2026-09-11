@@ -127,12 +127,7 @@ pub async fn pair_client_from_app(
     }
 
     let mut tx = pool.begin().await?;
-    let resp = mint_paired_client(
-        &mut tx,
-        name,
-        req.client_version.as_deref(),
-    )
-    .await?;
+    let resp = mint_paired_client(&mut tx, name, req.client_version.as_deref()).await?;
     tx.commit().await?;
     Ok(resp)
 }
@@ -161,7 +156,11 @@ pub async fn redeem_pairing_code(
 
     let record = match row {
         Some(r) => r,
-        None => return Err(McpError::InvalidArguments("Invalid or expired pairing code".into())),
+        None => {
+            return Err(McpError::InvalidArguments(
+                "Invalid or expired pairing code".into(),
+            ))
+        }
     };
 
     if record.attempts >= 3 {
@@ -180,7 +179,12 @@ pub async fn redeem_pairing_code(
         .execute(&mut *tx)
         .await?;
 
-    if code_hash.as_bytes().ct_eq(record.code_hash.as_bytes()).unwrap_u8() != 1 {
+    if code_hash
+        .as_bytes()
+        .ct_eq(record.code_hash.as_bytes())
+        .unwrap_u8()
+        != 1
+    {
         tx.commit().await?;
         return Err(McpError::InvalidArguments("Invalid pairing code".into()));
     }
@@ -190,12 +194,7 @@ pub async fn redeem_pairing_code(
         .execute(&mut *tx)
         .await?;
 
-    let resp = mint_paired_client(
-        &mut tx,
-        &req.client_name,
-        req.client_version.as_deref(),
-    )
-    .await?;
+    let resp = mint_paired_client(&mut tx, &req.client_name, req.client_version.as_deref()).await?;
 
     tx.commit().await?;
     Ok(resp)

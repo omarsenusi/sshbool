@@ -21,27 +21,43 @@ export function K8sPanel({ hostId }: { hostId: string }) {
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-semibold">Kubernetes</h2>
         <input
-          className="border-input bg-background rounded-md border px-2 py-1 text-xs"
+          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
           value={ns}
           onChange={(e) => setNs(e.target.value)}
           placeholder="namespace"
         />
-        <Button size="sm" variant="outline" onClick={() => { void pods.refetch(); void deploys.refetch() }}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            void pods.refetch()
+            void deploys.refetch()
+          }}
+        >
           Refresh
         </Button>
       </div>
-      {pods.isError && <p className="text-destructive text-xs">{(pods.error as Error).message}</p>}
+      {pods.isError && (
+        <p className="text-xs text-destructive">
+          {(pods.error as Error).message}
+        </p>
+      )}
       <section>
         <h3 className="mb-2 font-medium">Pods</h3>
         <div className="font-mono text-xs">
           {(pods.data ?? []).map((p) => (
-            <div key={String(p.name)} className="flex items-center gap-2 py-0.5">
+            <div
+              key={String(p.name)}
+              className="flex items-center gap-2 py-0.5"
+            >
               <span className="min-w-0 flex-1 truncate">{String(p.name)}</span>
               <span>{String(p.status)}</span>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => void ipc.k8sLogs(hostId, ns, String(p.name)).then(setLogs)}
+                onClick={() =>
+                  void ipc.k8sLogs(hostId, ns, String(p.name)).then(setLogs)
+                }
               >
                 Logs
               </Button>
@@ -60,7 +76,9 @@ export function K8sPanel({ hostId }: { hostId: string }) {
         </ul>
       </section>
       {logs && (
-        <pre className="bg-muted max-h-48 overflow-auto rounded-md p-2 text-xs whitespace-pre-wrap">{logs}</pre>
+        <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap">
+          {logs}
+        </pre>
       )}
     </div>
   )

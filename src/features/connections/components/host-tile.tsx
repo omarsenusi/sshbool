@@ -33,12 +33,10 @@ export function HostTile({
     <div className="relative flex size-8 shrink-0 items-center justify-center">
       {/* Left active indicator pill */}
       {selected && (
-        <span
-          className="absolute -left-[10px] top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-sm z-30"
-        />
+        <span className="absolute top-1/2 -left-[10px] z-30 h-7 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-sm" />
       )}
 
- <button
+      <button
         type="button"
         title={title ?? label}
         aria-label={label}
@@ -51,20 +49,27 @@ export function HostTile({
         onClick={onClick}
       >
         {/* Clip wave / icon inside the tile; badges sit outside on the button */}
-        <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-md" aria-hidden>
+        <span
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-md"
+          aria-hidden
+        >
           {hasIcon && (
-            <img src={icon} alt="" className="absolute inset-0 size-full object-cover z-0" />
+            <img
+              src={icon}
+              alt=""
+              className="absolute inset-0 z-0 size-full object-cover"
+            />
           )}
           {/* Pure Glass SVG Ocean Waves */}
           {showWave && (
             <div
               className={cn(
-                "absolute inset-x-0 bottom-0 z-20 overflow-hidden pointer-events-none backdrop-blur-[3px]",
+                "pointer-events-none absolute inset-x-0 bottom-0 z-20 overflow-hidden backdrop-blur-[3px]",
                 connecting && "host-svg-wave--rising"
               )}
             >
               <svg
-                className="absolute bottom-0 left-0 w-[200%] h-full animate-wave-slide"
+                className="animate-wave-slide absolute bottom-0 left-0 h-full w-[200%]"
                 viewBox="0 0 1200 120"
                 preserveAspectRatio="none"
               >
@@ -76,7 +81,7 @@ export function HostTile({
                 />
               </svg>
               <svg
-                className="absolute bottom-0 left-0 w-[200%] h-full animate-wave-slide-slow"
+                className="animate-wave-slide-slow absolute bottom-0 left-0 h-full w-[200%]"
                 viewBox="0 0 1200 120"
                 preserveAspectRatio="none"
               >
@@ -92,17 +97,19 @@ export function HostTile({
         </span>
 
         {!hasIcon && (
-          <span className="relative z-10 drop-shadow-sm text-xs">{hostLetter(label)}</span>
+          <span className="relative z-10 text-xs drop-shadow-sm">
+            {hostLetter(label)}
+          </span>
         )}
         {connected && !errored && (
           <span
-            className="border-sidebar absolute -right-0.5 -bottom-0.5 z-20 size-2.5 rounded-full border-2 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+            className="absolute -right-0.5 -bottom-0.5 z-20 size-2.5 rounded-full border-2 border-sidebar bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
             aria-hidden
           />
         )}
         {errored && (
           <span
-            className="bg-background absolute -top-1 -right-1 z-20 flex size-4 items-center justify-center rounded-full text-destructive shadow"
+            className="absolute -top-1 -right-1 z-20 flex size-4 items-center justify-center rounded-full bg-background text-destructive shadow"
             title="Connection failed"
           >
             <AlertCircle className="size-3.5" strokeWidth={2.5} />

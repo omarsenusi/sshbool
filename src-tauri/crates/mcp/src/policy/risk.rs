@@ -101,17 +101,65 @@ pub fn is_compound_command(cmd: &str) -> bool {
 
 /// Known informational read-only commands that return Tier::Safe
 static KNOWN_READONLY_COMMANDS: &[&str] = &[
-    "ls", "cat", "head", "tail", "less", "stat", "file", "du", "df", "find",
-    "grep", "awk", "sed", "ps", "top", "free", "uptime", "uname", "whoami",
-    "id", "date", "env", "which", "journalctl", "ip", "ss", "netstat", "ping",
-    "dig", "curl", "nslookup", "traceroute", "lsof", "mount", "lsblk", "sensors",
-    "echo", "printf", "pwd", "hostname",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "less",
+    "stat",
+    "file",
+    "du",
+    "df",
+    "find",
+    "grep",
+    "awk",
+    "sed",
+    "ps",
+    "top",
+    "free",
+    "uptime",
+    "uname",
+    "whoami",
+    "id",
+    "date",
+    "env",
+    "which",
+    "journalctl",
+    "ip",
+    "ss",
+    "netstat",
+    "ping",
+    "dig",
+    "curl",
+    "nslookup",
+    "traceroute",
+    "lsof",
+    "mount",
+    "lsblk",
+    "sensors",
+    "echo",
+    "printf",
+    "pwd",
+    "hostname",
 ];
 
 /// Known bounded write commands that return Tier::Write
 static KNOWN_WRITE_COMMANDS: &[&str] = &[
-    "mkdir", "touch", "cp", "mv", "ln", "chmod", "sed", "tee", "git", "apt",
-    "pip", "npm", "systemctl", "docker", "service",
+    "mkdir",
+    "touch",
+    "cp",
+    "mv",
+    "ln",
+    "chmod",
+    "sed",
+    "tee",
+    "git",
+    "apt",
+    "pip",
+    "npm",
+    "systemctl",
+    "docker",
+    "service",
 ];
 
 /// Classifies a shell command line string and assigns risk tier + human-readable reasons.
@@ -127,7 +175,10 @@ pub fn classify_command(cmd: &str) -> RiskAssessment {
     }
 
     // 2. Control character check
-    if cmd.chars().any(|c| (c as u32) < 32 && c != '\t' && c != '\n' && c != '\r') {
+    if cmd
+        .chars()
+        .any(|c| (c as u32) < 32 && c != '\t' && c != '\n' && c != '\r')
+    {
         reasons.insert("Command contains control characters".to_string());
         max_tier = Tier::Dangerous;
     }
@@ -191,15 +242,18 @@ pub fn classify_command(cmd: &str) -> RiskAssessment {
                 }
             }
             "destroy.disk_wipe" => {
-                if matches!(base_cmd, "shred" | "truncate" | "fdisk" | "parted" | "sgdisk" | "wipefs" | "dd")
-                    || lower_cmd.contains("mkfs")
+                if matches!(
+                    base_cmd,
+                    "shred" | "truncate" | "fdisk" | "parted" | "sgdisk" | "wipefs" | "dd"
+                ) || lower_cmd.contains("mkfs")
                 {
                     max_tier = max_tier.max(rule.tier);
                     reasons.insert(rule.reason.to_string());
                 }
             }
             "destroy.find_delete" => {
-                if base_cmd == "find" && (lower_cmd.contains("-delete") || lower_cmd.contains("-exec rm"))
+                if base_cmd == "find"
+                    && (lower_cmd.contains("-delete") || lower_cmd.contains("-exec rm"))
                     || lower_cmd.contains("rsync --delete")
                 {
                     max_tier = max_tier.max(rule.tier);
@@ -207,13 +261,20 @@ pub fn classify_command(cmd: &str) -> RiskAssessment {
                 }
             }
             "destroy.git_clean_reset" => {
-                if base_cmd == "git" && (lower_cmd.contains("clean -fdx") || lower_cmd.contains("reset --hard") || lower_cmd.contains("push --force")) {
+                if base_cmd == "git"
+                    && (lower_cmd.contains("clean -fdx")
+                        || lower_cmd.contains("reset --hard")
+                        || lower_cmd.contains("push --force"))
+                {
                     max_tier = max_tier.max(rule.tier);
                     reasons.insert(rule.reason.to_string());
                 }
             }
             "destroy.container_prune" => {
-                if (base_cmd == "docker" && (lower_cmd.contains("system prune") || lower_cmd.contains("volume rm") || lower_cmd.contains("rm -f")))
+                if (base_cmd == "docker"
+                    && (lower_cmd.contains("system prune")
+                        || lower_cmd.contains("volume rm")
+                        || lower_cmd.contains("rm -f")))
                     || (base_cmd == "kubectl" && lower_cmd.contains("delete"))
                     || base_cmd == "helm" && lower_cmd.contains("uninstall")
                 {
@@ -222,13 +283,19 @@ pub fn classify_command(cmd: &str) -> RiskAssessment {
                 }
             }
             "avail.system_shutdown" => {
-                if matches!(base_cmd, "shutdown" | "reboot" | "halt" | "poweroff" | "init") {
+                if matches!(
+                    base_cmd,
+                    "shutdown" | "reboot" | "halt" | "poweroff" | "init"
+                ) {
                     max_tier = max_tier.max(rule.tier);
                     reasons.insert(rule.reason.to_string());
                 }
             }
             "avail.service_stop" => {
-                if (base_cmd == "systemctl" && (lower_cmd.contains("stop") || lower_cmd.contains("disable") || lower_cmd.contains("mask")))
+                if (base_cmd == "systemctl"
+                    && (lower_cmd.contains("stop")
+                        || lower_cmd.contains("disable")
+                        || lower_cmd.contains("mask")))
                     || (base_cmd == "service" && lower_cmd.contains("stop"))
                 {
                     max_tier = max_tier.max(rule.tier);
@@ -256,14 +323,27 @@ pub fn classify_command(cmd: &str) -> RiskAssessment {
                 }
             }
             "priv.user_group_mod" => {
-                if matches!(base_cmd, "usermod" | "userdel" | "useradd" | "groupmod" | "passwd" | "chpasswd" | "visudo") {
+                if matches!(
+                    base_cmd,
+                    "usermod"
+                        | "userdel"
+                        | "useradd"
+                        | "groupmod"
+                        | "passwd"
+                        | "chpasswd"
+                        | "visudo"
+                ) {
                     max_tier = max_tier.max(rule.tier);
                     reasons.insert(rule.reason.to_string());
                 }
             }
             "pkg.remove" => {
-                if matches!(base_cmd, "apt" | "apt-get" | "dnf" | "yum" | "zypper" | "pacman" | "apk")
-                    && (lower_cmd.contains("remove") || lower_cmd.contains("purge") || lower_cmd.contains("autoremove"))
+                if matches!(
+                    base_cmd,
+                    "apt" | "apt-get" | "dnf" | "yum" | "zypper" | "pacman" | "apk"
+                ) && (lower_cmd.contains("remove")
+                    || lower_cmd.contains("purge")
+                    || lower_cmd.contains("autoremove"))
                 {
                     max_tier = max_tier.max(rule.tier);
                     reasons.insert(rule.reason.to_string());
@@ -273,7 +353,8 @@ pub fn classify_command(cmd: &str) -> RiskAssessment {
                 if lower_cmd.contains("history -c")
                     || lower_cmd.contains("journalctl --vacuum")
                     || lower_cmd.contains("unset histfile")
-                    || (lower_cmd.contains("/var/log") && (base_cmd == "rm" || base_cmd == "truncate")) =>
+                    || (lower_cmd.contains("/var/log")
+                        && (base_cmd == "rm" || base_cmd == "truncate")) =>
             {
                 max_tier = max_tier.max(rule.tier);
                 reasons.insert(rule.reason.to_string());

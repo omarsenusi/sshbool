@@ -67,10 +67,7 @@ pub async fn record_call_tx(
 }
 
 /// Standalone call record helper when outside of an active transaction.
-pub async fn record_call(
-    pool: &SqlitePool,
-    row: &CallRow,
-) -> Result<(), McpError> {
+pub async fn record_call(pool: &SqlitePool, row: &CallRow) -> Result<(), McpError> {
     let mut tx = pool.begin().await?;
     record_call_tx(&mut tx, row).await?;
     tx.commit().await?;

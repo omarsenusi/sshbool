@@ -37,10 +37,7 @@ pub async fn get_client_by_token_hash(
     Ok(row)
 }
 
-pub async fn get_client_by_id(
-    pool: &SqlitePool,
-    id: &str,
-) -> Result<Option<ClientRow>, McpError> {
+pub async fn get_client_by_id(pool: &SqlitePool, id: &str) -> Result<Option<ClientRow>, McpError> {
     let row = sqlx::query_as::<_, ClientRow>(
         "SELECT id, name, client_version, token_hash, token_sealed, token_issued_at, token_expires_at, workspace_id, mode, strict_plans, enabled, suspended_reason, paired_at, last_seen_at, updated_at FROM mcp_clients WHERE id = ?",
     )

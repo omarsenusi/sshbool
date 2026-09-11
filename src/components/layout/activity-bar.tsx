@@ -40,7 +40,7 @@ export function ActivityBar() {
 
   return (
     <nav
-      className="bg-sidebar border-border flex w-[var(--activitybar-w)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r py-2"
+      className="flex w-[var(--activitybar-w)] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-border bg-sidebar py-2"
       aria-label="Activity"
     >
       {items.map(({ id, icon: Icon, label }) => (
@@ -53,7 +53,8 @@ export function ActivityBar() {
           aria-current={activity === id ? "page" : undefined}
           className={cn(
             "text-muted-foreground",
-            activity === id && "bg-sidebar-accent text-sidebar-accent-foreground",
+            activity === id &&
+              "bg-sidebar-accent text-sidebar-accent-foreground"
           )}
           onClick={() => setActivity(id)}
         >

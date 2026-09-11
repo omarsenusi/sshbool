@@ -66,10 +66,18 @@ fn test_no_vault_symbols_in_crate() {
 fn test_redaction_covers_all_sensitive_patterns() {
     let test_cases = [
         ("AWS Key", "AKIA1234567890ABCDEF", "[REDACTED]"),
-        ("GitHub Token", "ghp_123456789012345678901234567890123456", "[REDACTED]"),
+        (
+            "GitHub Token",
+            "ghp_123456789012345678901234567890123456",
+            "[REDACTED]",
+        ),
         ("OpenAI Key", "sk-12345678901234567890", "[REDACTED]"),
         ("Slack Token", "xoxb-1234567890-1234567890", "[REDACTED]"),
-        ("MCP Token", "sbmcp_123456789012345678901234567890", "[REDACTED]"),
+        (
+            "MCP Token",
+            "sbmcp_123456789012345678901234567890",
+            "[REDACTED]",
+        ),
     ];
 
     for (label, input, expected) in test_cases {

@@ -1,20 +1,12 @@
 import { check } from "@tauri-apps/plugin-updater"
 import { listen } from "@tauri-apps/api/event"
 
-import {
-  GITHUB_LATEST_RELEASE_URL,
-  type UpdateCheckResult,
-} from "@/lib/api"
+import { GITHUB_LATEST_RELEASE_URL, type UpdateCheckResult } from "@/lib/api"
 import { ipc } from "@/lib/ipc/commands"
 import type { AppInfoDto } from "@/lib/ipc/types"
 
 export type UpdatePhase =
-  | "idle"
-  | "checking"
-  | "downloading"
-  | "installing"
-  | "done"
-  | "error"
+  "idle" | "checking" | "downloading" | "installing" | "done" | "error"
 
 export type UpdateInstallMode = "ota" | "direct" | "github"
 
@@ -43,12 +35,15 @@ export function isUpdaterSupported(): boolean {
 
 export function calcUpdatePercent(
   downloadedBytes: number,
-  totalBytes: number,
+  totalBytes: number
 ): number | null {
   if (totalBytes <= 0) {
     return null
   }
-  return Math.min(100, Math.max(0, Math.round((downloadedBytes / totalBytes) * 100)))
+  return Math.min(
+    100,
+    Math.max(0, Math.round((downloadedBytes / totalBytes) * 100))
+  )
 }
 
 export function getGithubFallbackUrl(update: UpdateCheckResult): string {
@@ -62,7 +57,7 @@ export function hasPlatformPackage(update: UpdateCheckResult): boolean {
 export function canUseOta(
   update: UpdateCheckResult,
   appInfo?: AppInfoDto | null,
-  prod = isUpdaterSupported(),
+  prod = isUpdaterSupported()
 ): boolean {
   return prod && update.can_install_in_app && (appInfo?.isPackaged ?? true)
 }
@@ -70,7 +65,7 @@ export function canUseOta(
 export function resolveInstallMode(
   update: UpdateCheckResult,
   appInfo?: AppInfoDto | null,
-  prod = isUpdaterSupported(),
+  prod = isUpdaterSupported()
 ): UpdateInstallMode {
   if (canUseOta(update, appInfo, prod)) {
     return "ota"
@@ -95,14 +90,14 @@ export function usesGithubFallback(update: UpdateCheckResult): boolean {
 /** Whether the startup/settings update prompt should begin install without a click. */
 export function shouldAutoInstallOnPrompt(
   autoUpdateEnabled: boolean,
-  isForced = false,
+  isForced = false
 ): boolean {
   return autoUpdateEnabled || isForced
 }
 
 export function getPlatformInstallSummary(
   update: UpdateCheckResult,
-  appInfo?: AppInfoDto | null,
+  appInfo?: AppInfoDto | null
 ): string | null {
   if (!hasPlatformPackage(update)) {
     return null
@@ -123,7 +118,7 @@ export function getPlatformInstallSummary(
 export function getInstallButtonLabel(
   update: UpdateCheckResult,
   progress?: UpdaterProgress,
-  installing = false,
+  installing = false
 ): string {
   if (usesGithubFallback(update)) {
     return "View on GitHub"
@@ -149,7 +144,9 @@ export function getInstallButtonLabel(
 
 function installerFileName(url: string, version: string): string {
   try {
-    const name = decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "")
+    const name = decodeURIComponent(
+      new URL(url).pathname.split("/").pop() ?? ""
+    )
     if (name) {
       return name
     }
@@ -161,7 +158,7 @@ function installerFileName(url: string, version: string): string {
 
 export function getInstallCompleteMessage(
   mode: UpdateInstallMode,
-  appInfo?: AppInfoDto | null,
+  appInfo?: AppInfoDto | null
 ): string {
   if (mode === "ota") {
     return "Update installed. Restart SSHBool to finish."
@@ -176,13 +173,15 @@ export function getDonePhaseLabel(mode: UpdateInstallMode): string {
   return mode === "ota" ? "Update installed" : "Installer opened"
 }
 
-export async function openGithubFallback(update: UpdateCheckResult): Promise<void> {
+export async function openGithubFallback(
+  update: UpdateCheckResult
+): Promise<void> {
   const { openUrl } = await import("@tauri-apps/plugin-opener")
   await openUrl(getGithubFallbackUrl(update))
 }
 
 export async function runOtaInstall(
-  onProgress: (progress: UpdaterProgress) => void,
+  onProgress: (progress: UpdaterProgress) => void
 ): Promise<void> {
   onProgress({ phase: "checking" })
 
@@ -194,7 +193,12 @@ export async function runOtaInstall(
   let downloadedBytes = 0
   let totalBytes = 0
 
-  onProgress({ phase: "downloading", downloadedBytes: 0, totalBytes: 0, percent: null })
+  onProgress({
+    phase: "downloading",
+    downloadedBytes: 0,
+    totalBytes: 0,
+    percent: null,
+  })
 
   await update.downloadAndInstall((event) => {
     switch (event.event) {
@@ -238,7 +242,7 @@ export async function runOtaInstall(
 
 export async function runDirectInstall(
   update: UpdateCheckResult,
-  onProgress: (progress: UpdaterProgress) => void,
+  onProgress: (progress: UpdaterProgress) => void
 ): Promise<void> {
   const url = update.platform_download_url
   if (!url) {
@@ -246,7 +250,12 @@ export async function runDirectInstall(
   }
 
   const version = update.latest_version ?? update.current_version
-  onProgress({ phase: "downloading", downloadedBytes: 0, totalBytes: 0, percent: null })
+  onProgress({
+    phase: "downloading",
+    downloadedBytes: 0,
+    totalBytes: 0,
+    percent: null,
+  })
 
   let lastDownloaded = 0
   let lastTotal = 0
@@ -315,10 +324,14 @@ export async function installUpdate({
 }
 
 export function isActiveUpdatePhase(phase: UpdatePhase): boolean {
-  return phase === "checking" || phase === "downloading" || phase === "installing"
+  return (
+    phase === "checking" || phase === "downloading" || phase === "installing"
+  )
 }
 
-export function isInterruptedSession(session: PersistedUpdateSession | null): boolean {
+export function isInterruptedSession(
+  session: PersistedUpdateSession | null
+): boolean {
   if (!session) {
     return false
   }
